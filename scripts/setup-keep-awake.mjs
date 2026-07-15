@@ -17,7 +17,7 @@ function parseEnv(source) {
       .filter((line) => line && !line.startsWith('#') && line.includes('='))
       .map((line) => {
         const separator = line.indexOf('=');
-        const key = line.slice(0, separator).trim();
+        const key = line.slice(0, separator).trim().toUpperCase();
         const value = line.slice(separator + 1).trim().replace(/^(['"])(.*)\1$/, '$2');
         return [key, value];
       })

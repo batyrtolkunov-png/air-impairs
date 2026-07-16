@@ -302,18 +302,6 @@ export default function App() {
     setGameVolume(volume / 100);
   }, [volume]);
   useEffect(() => {
-    if (!registered && !guest) {
-      setMenuOpen(true);
-      setGameStarted(false);
-      setPauseOpen(false);
-      setSettingsOpen(false);
-      setDeviceOpen(false);
-      setModeOpen(false);
-      setRegistrationOpen(true);
-      setRegistrationMessage("Для игры необходимо зарегистрироваться или войти через Google.");
-    }
-  }, [guest, registered]);
-  useEffect(() => {
     if (!mobileControls) {
       setMobilePortrait(false);
       return;

@@ -199,6 +199,7 @@ export default function App() {
   const [deviceOpen, setDeviceOpen] = useState(false);
   const [mobileControls, setMobileControls] = useState(false);
   const [mobilePortrait, setMobilePortrait] = useState(false);
+  const [fullscreenHint, setFullscreenHint] = useState("");
   const [modeOpen, setModeOpen] = useState(false);
   const [players, setPlayers] = useState<1 | 2>(1);
   const [gameStarted, setGameStarted] = useState(false);
@@ -366,6 +367,15 @@ export default function App() {
       beginCutscene(1);
     }
     else setModeOpen(true);
+  };
+  const enterMobileFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) await document.documentElement.requestFullscreen({ navigationUI: "hide" });
+      try { await (screen.orientation as ScreenOrientation & { lock?: (mode: string) => Promise<void> }).lock?.("landscape"); } catch { /* unsupported */ }
+      setFullscreenHint("");
+    } catch {
+      setFullscreenHint("На iPhone: Поделиться → На экран Домой → открой игру с иконки");
+    }
   };
   const beginGame = (
     count: 1 | 2,
@@ -995,6 +1005,8 @@ export default function App() {
       )}
       {menuOpen && (
         <section className="main-menu" aria-label={t.settings}>
+          <button className="mobile-fullscreen-button" onClick={enterMobileFullscreen}><i>⛶</i><span>НА ВЕСЬ ЭКРАН</span></button>
+          {fullscreenHint && <p className="mobile-fullscreen-hint">{fullscreenHint}</p>}
           <div className="menu-mist mist-one" />
           <div className="menu-mist mist-two" />
           {!settingsOpen && !registrationOpen && !deviceOpen && !modeOpen ? (

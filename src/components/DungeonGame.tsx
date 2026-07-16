@@ -187,8 +187,8 @@ function drawMerchant(ctx: CanvasRenderingContext2D, x: number, y: number) {
   ctx.fillStyle = '#172019'; ctx.fillRect(x - 28, y - 42, 106, 15); ctx.strokeStyle = '#cfae60'; ctx.lineWidth = 2; ctx.strokeRect(x - 28, y - 42, 106, 15); ctx.fillStyle = '#f0d780'; ctx.font = 'bold 7px monospace'; ctx.fillText('ТОРГОВЕЦ · E', x - 20, y - 32);
 }
 
-function drawMinimap(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLevel>, level: number, hero: Point, enemies: Enemy[], chestDrops: LootDrop[], openedChests: number[], explored: Point[]) {
-  const x = 8, y = 8, width = 135, height = 74, sx = width / map.worldWidth, sy = height / map.worldHeight;
+function drawMinimap(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLevel>, level: number, hero: Point, enemies: Enemy[], chestDrops: LootDrop[], openedChests: number[], explored: Point[], mobileControls = false) {
+  const x = 8, y = mobileControls ? 58 : 8, width = 135, height = 74, sx = width / map.worldWidth, sy = height / map.worldHeight;
   ctx.fillStyle = 'rgba(5,9,8,.9)'; ctx.fillRect(x - 3, y - 3, width + 6, height + 14); ctx.strokeStyle = '#a68b58'; ctx.lineWidth = 2; ctx.strokeRect(x - 2, y - 2, width + 4, height + 4);
   ctx.save(); ctx.beginPath(); ctx.rect(x, y, width, height); ctx.clip(); ctx.fillStyle = map.floor[0]; ctx.fillRect(x, y, width, height);
   if (map.round) { ctx.fillStyle = '#09100c'; ctx.fillRect(x, y, width, height); ctx.fillStyle = map.floor[1]; ctx.beginPath(); ctx.ellipse(x + width / 2, y + height / 2, width / 2, height / 2, 0, 0, Math.PI * 2); ctx.fill(); }
@@ -514,7 +514,7 @@ function drawScene(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLeve
   drawVisibleHitboxes(ctx, map, enemies, hero, secondHero);
   const fog = document.createElement('canvas'); fog.width = map.worldWidth; fog.height = map.worldHeight; const fogCtx = fog.getContext('2d'); if (fogCtx) { fogCtx.fillStyle = 'rgba(1,4,3,.94)'; fogCtx.fillRect(0, 0, map.worldWidth, map.worldHeight); fogCtx.globalCompositeOperation = 'destination-out'; explored.forEach((point) => { const gradient = fogCtx.createRadialGradient(point.x, point.y, 160, point.x, point.y, 190); gradient.addColorStop(0, 'rgba(0,0,0,1)'); gradient.addColorStop(1, 'rgba(0,0,0,0)'); fogCtx.fillStyle = gradient; fogCtx.beginPath(); fogCtx.arc(point.x, point.y, 190, 0, Math.PI * 2); fogCtx.fill(); }); ctx.drawImage(fog, 0, 0); }
   ctx.restore();
-  drawMinimap(ctx, map, level, hero, enemies, chestDrops, openedChests, explored);
+  drawMinimap(ctx, map, level, hero, enemies, chestDrops, openedChests, explored, mobileControls);
   const boss = enemies.find((enemy) => enemy.kind === 'boss');
   if (boss) {
     ctx.fillStyle = '#251914'; ctx.fillRect(151, 6, 338, 31); ctx.fillStyle = '#6c482b'; ctx.fillRect(156, 9, 328, 25); ctx.fillStyle = '#171012'; ctx.fillRect(162, 12, 316, 19);

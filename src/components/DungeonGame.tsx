@@ -634,7 +634,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
   const [superReloading, setSuperReloading] = useState(false);
   const [superReloading2, setSuperReloading2] = useState(false);
   const [teammateFallen, setTeammateFallen] = useState(false);
-  const [message, setMessage] = useState(tutorial ? 'ОБУЧЕНИЕ: двигайся клавишами WASD. Второй игрок использует стрелки.' : 'Найди старый сундук в северо-восточной части зала.');
+  const [, setMessage] = useState(tutorial ? 'ОБУЧЕНИЕ: двигайся клавишами WASD. Второй игрок использует стрелки.' : 'Найди старый сундук в северо-восточной части зала.');
 
   useEffect(() => { onShopOpenChange?.(shopOpen); return () => onShopOpenChange?.(false); }, [onShopOpenChange, shopOpen]);
 
@@ -1024,6 +1024,6 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
       {showInventory && <div className="inventory-panel"><div className="inventory-title"><div><small>РЮКЗАК · ИГРОК {inventoryOwner}</small><strong>{visibleInventory.length}/{visibleCapacity} МЕСТ</strong></div><button onClick={() => { keys.current.clear(); setShowInventory(false); }}>✕</button></div><div className="inventory-grid">{Array.from({ length: visibleCapacity }, (_, index) => { const item = visibleInventory[index]; return <button key={index} className={`inventory-slot ${item ? 'filled' : ''}`} onClick={() => item && equipInventoryItem(item)} title={item?.name}>{item ? <><span>{item.type === 'bow' ? '🏹' : item.type === 'staff' ? '🔮' : item.type === 'gloves' ? '✊' : item.type === 'armor' ? '🛡️' : '⚔️'}</span><small>{item.name}</small><b>{item.type === 'armor' ? `🛡${item.durability}` : `⚔${item.damage}`}</b></> : <i>{index + 1}</i>}</button>; })}</div><div className="inventory-footer"><span>ОСКОЛКИ: {coins}</span><strong className="medkit-count">🧰 АПТЕЧКИ: {inventoryOwner === 2 ? medkits2 : medkits}/5</strong>{visibleCapacity < 30 ? <button onClick={upgradeInventory}>УЛУЧШИТЬ ДО {visibleCapacity === 10 ? 20 : 30} · {visibleCapacity === 10 ? 100 : 250}</button> : <b>МАКСИМУМ: 30</b>}</div></div>}
       {choiceItem && <div className="loot-choice"><div className="loot-icon">{choiceItem.type === 'bow' ? '🏹' : choiceItem.type === 'staff' ? '🔮' : choiceItem.type === 'gloves' ? '✊' : choiceItem.type === 'armor' ? '🛡️' : '⚔️'}</div><small>НАЙДЕН ПРЕДМЕТ</small><strong>{choiceItem.name}</strong><p>{choiceItem.type === 'armor' ? `Прочность: ${choiceItem.durability}` : `Урон: ${choiceItem.damage}`}</p><div><button onClick={acceptItem}>В РЮКЗАК</button><button className="secondary" onClick={rejectItem}>ОСТАВИТЬ</button></div></div>}
       {(dead || victory) && <div className="death-screen"><strong>{victory ? 'ПОЗДРАВЛЯЕМ!' : 'ТЫ ПАЛ'}</strong><p>{victory ? level === 12 ? 'Владыка гробниц повержен — Жаркая пустыня освобождена!' : 'Великий гоблин повержен — все шесть подземелий пройдены!' : 'Пепельное сердце погасло'}</p><button onClick={restart}>{victory ? 'СЫГРАТЬ ЕЩЁ' : 'НАЧАТЬ ЗАНОВО'}</button></div>}
-    </div><div className="dialogue"><i>✦</i><p>{message}</p></div>
+    </div>
   </section>;
 }

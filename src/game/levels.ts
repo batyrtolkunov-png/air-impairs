@@ -124,7 +124,7 @@ export function getLevel(number: number): LevelConfig {
   const carts = round ? [] : Array.from({ length: 7 + localNumber }, (_, cartIndex) => { const lane = cartIndex % 3; return { x: 220 + random() * 1420, y: [102, 318, 534][lane] }; });
   const enemies: EnemySpawn[] = round
     ? [{ x: 320, y: 260, kind: 'boss' }]
-    : Array.from({ length: Math.floor((1 + localNumber) * 20 * (regionIndex === 2 ? .8 : 1)) }, (_, index) => ({
+    : Array.from({ length: Math.floor((1 + localNumber) * 20 * (regionIndex === 2 ? .4 : 1)) }, (_, index) => ({
       ...safePoint(), kind: index % 4 === 3 ? (regionIndex === 1 ? 'mummy' as const : regionIndex === 2 ? 'iceGolem' as const : 'goblin' as const) : (regionIndex === 1 ? 'scorpion' as const : 'slime' as const),
     }));
   const decorations: Decoration[] = [];

@@ -196,6 +196,8 @@ export default function App() {
   const pendingSaveSlot = useRef(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [registrationOpen, setRegistrationOpen] = useState(false);
+  const [deviceOpen, setDeviceOpen] = useState(false);
+  const [mobileControls, setMobileControls] = useState(false);
   const [modeOpen, setModeOpen] = useState(false);
   const [players, setPlayers] = useState<1 | 2>(1);
   const [gameStarted, setGameStarted] = useState(false);
@@ -345,7 +347,14 @@ export default function App() {
   const startNewGame = () => {
     setSettingsOpen(false);
     setRegistrationOpen(false);
-    setModeOpen(true);
+    setModeOpen(false);
+    setDeviceOpen(true);
+  };
+  const chooseDevice = (mobile: boolean) => {
+    setMobileControls(mobile);
+    setDeviceOpen(false);
+    if (mobile) beginCutscene(1);
+    else setModeOpen(true);
   };
   const beginGame = (
     count: 1 | 2,
@@ -535,7 +544,7 @@ export default function App() {
     const completed = Math.min(5, Math.ceil(finishedLevel / 6));
     setCompletedRegions((current) => Math.max(current, completed));
     if (finishedLevel === 6) setEndingStep(0);
-    else if (finishedLevel === 12) setMerchantMode(true);
+    else if (finishedLevel === 12 || finishedLevel === 18) setMerchantMode(true);
     else setWorldMapOpen(true);
   };
   const travelToRegion = (regionIndex: number) => {
@@ -575,6 +584,7 @@ export default function App() {
           onSaveSnapshot={storeSnapshot}
           onVictory={handleVictory}
           onShopOpenChange={setMerchantShopOpen}
+          mobileControls={mobileControls}
         />
       )}
       {classPlayers && (
@@ -994,7 +1004,7 @@ export default function App() {
         <section className="main-menu" aria-label={t.settings}>
           <div className="menu-mist mist-one" />
           <div className="menu-mist mist-two" />
-          {!settingsOpen && !registrationOpen && !modeOpen ? (
+          {!settingsOpen && !registrationOpen && !deviceOpen && !modeOpen ? (
             <>
               <button
                 className="calendar-menu-button"
@@ -1050,6 +1060,16 @@ export default function App() {
               <p className="menu-message">{t.choose}</p>
               <small>{t.controls}</small>
             </>
+          ) : deviceOpen ? (
+            <div className="settings-panel device-panel">
+              <h2>ВЫБЕРИ УСТРОЙСТВО</h2>
+              <p>Как ты будешь управлять героем?</p>
+              <div className="device-options">
+                <button onClick={() => chooseDevice(false)}><i className="device-pc" /><strong>КОМПЬЮТЕР</strong><small>Клавиатура и клавиши действий</small></button>
+                <button onClick={() => chooseDevice(true)}><i className="device-phone" /><strong>ТЕЛЕФОН</strong><small>Джойстик и сенсорные кнопки</small></button>
+              </div>
+              <button className="settings-back" onClick={() => setDeviceOpen(false)}>← НАЗАД</button>
+            </div>
           ) : settingsOpen ? (
             <div className="settings-panel">
               <h2>{t.settingsTitle}</h2>
@@ -1235,7 +1255,7 @@ export default function App() {
               </button>
             </div>
           )}
-          {!settingsOpen && !registrationOpen && !modeOpen && (
+          {!settingsOpen && !registrationOpen && !deviceOpen && !modeOpen && (
             <nav className="main-bottom-tabs" aria-label="Разделы главного меню">
               <button className={menuTab === "home" ? "active" : ""} onClick={() => openMenuTab("home")}><i className="tab-home" /><span>ДОМ</span></button>
               <button className={menuTab === "journal" ? "active" : ""} onClick={() => openMenuTab("journal")}><i className="tab-journal" /><span>ДНЕВНИК</span></button>

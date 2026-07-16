@@ -410,8 +410,8 @@ function drawHero(ctx: CanvasRenderingContext2D, p: Point, attackProgress: numbe
 function drawScene(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLevel>, hero: Point, enemies: Enemy[], projectiles: Projectile[], superFists: SuperFist[], swordUltimates: SwordUltimate[], bowUltimates: BowUltimate[], staffUltimates: StaffUltimate[], glovesUltimates: GlovesUltimate[], waves: MagicWave[], sandTornadoes: SandTornado[], tombs: Tomb[], now: number, openedChests: number[], chestDrops: LootDrop[], attackProgress: number, loot: Point | null, droppedItem: Weapon | null, level: number, weapon: Weapon | null, weapon2: Weapon | null, armor: Weapon | null, facing: Point, moving: boolean, health: number, superReloading: boolean, profileName: string, secondHero: Point | null, secondFacing: Point, secondMoving: boolean, secondHealth: number, superReloading2: boolean, attackProgress2: number, armor2: Weapon | null, skin: HeroSkin, skin2: HeroSkin, explored: Point[], mobileControls = false) {
   ctx.fillStyle = map.round ? '#0c1510' : map.floor[0]; ctx.fillRect(0, 0, WIDTH, HEIGHT);
   const cameraZoom = .5, viewWidth = WIDTH / cameraZoom, viewHeight = HEIGHT / cameraZoom;
-  const cameraX = map.worldWidth <= viewWidth ? (map.worldWidth - viewWidth) / 2 : Math.max(0, Math.min(map.worldWidth - viewWidth, hero.x - viewWidth / 2));
-  const cameraY = map.worldHeight <= viewHeight ? (map.worldHeight - viewHeight) / 2 : Math.max(0, Math.min(map.worldHeight - viewHeight, hero.y - viewHeight / 2)); ctx.save(); ctx.scale(cameraZoom, cameraZoom); ctx.translate(-cameraX, -cameraY);
+  const cameraX = hero.x + 12 - viewWidth / 2;
+  const cameraY = hero.y + 14 - viewHeight / 2; ctx.save(); ctx.scale(cameraZoom, cameraZoom); ctx.translate(-cameraX, -cameraY);
   if (map.round) { ctx.save(); ctx.beginPath(); ctx.arc(320, 336, 336, 0, Math.PI * 2); ctx.clip(); ctx.fillStyle = map.floor[0]; ctx.fillRect(0, 0, map.worldWidth, map.worldHeight); }
   for (let y = 32; y < map.worldHeight - 32; y += 64) for (let x = 32; x < map.worldWidth - 32; x += 64) {
     ctx.fillStyle = (x / 64 + y / 64) % 2 ? map.floor[0] : map.floor[1]; ctx.fillRect(x, y, 64, 64);

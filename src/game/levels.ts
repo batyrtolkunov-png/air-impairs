@@ -113,7 +113,7 @@ export function getLevel(number: number): LevelConfig {
       const point = { x: round ? 180 + Math.floor(random() * 9) * 32 : 75 + Math.floor(random() * 54) * 32, y: 55 + Math.floor(random() * (round ? 9 : 17)) * 32 };
       if (round && Math.hypot(point.x + 14 - 320, point.y + 14 - 200) > 135) continue;
       if (!round && !isInsideFourWayRoute(point.x + 14, point.y + 14)) continue;
-      const insideWall = walls.slice(4).some((wall) => point.x + 28 > wall.x - 32 && point.x < wall.x + wall.w + 32 && point.y + 28 > wall.y - 32 && point.y < wall.y + wall.h + 32);
+      const insideWall = walls.some((wall) => point.x + 28 > wall.x - 32 && point.x < wall.x + wall.w + 32 && point.y + 28 > wall.y - 32 && point.y < wall.y + wall.h + 32);
       const reserved = round ? point.x < 215 || point.x > 430 : point.x < 145 && point.y > 140 || point.x > worldWidth - 110 && point.y > 120 && point.y < 270;
       if (!insideWall && !reserved && occupied.every((other) => Math.hypot(point.x - other.x, point.y - other.y) > 50)) { occupied.push(point); return point; }
     }

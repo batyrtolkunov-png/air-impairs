@@ -193,7 +193,7 @@ function drawMinimap(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLe
   ctx.save(); ctx.beginPath(); ctx.rect(x, y, width, height); ctx.clip(); ctx.fillStyle = map.floor[0]; ctx.fillRect(x, y, width, height);
   if (map.round) { ctx.fillStyle = '#09100c'; ctx.fillRect(x, y, width, height); ctx.fillStyle = map.floor[1]; ctx.beginPath(); ctx.ellipse(x + width / 2, y + height / 2, width / 2, height / 2, 0, 0, Math.PI * 2); ctx.fill(); }
   else { ctx.strokeStyle = '#987b50'; ctx.lineWidth = 5; ctx.beginPath(); ROUTE_POINTS.forEach((point, index) => { const px = x + point.x * sx, py = y + point.y * sy; if (index === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py); }); ctx.stroke(); }
-  ctx.fillStyle = '#15251b'; map.walls.slice(4).forEach((wall) => ctx.fillRect(x + wall.x * sx, y + wall.y * sy, Math.max(1, wall.w * sx), Math.max(1, wall.h * sy)));
+  ctx.fillStyle = '#15251b'; map.walls.forEach((wall) => ctx.fillRect(x + wall.x * sx, y + wall.y * sy, Math.max(1, wall.w * sx), Math.max(1, wall.h * sy)));
   map.chests.forEach((chest, index) => { const drop = chestDrops[index]; if (!drop) return; const cx = x + chest.x * sx, cy = y + chest.y * sy; ctx.globalAlpha = openedChests.includes(index) ? .35 : 1; ctx.fillStyle = '#17120f'; ctx.fillRect(cx - 6, cy - 6, 12, 12); ctx.fillStyle = drop.rarity.color; ctx.fillRect(cx - 4, cy - 4, 8, 8); ctx.fillStyle = '#ffe58a'; ctx.fillRect(cx - 1, cy - 2, 3, 5); ctx.globalAlpha = 1; });
   enemies.forEach((enemy) => { const ex = x + enemy.x * sx, ey = y + enemy.y * sy; ctx.fillStyle = '#ff394f'; ctx.beginPath(); ctx.moveTo(ex, ey - 4); ctx.lineTo(ex + 4, ey); ctx.lineTo(ex, ey + 4); ctx.lineTo(ex - 4, ey); ctx.closePath(); ctx.fill(); });
   const hx = x + hero.x * sx, hy = y + hero.y * sy; ctx.fillStyle = '#63ecff'; ctx.beginPath(); ctx.arc(hx, hy, 4, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke(); ctx.restore();
@@ -783,7 +783,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
             const angle = Math.random() * Math.PI * 2; const radius = 76 + Math.random() * 54;
             const x = p.x + Math.cos(angle) * radius; const y = p.y + Math.sin(angle) * radius;
             const outsideRoute = level !== 0 && !isInsideFourWayRoute(x + 14, y + 14);
-            const hitsWall = map.walls.slice(4).some((wall) => x + 28 > wall.x && x < wall.x + wall.w && y + 28 > wall.y && y < wall.y + wall.h);
+            const hitsWall = map.walls.some((wall) => x + 28 > wall.x && x < wall.x + wall.w && y + 28 > wall.y && y < wall.y + wall.h);
             const hitsCart = map.carts.some((cart) => x + 28 > cart.x - 5 && x < cart.x + 45 && y + 28 > cart.y && y < cart.y + 36);
             if (!outsideRoute && !hitsWall && !hitsCart && spawns.every((spawn) => Math.hypot(spawn.x - x, spawn.y - y) > 16)) { spawns.push({ x, y, kind: index % 3 === 2 ? 'goblin' : 'slime' }); break; }
           }
@@ -795,7 +795,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
       let dx = health > 0 ? mobileMove.current.x * speed : 0, dy = health > 0 ? mobileMove.current.y * speed : 0; if (health > 0) { if (keys.current.has('KeyA') || players === 1 && keys.current.has('ArrowLeft')) dx -= speed; if (keys.current.has('KeyD') || players === 1 && keys.current.has('ArrowRight')) dx += speed;
       if (keys.current.has('KeyW') || players === 1 && keys.current.has('ArrowUp')) dy -= speed; if (keys.current.has('KeyS') || players === 1 && keys.current.has('ArrowDown')) dy += speed; }
       if (dx || dy) { const length = Math.hypot(dx, dy); facing.current = { x: dx / length, y: dy / length }; }
-      const playerBlocked = (x: number, y: number) => map.round && Math.hypot(x + 12 - 320, y + 14 - 336) > 306 || level !== 0 && !map.round && !isInsideFourWayRoute(x + 12, y + 14) || map.carts.some((cart) => x + 24 > cart.x - 5 && x < cart.x + 45 && y + 28 > cart.y && y < cart.y + 36) || map.walls.slice(4).some((wall) => x + 24 > wall.x && x < wall.x + wall.w && y + 28 > wall.y && y < wall.y + wall.h) || merchantMode && (level === 6 || level === 12 || level === 18) && x + 24 > MERCHANT.hitbox.x && x < MERCHANT.hitbox.x + MERCHANT.hitbox.w && y + 28 > MERCHANT.hitbox.y && y < MERCHANT.hitbox.y + MERCHANT.hitbox.h;
+      const playerBlocked = (x: number, y: number) => map.round && Math.hypot(x + 12 - 320, y + 14 - 336) > 306 || level !== 0 && !map.round && !isInsideFourWayRoute(x + 12, y + 14) || map.carts.some((cart) => x + 24 > cart.x - 5 && x < cart.x + 45 && y + 28 > cart.y && y < cart.y + 36) || map.walls.some((wall) => x + 24 > wall.x && x < wall.x + wall.w && y + 28 > wall.y && y < wall.y + wall.h) || merchantMode && (level === 6 || level === 12 || level === 18) && x + 24 > MERCHANT.hitbox.x && x < MERCHANT.hitbox.x + MERCHANT.hitbox.w && y + 28 > MERCHANT.hitbox.y && y < MERCHANT.hitbox.y + MERCHANT.hitbox.h;
       const moveSliding = (actor: Point, moveX: number, moveY: number) => { const targetX = Math.max(34, Math.min(map.worldWidth - 60, actor.x + moveX)); const targetY = Math.max(34, Math.min(map.worldHeight - 64, actor.y + moveY)); if (!playerBlocked(targetX, actor.y)) actor.x = targetX; if (!playerBlocked(actor.x, targetY)) actor.y = targetY; };
       const oldX = p.x, oldY = p.y; moveSliding(p, dx, dy); if ((p.x !== oldX || p.y !== oldY) && now >= nextFootstepAt.current) { playFootstep(); nextFootstepAt.current = now + 280; }
       let dx2 = 0, dy2 = 0; const p2 = hero2.current;
@@ -865,7 +865,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
         else setHealth((current) => { const next = Math.max(0, current - amount); if (current > 0 && next === 0) { if (players === 1 || health2 <= 0) { setDead(true); keys.current.clear(); setMessage('Тьма поглотила героя…'); } else showTeammateFallen(); } else if (hitMessage) setMessage(`${hitMessage} Получено ${amount} урона.`); return next; });
       };
       enemies.current.forEach((e) => {
-        const sees = (target: Point) => { const from = { x: e.x + 14, y: e.y + 14 }, to = { x: target.x + 12, y: target.y + 14 }; return !map.walls.slice(4).some((wall) => segmentHitsRect(from, to, wall)) && !map.carts.some((cart) => segmentHitsRect(from, to, { x: cart.x - 5, y: cart.y, w: 50, h: 36 })); };
+        const sees = (target: Point) => { const from = { x: e.x + 14, y: e.y + 14 }, to = { x: target.x + 12, y: target.y + 14 }; return !map.walls.some((wall) => segmentHitsRect(from, to, wall)) && !map.carts.some((cart) => segmentHitsRect(from, to, { x: cart.x - 5, y: cart.y, w: 50, h: 36 })); };
         e.flash--; const distance1 = health > 0 && sees(p) ? Math.hypot(p.x - e.x, p.y - e.y) : Infinity; const distance2 = players === 2 && health2 > 0 && sees(p2) ? Math.hypot(p2.x - e.x, p2.y - e.y) : Infinity; const targetsSecond = distance2 < distance1; const targetHero = targetsSecond ? p2 : p; const ex = targetHero.x - e.x, ey = targetHero.y - e.y, distance = Math.min(distance1, distance2);
         if (e.kind === 'boss' && now >= (e.nextContactAt ?? 0)) { const firstTouches = health > 0 && bossBodyHits({ x: p.x + 12, y: p.y + 14 }, e, 12); const secondTouches = players === 2 && health2 > 0 && bossBodyHits({ x: p2.x + 12, y: p2.y + 14 }, e, 12); if (firstTouches || secondTouches) { damageHero(.5, 'Касание туловища босса обжигает героя!', !firstTouches && secondTouches); e.nextContactAt = now + 700; } }
         if (e.stunnedUntil > now) return;
@@ -918,7 +918,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
           const canMoveTo = (x: number, y: number) => {
             const outsideArena = map.round && Math.hypot(x + 14 - 320, y + 14 - 336) > 306;
             const outsideRoute = level !== 0 && !map.round && !isInsideFourWayRoute(x + 14, y + 14);
-            const hitsWall = map.walls.slice(4).some((w) => x + 26 > w.x - wallGap && x < w.x + w.w + wallGap && y + 28 > w.y - wallGap && y < w.y + w.h + wallGap);
+            const hitsWall = map.walls.some((w) => x + 26 > w.x - wallGap && x < w.x + w.w + wallGap && y + 28 > w.y - wallGap && y < w.y + w.h + wallGap);
             const hitsCart = map.carts.some((cart) => x + 26 > cart.x - 5 - wallGap && x < cart.x + 45 + wallGap && y + 28 > cart.y - wallGap && y < cart.y + 36 + wallGap);
             return !outsideArena && !outsideRoute && !hitsWall && !hitsCart;
           };

@@ -1033,6 +1033,7 @@ export default function App() {
       {menuOpen && menuTab === "home" && (
         <div className="menu-tab-overlay">
           <section className="menu-tab-panel home-tab-panel">
+            <button className="menu-tab-close" onClick={() => openMenuTab("main")} aria-label="Закрыть">✕</button>
             <div className="pets-paw-icon">
               <i />
               <b />
@@ -1051,6 +1052,7 @@ export default function App() {
       {menuOpen && menuTab === "inventory" && (
         <div className="menu-tab-overlay">
           <section className="menu-tab-panel collection-panel">
+            <button className="menu-tab-close" onClick={() => openMenuTab("main")} aria-label="Закрыть">✕</button>
             <small>СОБРАННЫЕ СОКРОВИЩА</small>
             <h2>ИНВЕНТАРЬ</h2>
             <div className="inventory-wallet">
@@ -1088,6 +1090,7 @@ export default function App() {
       {menuOpen && menuTab === "journal" && (
         <div className="menu-tab-overlay">
           <section className="menu-tab-panel journal-panel">
+            <button className="menu-tab-close" onClick={() => openMenuTab("main")} aria-label="Закрыть">✕</button>
             <small>ЗАПИСИ О СОЗДАНИЯХ</small>
             <h2>ДНЕВНИК МОНСТРОВ</h2>
             <div className="journal-grid">
@@ -1115,7 +1118,7 @@ export default function App() {
           <section className="boutique-panel">
             <button
               className="calendar-close"
-              onClick={() => setBoutiqueOpen(false)}
+              onClick={() => openMenuTab("main")}
             >
               ✕
             </button>

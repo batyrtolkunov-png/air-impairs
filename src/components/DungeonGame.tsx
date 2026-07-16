@@ -188,7 +188,7 @@ function drawMerchant(ctx: CanvasRenderingContext2D, x: number, y: number) {
 }
 
 function drawMinimap(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLevel>, level: number, hero: Point, enemies: Enemy[], chestDrops: LootDrop[], openedChests: number[], explored: Point[], mobileControls = false) {
-  const x = 8, y = mobileControls ? 88 : 8, width = 135, height = 74, sx = width / map.worldWidth, sy = height / map.worldHeight;
+  const x = 8, y = mobileControls ? 118 : 8, width = 135, height = 74, sx = width / map.worldWidth, sy = height / map.worldHeight;
   ctx.fillStyle = 'rgba(5,9,8,.9)'; ctx.fillRect(x - 3, y - 3, width + 6, height + 14); ctx.strokeStyle = '#a68b58'; ctx.lineWidth = 2; ctx.strokeRect(x - 2, y - 2, width + 4, height + 4);
   ctx.save(); ctx.beginPath(); ctx.rect(x, y, width, height); ctx.clip(); ctx.fillStyle = map.floor[0]; ctx.fillRect(x, y, width, height);
   if (map.round) { ctx.fillStyle = '#09100c'; ctx.fillRect(x, y, width, height); ctx.fillStyle = map.floor[1]; ctx.beginPath(); ctx.ellipse(x + width / 2, y + height / 2, width / 2, height / 2, 0, 0, Math.PI * 2); ctx.fill(); }

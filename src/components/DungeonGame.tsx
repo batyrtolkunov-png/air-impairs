@@ -14,7 +14,7 @@ type StaffPulse = { started: number; damage: number };
 type StaffUltimate = Point & { owner: 1 | 2; dx: number; dy: number; started: number; until: number; nextPulseAt: number; pulseIndex: number; kills: number; color: string; name: string; pulses: StaffPulse[] };
 type GlovesUltimate = Point & { owner: 1 | 2; dx: number; dy: number; started: number; until: number; nextHitAt: number; hitIndex: number; damage: number; color: string; name: string; titanTargetX: number; titanTargetY: number; landed: boolean };
 type MagicWave = Point & { dx: number; dy: number; color: string; started: number; until: number };
-type SandTornado = Point & { vx: number; vy: number; damage: number; until: number; style?: 'sand' | 'ice' | 'iceRing' | 'iceLarge' | 'iceShard'; impactAt?: number; split?: boolean };
+type SandTornado = Point & { vx: number; vy: number; damage: number; until: number; style?: 'sand' | 'ice' | 'iceRing' | 'iceSpiritDrop' | 'iceLarge' | 'iceShard'; impactAt?: number; split?: boolean };
 type Tomb = Point & { spawnedAt: number; sinksAt: number };
 type HeroSkin = 'default' | 'knight' | 'ninja' | 'dune' | 'king' | 'wizard' | 'gentleman';
 type PlayerClass = 'knight' | 'mage' | 'archer' | 'boxer';
@@ -271,6 +271,7 @@ function drawTomb(ctx: CanvasRenderingContext2D, tomb: Tomb, now: number) {
 }
 
 function drawSandTornado(ctx: CanvasRenderingContext2D, tornado: SandTornado, now: number) {
+  if (tornado.style === 'iceSpiritDrop') { const warning=now<(tornado.impactAt??0);ctx.save();ctx.translate(tornado.x,tornado.y);if(warning){ctx.fillStyle='rgba(91,215,255,.2)';ctx.beginPath();ctx.arc(0,0,16,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#8fe8ff';ctx.lineWidth=3;ctx.stroke();}else{ctx.fillStyle='#61c9ee';ctx.beginPath();ctx.moveTo(0,-34);ctx.lineTo(12,5);ctx.lineTo(0,18);ctx.lineTo(-12,5);ctx.closePath();ctx.fill();ctx.fillStyle='#efffff';ctx.beginPath();ctx.moveTo(-2,-27);ctx.lineTo(4,5);ctx.lineTo(-1,10);ctx.closePath();ctx.fill();}ctx.restore();return;}
   if (tornado.style === 'iceRing' || tornado.style === 'iceLarge') { const large = tornado.style === 'iceLarge'; const warning = now < (tornado.impactAt ?? 0); ctx.save(); ctx.translate(tornado.x,tornado.y); if (warning) { ctx.globalAlpha=.75;ctx.strokeStyle=large?'#dffaff':'#67dfff';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,large?22:10,0,Math.PI*2);ctx.stroke();ctx.fillStyle='rgba(83,207,255,.15)';ctx.fill(); } else { ctx.fillStyle='#62c9ee';ctx.beginPath();ctx.moveTo(0,large?-48:-25);ctx.lineTo(large?17:9,large?13:7);ctx.lineTo(0,large?24:13);ctx.lineTo(large?-17:-9,large?13:7);ctx.closePath();ctx.fill();ctx.fillStyle='#ecffff';ctx.beginPath();ctx.moveTo(-3,large?-39:-20);ctx.lineTo(4,large?8:4);ctx.lineTo(-2,large?13:7);ctx.closePath();ctx.fill(); } ctx.restore();return; }
   if (tornado.style === 'iceShard') { ctx.save();ctx.translate(tornado.x,tornado.y);ctx.rotate(Math.atan2(tornado.vy,tornado.vx)+Math.PI/2);ctx.fillStyle='#6dd5f4';ctx.beginPath();ctx.moveTo(0,-10);ctx.lineTo(5,6);ctx.lineTo(0,10);ctx.lineTo(-5,6);ctx.closePath();ctx.fill();ctx.fillStyle='#efffff';ctx.fillRect(-1,-6,2,9);ctx.restore();return; }
   if (tornado.style === 'ice') { ctx.save(); ctx.translate(tornado.x,tornado.y); ctx.rotate(Math.atan2(tornado.vy,tornado.vx)+Math.PI/4); ctx.fillStyle='rgba(117,220,255,.3)';ctx.fillRect(-13,-13,26,26);ctx.fillStyle='#65cbee';ctx.beginPath();ctx.moveTo(0,-15);ctx.lineTo(10,0);ctx.lineTo(0,15);ctx.lineTo(-10,0);ctx.closePath();ctx.fill();ctx.fillStyle='#e9fcff';ctx.beginPath();ctx.moveTo(0,-11);ctx.lineTo(3,0);ctx.lineTo(0,8);ctx.lineTo(-3,0);ctx.closePath();ctx.fill();ctx.restore();return; }
@@ -288,6 +289,12 @@ function drawIceGolem(ctx: CanvasRenderingContext2D, e: Enemy, now: number, atta
   ctx.fillStyle='#4e9dbd';ctx.fillRect(22,58+step,17,41);ctx.fillRect(91,58-step,17,41);ctx.fillStyle='#bcefff';ctx.fillRect(19,84+step,22,13);ctx.fillRect(89,84-step,22,13);
   ctx.fillStyle='#4388a7';ctx.fillRect(39,98+step,20,14);ctx.fillRect(70,98-step,20,14);ctx.fillStyle='#eefeff';ctx.fillRect(27,55+step,7,15);ctx.fillRect(96,55-step,7,15);
   if(attacking){ctx.fillStyle='#eaffff';ctx.fillRect(103,76,18,8);ctx.fillStyle='rgba(100,220,255,.35)';ctx.fillRect(99,71,27,18);}
+}
+
+function drawIceSpirit(ctx: CanvasRenderingContext2D, e: Enemy, now: number, attacking: boolean) {
+  const float=Math.sin(now/170+e.x*.02)*5,step=Math.sin(now/105+e.x*.03)*3;ctx.fillStyle='rgba(32,103,142,.28)';ctx.beginPath();ctx.ellipse(64,111,39,8,0,0,Math.PI*2);ctx.fill();ctx.save();ctx.translate(0,float);
+  ctx.strokeStyle='#397d9e';ctx.lineWidth=11;ctx.lineCap='square';ctx.beginPath();ctx.moveTo(37,67);ctx.lineTo(18,82+step);ctx.moveTo(91,67);ctx.lineTo(110,82-step);ctx.moveTo(51,94);ctx.lineTo(43,111+step);ctx.moveTo(77,94);ctx.lineTo(85,111-step);ctx.stroke();
+  ctx.fillStyle=e.flash>0?'#fff':'#71d5f2';ctx.beginPath();ctx.arc(64,61,39,0,Math.PI*2);ctx.fill();ctx.fillStyle='#a9ecfa';ctx.beginPath();ctx.arc(53,49,22,0,Math.PI*2);ctx.fill();ctx.fillStyle='#eaffff';ctx.fillRect(43,58,13,10);ctx.fillRect(72,58,13,10);ctx.fillStyle='#24506b';ctx.fillRect(49,61,6,7);ctx.fillRect(73,61,6,7);ctx.fillStyle='#397d9e';ctx.fillRect(54,79,21,6);ctx.fillStyle='rgba(255,255,255,.55)';ctx.fillRect(42,40,12,7);if(attacking){ctx.fillStyle='#efffff';ctx.fillRect(104,75,14,12);ctx.fillStyle='rgba(101,220,255,.35)';ctx.fillRect(99,70,24,22);}ctx.restore();
 }
 
 function drawVisibleHitboxes(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLevel>, enemies: Enemy[], hero: Point, secondHero: Point | null) {
@@ -326,12 +333,13 @@ export function BestiaryMonster({ id, hidden = false }: { id: string; hidden?: b
   useEffect(() => {
     const canvas = canvasRef.current, ctx = canvas?.getContext('2d'); if (!canvas || !ctx) return;
     ctx.clearRect(0, 0, 128, 128); ctx.save(); ctx.translate(0, 5);
-    const enemy: Enemy = { x: 0, y: 0, kind: id.includes('boss') ? 'boss' : id === 'mummy' ? 'mummy' : id === 'scorpion' ? 'scorpion' : id.includes('ice-golem') ? 'iceGolem' : id === 'goblin' ? 'goblin' : 'slime', hp: 10, maxHp: 10, flash: 0, attackUntil: 0, stunnedUntil: 0, color: '#69ad68', power: 1, speed: 1, leapStarted: 0, leapUntil: 0, leapTargetX: 0, leapTargetY: 0, nextLeapAt: 0 };
+    const enemy: Enemy = { x: 0, y: 0, kind: id.includes('boss') ? 'boss' : id === 'mummy' ? 'mummy' : id === 'scorpion' ? 'scorpion' : id === 'ice-spirit' ? 'iceSpirit' : id.includes('ice-golem') ? 'iceGolem' : id === 'goblin' ? 'goblin' : 'slime', hp: 10, maxHp: 10, flash: 0, attackUntil: 0, stunnedUntil: 0, color: '#69ad68', power: 1, speed: 1, leapStarted: 0, leapUntil: 0, leapTargetX: 0, leapTargetY: 0, nextLeapAt: 0 };
     if (id === 'goblin') drawGoblin(ctx, enemy, 0, false);
     else if (id === 'goblin-boss') { ctx.translate(16, 13); ctx.scale(.75,.75); drawGoblin(ctx, enemy, 0, false); }
     else if (id === 'mummy') drawMummy(ctx, enemy, 0, false);
     else if (id === 'mummy-boss') { ctx.translate(16, 13); ctx.scale(.75,.75); drawMummyBoss(ctx, enemy, 0); }
     else if (id === 'scorpion') drawScorpion(ctx, enemy, 0, false);
+    else if (id === 'ice-spirit') drawIceSpirit(ctx, enemy, 0, false);
     else if (id === 'ice-golem') drawIceGolem(ctx, enemy, 0, false);
     else if (id === 'ice-golem-boss') { ctx.translate(16, 13); ctx.scale(.75,.75); drawIceGolem(ctx, enemy, 0, false); }
     else {
@@ -347,9 +355,9 @@ export function BestiaryMonster({ id, hidden = false }: { id: string; hidden?: b
 function createEnemies(map: ReturnType<typeof getLevel>, multiplier = 1, oneHitBoss = false): Enemy[] {
   const spawns = map.round ? map.enemies : multiplier === .5 ? map.enemies.filter((_, index) => index % 2 === 0) : multiplier === 2 ? map.enemies.flatMap((enemy) => [enemy, { ...enemy, x: enemy.x + 4, y: enemy.y + 4 }]) : map.enemies;
   return spawns.map((enemy) => {
-    const hp = enemy.kind === 'boss' ? oneHitBoss ? 1 : map.enemy.hp * 5 : enemy.kind === 'goblin' || enemy.kind === 'mummy' ? map.enemy.hp * 1.5 : enemy.kind === 'iceGolem' ? map.enemy.hp * .75 : map.enemy.hp;
+    const hp = enemy.kind === 'boss' ? oneHitBoss ? 1 : map.enemy.hp * 5 : enemy.kind === 'iceSpirit' ? 3 : enemy.kind === 'goblin' || enemy.kind === 'mummy' ? map.enemy.hp * 1.5 : enemy.kind === 'iceGolem' ? map.enemy.hp * .75 : map.enemy.hp;
     const speed = enemy.kind === 'boss' ? map.enemy.speed * .65 : enemy.kind === 'goblin' || enemy.kind === 'iceGolem' ? map.enemy.speed * 1.25 : enemy.kind === 'mummy' ? map.enemy.speed * .8 : map.enemy.speed;
-    return { ...enemy, ...map.enemy, color: enemy.kind === 'slime' ? map.enemy.color : enemy.kind === 'mummy' ? '#d8c79a' : enemy.kind === 'scorpion' ? '#a95d2e' : enemy.kind === 'iceGolem' ? '#6bc8e8' : '#69ad68', hp, maxHp: hp, power: enemy.kind === 'boss' ? 2 : enemy.kind === 'mummy' ? Math.max(.5, map.enemy.power / 2) : enemy.kind === 'iceGolem' ? 1.3 : map.enemy.power, speed, flash: 0, attackUntil: 0, stunnedUntil: 0, leapStarted: 0, leapUntil: 0, leapTargetX: 0, leapTargetY: 0, nextLeapAt: 0, nextShotAt: 0, nextSummonAt: 0, nextContactAt: 0, playerWasInSummonRadius: false, revived: false, reviveFlashUntil: 0 };
+    return { ...enemy, ...map.enemy, color: enemy.kind === 'slime' ? map.enemy.color : enemy.kind === 'iceSpirit' ? '#71d5f2' : enemy.kind === 'mummy' ? '#d8c79a' : enemy.kind === 'scorpion' ? '#a95d2e' : enemy.kind === 'iceGolem' ? '#6bc8e8' : '#69ad68', hp, maxHp: hp, power: enemy.kind === 'boss' ? 2 : enemy.kind === 'iceSpirit' ? 1 : enemy.kind === 'mummy' ? Math.max(.5, map.enemy.power / 2) : enemy.kind === 'iceGolem' ? 1.3 : map.enemy.power, speed, flash: 0, attackUntil: 0, stunnedUntil: 0, leapStarted: 0, leapUntil: 0, leapTargetX: 0, leapTargetY: 0, nextLeapAt: 0, nextShotAt: 0, nextSummonAt: 0, nextContactAt: 0, playerWasInSummonRadius: false, revived: false, reviveFlashUntil: 0 };
   });
 }
 
@@ -530,8 +538,9 @@ function drawScene(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLeve
     if (!boss) { ctx.fillStyle = '#171918'; ctx.fillRect(e.x + 1, e.y - 14, 26, 4); ctx.fillStyle = '#54292d'; ctx.fillRect(e.x + 3, e.y - 12, 22, 2); ctx.fillStyle = '#67d06f'; ctx.fillRect(e.x + 3, e.y - 12, 22 * Math.max(0, e.hp / e.maxHp), 2); }
     ctx.save();
     if (boss) { ctx.translate(e.x - 122 + (hero.x - e.x) / distance * force, e.y - 213 + (hero.y - e.y) / distance * force); ctx.scale(1.9, 1.9); }
-    else { ctx.translate(e.x + 1 + (hero.x - e.x) / distance * force, e.y - 5 + (hero.y - e.y) / distance * force); ctx.scale(e.kind === 'goblin' || e.kind === 'mummy' || e.kind === 'iceGolem' ? .38 : e.kind === 'scorpion' ? .28 : .21, e.kind === 'goblin' || e.kind === 'mummy' || e.kind === 'iceGolem' ? .38 : e.kind === 'scorpion' ? .28 : .21); }
+    else { ctx.translate(e.x + 1 + (hero.x - e.x) / distance * force, e.y - 5 + (hero.y - e.y) / distance * force); ctx.scale(e.kind === 'goblin' || e.kind === 'mummy' || e.kind === 'iceGolem' || e.kind === 'iceSpirit' ? .38 : e.kind === 'scorpion' ? .28 : .21, e.kind === 'goblin' || e.kind === 'mummy' || e.kind === 'iceGolem' || e.kind === 'iceSpirit' ? .38 : e.kind === 'scorpion' ? .28 : .21); }
     if (e.kind === 'iceGolem') { drawIceGolem(ctx, e, now, attacking); ctx.restore(); if (e.stunnedUntil > now) { ctx.fillStyle = '#eaffff'; ctx.font = 'bold 14px monospace'; ctx.fillText('★ ★ ★', e.x - 7, e.y - 22); } return; }
+    if (e.kind === 'iceSpirit') { drawIceSpirit(ctx, e, now, attacking); ctx.restore(); if (e.stunnedUntil > now) { ctx.fillStyle = '#eaffff'; ctx.font = 'bold 14px monospace'; ctx.fillText('★ ★ ★', e.x - 7, e.y - 22); } return; }
     if (e.kind === 'scorpion') { drawScorpion(ctx, e, now, attacking); ctx.restore(); if (e.stunnedUntil > now) { ctx.fillStyle = '#ffe56b'; ctx.font = 'bold 14px monospace'; ctx.fillText('★ ★ ★', e.x - 7, e.y - 22); } return; }
     if (e.kind === 'mummy') { drawMummy(ctx, e, now, attacking); ctx.restore(); if (e.stunnedUntil > now) { ctx.fillStyle = '#ffe56b'; ctx.font = 'bold 14px monospace'; ctx.fillText('★ ★ ★', e.x - 7, e.y - 22); } return; }
     if (e.kind === 'goblin' || boss) { if (boss && level === 12) drawMummyBoss(ctx, e, now); else if (boss && level === 18) drawIceGolem(ctx, e, now, attacking); else drawGoblin(ctx, e, now, attacking || (boss && e.leapStarted > 0)); ctx.restore(); if (e.stunnedUntil > now) { ctx.fillStyle = level === 18 ? '#dffcff' : '#ffe56b'; ctx.font = `bold ${boss ? 22 : 14}px monospace`; ctx.fillText('★ ★ ★', e.x - (boss ? 42 : 7), e.y - (boss ? 235 : 22) + Math.sin(now / 90) * 3); } return; }
@@ -992,7 +1001,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
           tornado.split = false;
           for (let index = 0; index < 5; index++) { const angle = index / 5 * Math.PI * 2; newIceShards.push({ x: tornado.x, y: tornado.y, vx: Math.cos(angle) * 4.4, vy: Math.sin(angle) * 4.4, damage: 1, until: now + 1200, style: 'iceShard' }); }
         }
-        const radius = tornado.style === 'iceLarge' ? 25 : tornado.style === 'iceRing' ? 12 : tornado.style === 'iceShard' ? 13 : 22;
+        const radius = tornado.style === 'iceLarge' ? 25 : tornado.style === 'iceSpiritDrop' ? 16 : tornado.style === 'iceRing' ? 12 : tornado.style === 'iceShard' ? 13 : 22;
         const hitFirst = !waitingToFall && health > 0 && Math.hypot(p.x + 12 - tornado.x, p.y + 14 - tornado.y) < radius;
         const hitSecond = !waitingToFall && players === 2 && health2 > 0 && Math.hypot(p2.x + 12 - tornado.x, p2.y + 14 - tornado.y) < radius;
         if (hitFirst || hitSecond) {
@@ -1013,9 +1022,11 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
       firstDeathMummies.forEach((mummy) => { mummy.revived = true; mummy.hp = mummy.maxHp / 2; mummy.flash = 0; mummy.stunnedUntil = now + 900; mummy.reviveFlashUntil = now + 900; });
       const revivingDesertBoss = enemies.current.find((e) => level === 12 && e.kind === 'boss' && e.hp <= 0 && !e.revived);
       if (revivingDesertBoss) { revivingDesertBoss.revived = true; revivingDesertBoss.hp = revivingDesertBoss.maxHp / 2; revivingDesertBoss.flash = 0; revivingDesertBoss.stunnedUntil = now + 1200; revivingDesertBoss.reviveFlashUntil = now + 1200; revivingDesertBoss.nextShotAt = now + 1200; revivingDesertBoss.nextSummonAt = now + 1800; setMessage('Владыка гробниц воскрес! Все его атаки ускорились в 1,5 раза!'); }
-      const defeated = enemies.current.filter((e) => e.hp <= 0); enemies.current = enemies.current.filter((e) => e.hp > 0);
+      const defeated = enemies.current.filter((e) => e.hp <= 0);
+      defeated.filter((enemy) => enemy.kind === 'iceSpirit').forEach((spirit) => sandTornadoes.current.push({ x: spirit.x + 14, y: spirit.y + 14, vx: 0, vy: 0, damage: .5, impactAt: now + 500, until: now + 1150, style: 'iceSpiritDrop' }));
+      enemies.current = enemies.current.filter((e) => e.hp > 0);
       if (firstDeathMummies.length) setMessage(firstDeathMummies.length === 1 ? 'Мумия восстала из песка!' : 'Павшие мумии снова восстали из песка!');
-      if (defeated.length) { const bossFallen = defeated.some((e) => e.kind === 'boss'); const reward = defeated.reduce((sum, e) => sum + (e.kind === 'boss' ? 100 : e.kind === 'goblin' || e.kind === 'mummy' || e.kind === 'iceGolem' ? 10 : 5), 0); setCoins((c) => c + reward); setMessage(bossFallen ? 'Хранитель окончательно повержен! В центре арены открылся портал победы.' : defeated.some((e) => e.kind === 'mummy') ? 'Мумия окончательно повержена и оставила 10 осколков.' : defeated.some((e) => e.kind === 'iceGolem') ? 'Ледяной голем раскололся и оставил 10 осколков.' : defeated.some((e) => e.kind === 'goblin') ? 'Гоблин повержен и оставил 10 осколков.' : 'Слизень оставил несколько осколков.'); if (bossFallen) keys.current.clear(); }
+      if (defeated.length) { const bossFallen = defeated.some((e) => e.kind === 'boss'); const reward = defeated.reduce((sum, e) => sum + (e.kind === 'boss' ? 100 : e.kind === 'goblin' || e.kind === 'mummy' || e.kind === 'iceGolem' ? 10 : 5), 0); setCoins((c) => c + reward); setMessage(bossFallen ? 'Хранитель окончательно повержен! В центре арены открылся портал победы.' : defeated.some((e) => e.kind === 'iceSpirit') ? 'Ледяной дух исчез — через полсекунды сюда упадёт сосулька!' : defeated.some((e) => e.kind === 'mummy') ? 'Мумия окончательно повержена и оставила 10 осколков.' : defeated.some((e) => e.kind === 'iceGolem') ? 'Ледяной голем раскололся и оставил 10 осколков.' : defeated.some((e) => e.kind === 'goblin') ? 'Гоблин повержен и оставил 10 осколков.' : 'Слизень оставил несколько осколков.'); if (bossFallen) keys.current.clear(); }
       if (level === 0) {
         const progressX = Math.max(p.x, players === 2 ? p2.x : p.x);
         const steps = [{ x: 330, text: 'Обойди телегу и пройди через пролом. Можно двигаться по диагонали.' }, { x: 590, text: 'Подойди к сундуку и нажми E. Второй игрок использует Ю.' }, { x: 900, text: 'Враг! SPACE — атака первого игрока, Ж — атака второго.' }, { x: 1190, text: 'Используй ульту: Q у первого игрока, Б у второго.' }, { x: 1500, text: 'Рюкзак: I у первого, Э у второго. У ворот нажми E или Ю.' }];

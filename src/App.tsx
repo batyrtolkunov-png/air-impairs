@@ -253,6 +253,12 @@ export default function App() {
       unlockLevel: 12,
     },
     {
+      id: "ice-spirit",
+      name: "ЛЕДЯНОЙ ДУХ",
+      region: "Ледяное кладбище",
+      unlockLevel: 13,
+    },
+    {
       id: "ice-golem",
       name: "ЛЕДЯНОЙ ГОЛЕМ",
       region: "Ледяное кладбище",
@@ -593,10 +599,10 @@ export default function App() {
     { id: "gentleman", name: "ДЖЕНТЛЬМЕН", price: 100 },
   ];
   const boutiqueAccessories = [
-    { id: "propeller-cap", name: "КЕПКА-ВЕРТОЛЁТИК", price: 50 },
-    { id: "frog-cap", name: "КЕПКА-ЛЯГУШКА", price: 50 },
-    { id: "crown", name: "КОРОНА", price: 50 },
-    { id: "headphones", name: "НАУШНИКИ", price: 50 },
+    { id: "propeller-cap", name: "КЕПКА-ВЕРТОЛЁТИК", price: 2500 },
+    { id: "frog-cap", name: "КЕПКА-ЛЯГУШКА", price: 2500 },
+    { id: "crown", name: "КОРОНА", price: 2500 },
+    { id: "headphones", name: "НАУШНИКИ", price: 2500 },
   ];
   const buyBoutiqueItem = (id: string, price: number) => {
     if (boutiqueOwned.includes(id) || calendarState.diamonds < price) return;
@@ -609,6 +615,14 @@ export default function App() {
     localStorage.setItem("ashen-heart-calendar", JSON.stringify(wallet));
     setBoutiqueOwned(owned);
     setCalendarState(wallet);
+  };
+  const buyBoutiqueAccessory = (id: string, price: number) => {
+    if (boutiqueOwned.includes(id) || calendarState.shards < price) return;
+    const owned = [...boutiqueOwned, id];
+    const wallet = { ...calendarState, shards: calendarState.shards - price };
+    localStorage.setItem("ashen-heart-boutique", JSON.stringify(owned));
+    localStorage.setItem("ashen-heart-calendar", JSON.stringify(wallet));
+    setBoutiqueOwned(owned); setCalendarState(wallet);
   };
   const equipBoutiqueSkin = (id: string) => {
     if (!boutiqueOwned.includes(id)) return;
@@ -1011,7 +1025,7 @@ export default function App() {
                     onClick={() => claimDailyReward(index)}
                   >
                     <span>ДЕНЬ {index + 1}</span>
-                    <i>{claimed ? "✓" : reward.icon}</i>
+                    <i className={claimed ? "reward-claimed" : reward.chest ? `reward-chest ${index === 5 ? "rare" : index === 6 ? "legendary" : "common"}` : reward.diamonds ? "reward-diamond" : "reward-shard"}>{claimed ? "✓" : ""}</i>
                     <strong>{reward.title}</strong>
                     <small>
                       {claimed
@@ -1124,9 +1138,7 @@ export default function App() {
             </button>
             <small>ЛАВКА РЕДКИХ ОБРАЗОВ</small>
             <h2>БУТИК</h2>
-            <div className="boutique-balance">
-              ♦ АЛМАЗЫ: {calendarState.diamonds}
-            </div>
+            <div className="boutique-balance"><b><i className="wallet-diamond" /> АЛМАЗЫ: {calendarState.diamonds}</b><b><i className="wallet-shard" /> ОСКОЛКИ: {calendarState.shards}</b></div>
             <h3>СКИНЫ</h3>
             <div className="boutique-grid">
               {boutiqueSkins.map((item) => {
@@ -1173,8 +1185,8 @@ export default function App() {
                   <button
                     key={item.id}
                     className={owned ? "owned" : ""}
-                    disabled={owned || calendarState.diamonds < item.price}
-                    onClick={() => buyBoutiqueItem(item.id, item.price)}
+                    disabled={owned || calendarState.shards < item.price}
+                    onClick={() => buyBoutiqueAccessory(item.id, item.price)}
                   >
                     <i className={`boutique-accessory accessory-${item.id}`}>
                       <b className="wearer-hair" />
@@ -1190,7 +1202,7 @@ export default function App() {
                       <b className="accessory-part detail-three" />
                     </i>
                     <strong>{item.name}</strong>
-                    <span>{owned ? "КУПЛЕНО" : `♦ ${item.price}`}</span>
+                    <span>{owned ? "КУПЛЕНО" : `◆ ${item.price}`}</span>
                   </button>
                 );
               })}

@@ -198,6 +198,7 @@ export default function App() {
   const [registrationOpen, setRegistrationOpen] = useState(false);
   const [deviceOpen, setDeviceOpen] = useState(false);
   const [mobileControls, setMobileControls] = useState(false);
+  const [mobilePortrait, setMobilePortrait] = useState(false);
   const [modeOpen, setModeOpen] = useState(false);
   const [players, setPlayers] = useState<1 | 2>(1);
   const [gameStarted, setGameStarted] = useState(false);
@@ -264,6 +265,12 @@ export default function App() {
   useEffect(() => {
     setGameVolume(volume / 100);
   }, [volume]);
+  useEffect(() => {
+    if (!mobileControls) { setMobilePortrait(false); return; }
+    const updateOrientation = () => setMobilePortrait(window.innerHeight > window.innerWidth);
+    updateOrientation(); window.addEventListener("resize", updateOrientation); window.addEventListener("orientationchange", updateOrientation);
+    return () => { window.removeEventListener("resize", updateOrientation); window.removeEventListener("orientationchange", updateOrientation); };
+  }, [mobileControls]);
   useEffect(() => {
     const grantKey = "ashen-heart-diamond-grant-150-v1";
     if (localStorage.getItem(grantKey)) return;
@@ -361,32 +368,13 @@ export default function App() {
     save: GameSave | null = null,
     startTutorial = false,
   ) => {
-    const desertTest =
-      !save &&
-      localStorage.getItem("ashen-heart-one-time-desert-start") !== "used";
-    const bossTest =
-      !desertTest &&
-      !save &&
-      startTutorial &&
-      localStorage.getItem("ashen-heart-one-time-boss-test") !== "used";
-    const oneTimeBoost =
-      bossTest ||
-      (!save &&
-        startTutorial &&
-        localStorage.getItem("ashen-heart-one-time-boost") !== "used");
-    if (desertTest)
-      localStorage.setItem("ashen-heart-one-time-desert-start", "used");
-    if (bossTest)
-      localStorage.setItem("ashen-heart-one-time-boss-test", "used");
-    if (oneTimeBoost)
-      localStorage.setItem("ashen-heart-one-time-boost", "used");
     startMusic();
     setInitialSave(save);
-    setStartingLevelOverride(desertTest ? 7 : null);
-    setStartingCoins(oneTimeBoost ? 20000 : 0);
-    setOneHitBoss(bossTest);
-    setTutorial(desertTest || oneTimeBoost ? false : startTutorial);
-    setCompletedRegions(save ? Math.floor(save.level / 6) : desertTest ? 1 : 0);
+    setStartingLevelOverride(null);
+    setStartingCoins(0);
+    setOneHitBoss(false);
+    setTutorial(!save && startTutorial);
+    setCompletedRegions(save ? Math.floor(save.level / 6) : 0);
     setTravelToLevel(null);
     setWorldMapOpen(false);
     setMerchantMode(false);
@@ -567,7 +555,7 @@ export default function App() {
       {gameStarted && (
         <DungeonGame
           key={gameId}
-          paused={menuOpen || pauseOpen || endingStep !== null || worldMapOpen}
+          paused={menuOpen || pauseOpen || mobilePortrait || endingStep !== null || worldMapOpen}
           enemyMultiplier={enemyMultiplier}
           startingCoins={startingCoins}
           oneHitBoss={oneHitBoss}
@@ -587,6 +575,7 @@ export default function App() {
           mobileControls={mobileControls}
         />
       )}
+      {gameStarted && mobileControls && mobilePortrait && <div className="rotate-phone-overlay"><div className="pixel-phone-rotate"><i /><b /></div><h2>ПОВЕРНИ ТЕЛЕФОН</h2><p>Для игры нужна горизонтальная ориентация экрана</p><span>↻</span></div>}
       {classPlayers && (
         <section className="class-select">
           <div className="class-panel">

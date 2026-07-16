@@ -1283,8 +1283,12 @@ export default function App() {
               <nav className="menu-actions">
                 <button onClick={startNewGame}>{t.newGame}</button>
                 <button
-                  disabled={guest}
                   onClick={() => {
+                    if (guest) {
+                      setRegistrationMessage("Чтобы продолжить сохранённую игру, зарегистрируйся или войди через Google.");
+                      setRegistrationOpen(true);
+                      return;
+                    }
                     if (!registered && !guest) {
                       setRegistrationMessage("Сначала зарегистрируйся или войди через Google.");
                       setRegistrationOpen(true);

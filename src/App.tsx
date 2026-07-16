@@ -227,15 +227,37 @@ export default function App() {
       return [];
     }
   });
-  const [equippedBoutiqueSkin, setEquippedBoutiqueSkin] = useState(() => localStorage.getItem("ashen-heart-equipped-skin") || "default");
+  const [equippedBoutiqueSkin, setEquippedBoutiqueSkin] = useState(
+    () => localStorage.getItem("ashen-heart-equipped-skin") || "default",
+  );
   const monsterJournal = [
     { id: "slime", name: "СЛИЗЕНЬ", region: "Тёмный лес", unlockLevel: 1 },
     { id: "goblin", name: "ГОБЛИН", region: "Тёмный лес", unlockLevel: 1 },
-    { id: "goblin-boss", name: "КОРОЛЬ ГОБЛИНОВ", region: "Тёмный лес", unlockLevel: 6 },
-    { id: "scorpion", name: "ПЕСЧАНЫЙ СКОРПИОН", region: "Жаркая пустыня", unlockLevel: 7 },
+    {
+      id: "goblin-boss",
+      name: "КОРОЛЬ ГОБЛИНОВ",
+      region: "Тёмный лес",
+      unlockLevel: 6,
+    },
+    {
+      id: "scorpion",
+      name: "ПЕСЧАНЫЙ СКОРПИОН",
+      region: "Жаркая пустыня",
+      unlockLevel: 7,
+    },
     { id: "mummy", name: "МУМИЯ", region: "Жаркая пустыня", unlockLevel: 7 },
-    { id: "mummy-boss", name: "ВЛАДЫКА ГРОБНИЦ", region: "Жаркая пустыня", unlockLevel: 12 },
-    { id: "ice-golem", name: "ЛЕДЯНОЙ ГОЛЕМ", region: "Ледяное кладбище", unlockLevel: 13 },
+    {
+      id: "mummy-boss",
+      name: "ВЛАДЫКА ГРОБНИЦ",
+      region: "Жаркая пустыня",
+      unlockLevel: 12,
+    },
+    {
+      id: "ice-golem",
+      name: "ЛЕДЯНОЙ ГОЛЕМ",
+      region: "Ледяное кладбище",
+      unlockLevel: 13,
+    },
   ];
   const [worldMapOpen, setWorldMapOpen] = useState(false);
   const [completedRegions, setCompletedRegions] = useState(0);
@@ -268,19 +290,42 @@ export default function App() {
     setGameVolume(volume / 100);
   }, [volume]);
   useEffect(() => {
-    if (!mobileControls) { setMobilePortrait(false); return; }
-    const updateOrientation = () => setMobilePortrait(window.innerHeight > window.innerWidth);
-    updateOrientation(); window.addEventListener("resize", updateOrientation); window.addEventListener("orientationchange", updateOrientation);
-    return () => { window.removeEventListener("resize", updateOrientation); window.removeEventListener("orientationchange", updateOrientation); };
+    if (!mobileControls) {
+      setMobilePortrait(false);
+      return;
+    }
+    const updateOrientation = () =>
+      setMobilePortrait(window.innerHeight > window.innerWidth);
+    updateOrientation();
+    window.addEventListener("resize", updateOrientation);
+    window.addEventListener("orientationchange", updateOrientation);
+    return () => {
+      window.removeEventListener("resize", updateOrientation);
+      window.removeEventListener("orientationchange", updateOrientation);
+    };
   }, [mobileControls]);
   useEffect(() => {
     let lastTouchEnd = 0;
-    const preventDoubleTapZoom = (event: TouchEvent) => { const now = Date.now(); if (now - lastTouchEnd < 350) event.preventDefault(); lastTouchEnd = now; };
+    const preventDoubleTapZoom = (event: TouchEvent) => {
+      const now = Date.now();
+      if (now - lastTouchEnd < 350) event.preventDefault();
+      lastTouchEnd = now;
+    };
     const preventGesture = (event: Event) => event.preventDefault();
-    document.addEventListener("touchend", preventDoubleTapZoom, { passive: false });
-    document.addEventListener("gesturestart", preventGesture, { passive: false });
-    document.addEventListener("gesturechange", preventGesture, { passive: false });
-    return () => { document.removeEventListener("touchend", preventDoubleTapZoom); document.removeEventListener("gesturestart", preventGesture); document.removeEventListener("gesturechange", preventGesture); };
+    document.addEventListener("touchend", preventDoubleTapZoom, {
+      passive: false,
+    });
+    document.addEventListener("gesturestart", preventGesture, {
+      passive: false,
+    });
+    document.addEventListener("gesturechange", preventGesture, {
+      passive: false,
+    });
+    return () => {
+      document.removeEventListener("touchend", preventDoubleTapZoom);
+      document.removeEventListener("gesturestart", preventGesture);
+      document.removeEventListener("gesturechange", preventGesture);
+    };
   }, []);
   useEffect(() => {
     const grantKey = "ashen-heart-diamond-grant-150-v1";
@@ -372,19 +417,46 @@ export default function App() {
     setMobileControls(mobile);
     setDeviceOpen(false);
     if (mobile) {
-      try { if (!document.fullscreenElement) await document.documentElement.requestFullscreen({ navigationUI: "hide" }); } catch { /* Fullscreen may require installed PWA on iOS. */ }
-      try { await (screen.orientation as ScreenOrientation & { lock?: (mode: string) => Promise<void> }).lock?.("landscape"); } catch { /* Orientation lock is not available in every mobile browser. */ }
+      try {
+        if (!document.fullscreenElement)
+          await document.documentElement.requestFullscreen({
+            navigationUI: "hide",
+          });
+      } catch {
+        /* Fullscreen may require installed PWA on iOS. */
+      }
+      try {
+        await (
+          screen.orientation as ScreenOrientation & {
+            lock?: (mode: string) => Promise<void>;
+          }
+        ).lock?.("landscape");
+      } catch {
+        /* Orientation lock is not available in every mobile browser. */
+      }
       beginCutscene(1);
-    }
-    else setModeOpen(true);
+    } else setModeOpen(true);
   };
   const enterMobileFullscreen = async () => {
     try {
-      if (!document.fullscreenElement) await document.documentElement.requestFullscreen({ navigationUI: "hide" });
-      try { await (screen.orientation as ScreenOrientation & { lock?: (mode: string) => Promise<void> }).lock?.("landscape"); } catch { /* unsupported */ }
+      if (!document.fullscreenElement)
+        await document.documentElement.requestFullscreen({
+          navigationUI: "hide",
+        });
+      try {
+        await (
+          screen.orientation as ScreenOrientation & {
+            lock?: (mode: string) => Promise<void>;
+          }
+        ).lock?.("landscape");
+      } catch {
+        /* unsupported */
+      }
       setFullscreenHint("");
     } catch {
-      setFullscreenHint("На iPhone в Safari: нажми значок телефона слева от названия сайта → три точки → Скрыть панель инструментов");
+      setFullscreenHint(
+        "На iPhone в Safari: нажми значок телефона слева от названия сайта → три точки → Скрыть панель инструментов",
+      );
     }
   };
   const beginGame = (
@@ -561,7 +633,8 @@ export default function App() {
     const completed = Math.min(5, Math.ceil(finishedLevel / 6));
     setCompletedRegions((current) => Math.max(current, completed));
     if (finishedLevel === 6) setEndingStep(0);
-    else if (finishedLevel === 12 || finishedLevel === 18) setMerchantMode(true);
+    else if (finishedLevel === 12 || finishedLevel === 18)
+      setMerchantMode(true);
     else setWorldMapOpen(true);
   };
   const travelToRegion = (regionIndex: number) => {
@@ -571,7 +644,7 @@ export default function App() {
     setMerchantMode(false);
   };
   const highestVisitedLevel = Math.max(
-    gameStarted ? startingLevelOverride ?? initialSave?.level ?? 1 : 0,
+    gameStarted ? (startingLevelOverride ?? initialSave?.level ?? 1) : 0,
     ...saveSlots.map((save) => save?.level ?? 0),
   );
   const openMenuTab = (tab: MenuTab) => {
@@ -584,7 +657,13 @@ export default function App() {
       {gameStarted && (
         <DungeonGame
           key={gameId}
-          paused={menuOpen || pauseOpen || mobilePortrait || endingStep !== null || worldMapOpen}
+          paused={
+            menuOpen ||
+            pauseOpen ||
+            mobilePortrait ||
+            endingStep !== null ||
+            worldMapOpen
+          }
           enemyMultiplier={enemyMultiplier}
           startingCoins={startingCoins}
           oneHitBoss={oneHitBoss}
@@ -605,7 +684,17 @@ export default function App() {
           equippedSkin={equippedBoutiqueSkin}
         />
       )}
-      {gameStarted && mobileControls && mobilePortrait && <div className="rotate-phone-overlay"><div className="pixel-phone-rotate"><i /><b /></div><h2>ПОВЕРНИ ТЕЛЕФОН</h2><p>Для игры нужна горизонтальная ориентация экрана</p><span>↻</span></div>}
+      {gameStarted && mobileControls && mobilePortrait && (
+        <div className="rotate-phone-overlay">
+          <div className="pixel-phone-rotate">
+            <i />
+            <b />
+          </div>
+          <h2>ПОВЕРНИ ТЕЛЕФОН</h2>
+          <p>Для игры нужна горизонтальная ориентация экрана</p>
+          <span>↻</span>
+        </div>
+      )}
       {classPlayers && (
         <section className="class-select">
           <div className="class-panel">
@@ -936,13 +1025,87 @@ export default function App() {
         </div>
       )}
       {menuOpen && menuTab === "home" && (
-        <div className="menu-tab-overlay"><section className="menu-tab-panel home-tab-panel"><div className="pets-paw-icon"><i /><b /><span /><em /><u /></div><small>ВЕРНЫЕ СПУТНИКИ</small><h2>ПИТОМЦЫ</h2><p>Здесь будут жить найденные питомцы. Их способности добавим позже.</p></section></div>
+        <div className="menu-tab-overlay">
+          <section className="menu-tab-panel home-tab-panel">
+            <div className="pets-paw-icon">
+              <i />
+              <b />
+              <span />
+              <em />
+              <u />
+            </div>
+            <small>ВЕРНЫЕ СПУТНИКИ</small>
+            <h2>ПИТОМЦЫ</h2>
+            <p>
+              Здесь будут жить найденные питомцы. Их способности добавим позже.
+            </p>
+          </section>
+        </div>
       )}
       {menuOpen && menuTab === "inventory" && (
-        <div className="menu-tab-overlay"><section className="menu-tab-panel collection-panel"><small>СОБРАННЫЕ СОКРОВИЩА</small><h2>ИНВЕНТАРЬ</h2><div className="inventory-wallet"><b>◆ {calendarState.shards}</b><b>♦ {calendarState.diamonds}</b><b>▣ {calendarState.chests.length}</b></div><h3>КОЛЛЕКЦИЯ БУТИКА</h3><div className="collection-grid">{[...boutiqueSkins, ...boutiqueAccessories].map((item) => { const owned = boutiqueOwned.includes(item.id); return <div key={item.id} className={owned ? "collected" : "empty"}><i>{owned ? "◆" : "?"}</i><strong>{owned ? item.name : "НЕ ОТКРЫТО"}</strong></div>; })}</div></section></div>
+        <div className="menu-tab-overlay">
+          <section className="menu-tab-panel collection-panel">
+            <small>СОБРАННЫЕ СОКРОВИЩА</small>
+            <h2>ИНВЕНТАРЬ</h2>
+            <div className="inventory-wallet">
+              <b>◆ {calendarState.shards}</b>
+              <b>♦ {calendarState.diamonds}</b>
+              <b>▣ {calendarState.chests.length}</b>
+            </div>
+            <h3>КОЛЛЕКЦИЯ БУТИКА</h3>
+            <div className="collection-grid">
+              {[...boutiqueSkins, ...boutiqueAccessories].map((item) => {
+                const owned = boutiqueOwned.includes(item.id);
+                const isSkin = boutiqueSkins.some(
+                  (skinItem) => skinItem.id === item.id,
+                );
+                const equipped = equippedBoutiqueSkin === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    className={`${owned ? "collected" : "empty"} ${equipped ? "equipped" : ""}`}
+                    disabled={!owned || !isSkin}
+                    onClick={() => isSkin && equipBoutiqueSkin(item.id)}
+                  >
+                    <i>{owned ? "◆" : "?"}</i>
+                    <strong>{owned ? item.name : "НЕ ОТКРЫТО"}</strong>
+                    {owned && isSkin && (
+                      <span>{equipped ? "НАДЕТО" : "НАДЕТЬ"}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        </div>
       )}
       {menuOpen && menuTab === "journal" && (
-        <div className="menu-tab-overlay"><section className="menu-tab-panel journal-panel"><small>ЗАПИСИ О СОЗДАНИЯХ</small><h2>ДНЕВНИК МОНСТРОВ</h2><div className="journal-grid">{monsterJournal.map((monster) => { const discovered = highestVisitedLevel >= monster.unlockLevel; return <article key={monster.id} className={discovered ? "discovered" : "unknown"}><i className={`journal-monster monster-${monster.id}`}><b /><span /></i><strong>{discovered ? monster.name : "НЕИЗВЕСТНО"}</strong><small>{discovered ? monster.region : "ЕЩЁ НЕ ВСТРЕЧЕН"}</small></article>; })}</div></section></div>
+        <div className="menu-tab-overlay">
+          <section className="menu-tab-panel journal-panel">
+            <small>ЗАПИСИ О СОЗДАНИЯХ</small>
+            <h2>ДНЕВНИК МОНСТРОВ</h2>
+            <div className="journal-grid">
+              {monsterJournal.map((monster) => {
+                const discovered = highestVisitedLevel >= monster.unlockLevel;
+                return (
+                  <article
+                    key={monster.id}
+                    className={discovered ? "discovered" : "unknown"}
+                  >
+                    <i className={`journal-monster monster-${monster.id}`}>
+                      <b />
+                      <span />
+                    </i>
+                    <strong>{discovered ? monster.name : "НЕИЗВЕСТНО"}</strong>
+                    <small>
+                      {discovered ? monster.region : "ЕЩЁ НЕ ВСТРЕЧЕН"}
+                    </small>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        </div>
       )}
       {boutiqueOpen && (
         <div className="boutique-overlay">
@@ -968,7 +1131,11 @@ export default function App() {
                     key={item.id}
                     className={`${owned ? "owned" : ""} ${equipped ? "equipped" : ""}`}
                     disabled={!owned && calendarState.diamonds < item.price}
-                    onClick={() => owned ? equipBoutiqueSkin(item.id) : buyBoutiqueItem(item.id, item.price)}
+                    onClick={() =>
+                      owned
+                        ? equipBoutiqueSkin(item.id)
+                        : buyBoutiqueItem(item.id, item.price)
+                    }
                   >
                     <i className={`boutique-avatar skin-${item.id}`}>
                       <b className="avatar-hat" />
@@ -981,7 +1148,13 @@ export default function App() {
                       <b className="avatar-detail" />
                     </i>
                     <strong>{item.name}</strong>
-                    <span>{equipped ? "НАДЕТО" : owned ? "НАДЕТЬ" : `♦ ${item.price}`}</span>
+                    <span>
+                      {equipped
+                        ? "НАДЕТО"
+                        : owned
+                          ? "НАДЕТЬ"
+                          : `♦ ${item.price}`}
+                    </span>
                   </button>
                 );
               })}
@@ -1022,8 +1195,16 @@ export default function App() {
       )}
       {menuOpen && (
         <section className="main-menu" aria-label={t.settings}>
-          <button className="mobile-fullscreen-button" onClick={enterMobileFullscreen}><i>⛶</i><span>НА ВЕСЬ ЭКРАН</span></button>
-          {fullscreenHint && <p className="mobile-fullscreen-hint">{fullscreenHint}</p>}
+          <button
+            className="mobile-fullscreen-button"
+            onClick={enterMobileFullscreen}
+          >
+            <i>⛶</i>
+            <span>НА ВЕСЬ ЭКРАН</span>
+          </button>
+          {fullscreenHint && (
+            <p className="mobile-fullscreen-hint">{fullscreenHint}</p>
+          )}
           <div className="menu-mist mist-one" />
           <div className="menu-mist mist-two" />
           {!settingsOpen && !registrationOpen && !deviceOpen && !modeOpen ? (
@@ -1049,7 +1230,12 @@ export default function App() {
               <p className="menu-kicker">{t.adventure}</p>
               <div className="ashen-heart-mark" aria-hidden="true">
                 <i />
-                <span /><span /><span /><span /><span /><span />
+                <span />
+                <span />
+                <span />
+                <span />
+                <span />
+                <span />
               </div>
               <h1>{t.title}</h1>
               <div className="menu-divider">
@@ -1087,10 +1273,23 @@ export default function App() {
               <h2>ВЫБЕРИ УСТРОЙСТВО</h2>
               <p>Как ты будешь управлять героем?</p>
               <div className="device-options">
-                <button onClick={() => chooseDevice(false)}><i className="device-pc" /><strong>КОМПЬЮТЕР</strong><small>Клавиатура и клавиши действий</small></button>
-                <button onClick={() => chooseDevice(true)}><i className="device-phone" /><strong>ТЕЛЕФОН</strong><small>Джойстик и сенсорные кнопки</small></button>
+                <button onClick={() => chooseDevice(false)}>
+                  <i className="device-pc" />
+                  <strong>КОМПЬЮТЕР</strong>
+                  <small>Клавиатура и клавиши действий</small>
+                </button>
+                <button onClick={() => chooseDevice(true)}>
+                  <i className="device-phone" />
+                  <strong>ТЕЛЕФОН</strong>
+                  <small>Джойстик и сенсорные кнопки</small>
+                </button>
               </div>
-              <button className="settings-back" onClick={() => setDeviceOpen(false)}>← НАЗАД</button>
+              <button
+                className="settings-back"
+                onClick={() => setDeviceOpen(false)}
+              >
+                ← НАЗАД
+              </button>
             </div>
           ) : settingsOpen ? (
             <div className="settings-panel">
@@ -1278,12 +1477,45 @@ export default function App() {
             </div>
           )}
           {!settingsOpen && !registrationOpen && !deviceOpen && !modeOpen && (
-            <nav className="main-bottom-tabs" aria-label="Разделы главного меню">
-              <button className={menuTab === "home" ? "active" : ""} onClick={() => openMenuTab("home")}><i className="tab-pets" /><span>ПИТОМЦЫ</span></button>
-              <button className={menuTab === "journal" ? "active" : ""} onClick={() => openMenuTab("journal")}><i className="tab-journal" /><span>ДНЕВНИК</span></button>
-              <button className={`tab-main-button ${menuTab === "main" ? "active" : ""}`} onClick={() => openMenuTab("main")}><i className="tab-swords" /><span>ГЛАВНАЯ</span></button>
-              <button className={menuTab === "inventory" ? "active" : ""} onClick={() => openMenuTab("inventory")}><i className="tab-armor" /><span>ИНВЕНТАРЬ</span></button>
-              <button className={menuTab === "boutique" ? "active" : ""} onClick={() => openMenuTab("boutique")}><i className="tab-shop" /><span>БУТИК</span></button>
+            <nav
+              className="main-bottom-tabs"
+              aria-label="Разделы главного меню"
+            >
+              <button
+                className={menuTab === "home" ? "active" : ""}
+                onClick={() => openMenuTab("home")}
+              >
+                <i className="tab-pets" />
+                <span>ПИТОМЦЫ</span>
+              </button>
+              <button
+                className={menuTab === "journal" ? "active" : ""}
+                onClick={() => openMenuTab("journal")}
+              >
+                <i className="tab-journal" />
+                <span>ДНЕВНИК</span>
+              </button>
+              <button
+                className={`tab-main-button ${menuTab === "main" ? "active" : ""}`}
+                onClick={() => openMenuTab("main")}
+              >
+                <i className="tab-swords" />
+                <span>ГЛАВНАЯ</span>
+              </button>
+              <button
+                className={menuTab === "inventory" ? "active" : ""}
+                onClick={() => openMenuTab("inventory")}
+              >
+                <i className="tab-armor" />
+                <span>ИНВЕНТАРЬ</span>
+              </button>
+              <button
+                className={menuTab === "boutique" ? "active" : ""}
+                onClick={() => openMenuTab("boutique")}
+              >
+                <i className="tab-shop" />
+                <span>БУТИК</span>
+              </button>
             </nav>
           )}
         </section>

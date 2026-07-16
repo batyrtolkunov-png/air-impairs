@@ -1,35 +1,196 @@
-import { useEffect, useRef, useState } from 'react';
-import { DungeonGame, type GameSave } from './components/DungeonGame';
-import { setGameVolume, setMusicPaused, startMusic } from './game/audio';
-import { supabase } from './lib/supabase';
+import { useEffect, useRef, useState } from "react";
+import { DungeonGame, type GameSave } from "./components/DungeonGame";
+import { setGameVolume, setMusicPaused, startMusic } from "./game/audio";
+import { supabase } from "./lib/supabase";
 
-type Language = 'ru' | 'en' | 'es';
-type Difficulty = 'easy' | 'normal' | 'hard';
+type Language = "ru" | "en" | "es";
+type Difficulty = "easy" | "normal" | "hard";
+type PlayerClass = "knight" | "mage" | "archer" | "boxer";
+type MenuTab = "home" | "journal" | "main" | "inventory" | "boutique";
+type CalendarState = {
+  claimed: number;
+  lastClaimDate: string;
+  shards: number;
+  diamonds: number;
+  chests: string[];
+};
 
 function getStoredPlayerName() {
-  try { return JSON.parse(localStorage.getItem('ashen-heart-player') ?? '{}').name as string || ''; }
-  catch { return ''; }
+  try {
+    return (
+      (JSON.parse(localStorage.getItem("ashen-heart-player") ?? "{}")
+        .name as string) || ""
+    );
+  } catch {
+    return "";
+  }
 }
-function getStoredSaves(): Array<GameSave | null> { try { const saves = JSON.parse(localStorage.getItem('ashen-heart-saves') ?? '[]'); return Array.from({ length: 5 }, (_, index) => saves[index] ?? null); } catch { return Array(5).fill(null); } }
+function getStoredSaves(): Array<GameSave | null> {
+  try {
+    const saves = JSON.parse(localStorage.getItem("ashen-heart-saves") ?? "[]");
+    return Array.from({ length: 5 }, (_, index) => saves[index] ?? null);
+  } catch {
+    return Array(5).fill(null);
+  }
+}
+function getStoredCalendar(): CalendarState {
+  try {
+    return {
+      claimed: 0,
+      lastClaimDate: "",
+      shards: 0,
+      diamonds: 0,
+      chests: [],
+      ...JSON.parse(localStorage.getItem("ashen-heart-calendar") ?? "{}"),
+    };
+  } catch {
+    return {
+      claimed: 0,
+      lastClaimDate: "",
+      shards: 0,
+      diamonds: 0,
+      chests: [],
+    };
+  }
+}
 
 const text = {
-  ru: { adventure: 'ПИКСЕЛЬНОЕ ПРИКЛЮЧЕНИЕ', title: <>ПЕПЕЛЬНОЕ<br />СЕРДЦЕ</>, newGame: 'НОВАЯ ИГРА', continue: 'ПРОДОЛЖИТЬ', settings: 'НАСТРОЙКИ', choose: 'Выбери действие', settingsTitle: 'НАСТРОЙКИ', language: 'ЯЗЫК', volume: 'ГРОМКОСТЬ', difficulty: 'СЛОЖНОСТЬ', easy: 'ЛЁГКАЯ', normal: 'СРЕДНЯЯ', hard: 'СЛОЖНАЯ', easyHint: 'Половина монстров', normalHint: 'Обычное количество', hardHint: 'Вдвое больше монстров', back: 'НАЗАД', controls: 'WASD — ДВИЖЕНИЕ · SPACE — АТАКА · Q — УЛЬТА · ESC — МЕНЮ' },
-  en: { adventure: 'PIXEL ADVENTURE', title: <>ASHEN<br />HEART</>, newGame: 'NEW GAME', continue: 'CONTINUE', settings: 'SETTINGS', choose: 'Choose an action', settingsTitle: 'SETTINGS', language: 'LANGUAGE', volume: 'VOLUME', difficulty: 'DIFFICULTY', easy: 'EASY', normal: 'NORMAL', hard: 'HARD', easyHint: 'Half as many monsters', normalHint: 'Standard monster count', hardHint: 'Twice as many monsters', back: 'BACK', controls: 'WASD — MOVE · SPACE — ATTACK · Q — ULTIMATE · ESC — MENU' },
-  es: { adventure: 'AVENTURA PÍXEL', title: <>CORAZÓN<br />DE CENIZA</>, newGame: 'NUEVA PARTIDA', continue: 'CONTINUAR', settings: 'AJUSTES', choose: 'Elige una acción', settingsTitle: 'AJUSTES', language: 'IDIOMA', volume: 'VOLUMEN', difficulty: 'DIFICULTAD', easy: 'FÁCIL', normal: 'NORMAL', hard: 'DIFÍCIL', easyHint: 'La mitad de monstruos', normalHint: 'Cantidad normal', hardHint: 'El doble de monstruos', back: 'VOLVER', controls: 'WASD — MOVER · SPACE — ATACAR · Q — ESPECIAL · ESC — MENÚ' },
+  ru: {
+    adventure: "ПИКСЕЛЬНОЕ ПРИКЛЮЧЕНИЕ",
+    title: (
+      <>
+        ПЕПЕЛЬНОЕ
+        <br />
+        СЕРДЦЕ
+      </>
+    ),
+    newGame: "НОВАЯ ИГРА",
+    continue: "ПРОДОЛЖИТЬ",
+    settings: "НАСТРОЙКИ",
+    choose: "Выбери действие",
+    settingsTitle: "НАСТРОЙКИ",
+    language: "ЯЗЫК",
+    volume: "ГРОМКОСТЬ",
+    difficulty: "СЛОЖНОСТЬ",
+    easy: "ЛЁГКАЯ",
+    normal: "СРЕДНЯЯ",
+    hard: "СЛОЖНАЯ",
+    easyHint: "Половина монстров",
+    normalHint: "Обычное количество",
+    hardHint: "Вдвое больше монстров",
+    back: "НАЗАД",
+    controls: "WASD — ДВИЖЕНИЕ · SPACE — АТАКА · Q — УЛЬТА · ESC — МЕНЮ",
+  },
+  en: {
+    adventure: "PIXEL ADVENTURE",
+    title: (
+      <>
+        ASHEN
+        <br />
+        HEART
+      </>
+    ),
+    newGame: "NEW GAME",
+    continue: "CONTINUE",
+    settings: "SETTINGS",
+    choose: "Choose an action",
+    settingsTitle: "SETTINGS",
+    language: "LANGUAGE",
+    volume: "VOLUME",
+    difficulty: "DIFFICULTY",
+    easy: "EASY",
+    normal: "NORMAL",
+    hard: "HARD",
+    easyHint: "Half as many monsters",
+    normalHint: "Standard monster count",
+    hardHint: "Twice as many monsters",
+    back: "BACK",
+    controls: "WASD — MOVE · SPACE — ATTACK · Q — ULTIMATE · ESC — MENU",
+  },
+  es: {
+    adventure: "AVENTURA PÍXEL",
+    title: (
+      <>
+        CORAZÓN
+        <br />
+        DE CENIZA
+      </>
+    ),
+    newGame: "NUEVA PARTIDA",
+    continue: "CONTINUAR",
+    settings: "AJUSTES",
+    choose: "Elige una acción",
+    settingsTitle: "AJUSTES",
+    language: "IDIOMA",
+    volume: "VOLUMEN",
+    difficulty: "DIFICULTAD",
+    easy: "FÁCIL",
+    normal: "NORMAL",
+    hard: "DIFÍCIL",
+    easyHint: "La mitad de monstruos",
+    normalHint: "Cantidad normal",
+    hardHint: "El doble de monstruos",
+    back: "VOLVER",
+    controls: "WASD — MOVER · SPACE — ATACAR · Q — ESPECIAL · ESC — MENÚ",
+  },
 };
 
 const registrationText = {
-  ru: { button: 'РЕГИСТРАЦИЯ', title: 'СОЗДАТЬ ПРОФИЛЬ', name: 'ИМЯ ИГРОКА', email: 'ЭЛЕКТРОННАЯ ПОЧТА', password: 'ПАРОЛЬ', show: 'ПОКАЗАТЬ ПАРОЛЬ', hide: 'СКРЫТЬ ПАРОЛЬ', submit: 'ЗАРЕГИСТРИРОВАТЬСЯ', google: 'ПРОДОЛЖИТЬ С GOOGLE', guest: 'ВОЙТИ КАК ГОСТЬ', required: 'Для начала игры зарегистрируйся или войди как гость', success: 'Профиль создан!', error: 'Заполни все поля. Пароль должен содержать не меньше 6 символов.' },
-  en: { button: 'REGISTER', title: 'CREATE PROFILE', name: 'PLAYER NAME', email: 'EMAIL', password: 'PASSWORD', show: 'SHOW PASSWORD', hide: 'HIDE PASSWORD', submit: 'REGISTER', google: 'CONTINUE WITH GOOGLE', guest: 'PLAY AS GUEST', required: 'Register or continue as a guest to start the game', success: 'Profile created!', error: 'Complete every field. Password must contain at least 6 characters.' },
-  es: { button: 'REGISTRARSE', title: 'CREAR PERFIL', name: 'NOMBRE DEL JUGADOR', email: 'CORREO ELECTRÓNICO', password: 'CONTRASEÑA', show: 'MOSTRAR CONTRASEÑA', hide: 'OCULTAR CONTRASEÑA', submit: 'REGISTRARSE', google: 'CONTINUAR CON GOOGLE', guest: 'ENTRAR COMO INVITADO', required: 'Regístrate o entra como invitado para empezar', success: '¡Perfil creado!', error: 'Completa todos los campos. La contraseña debe tener al menos 6 caracteres.' },
+  ru: {
+    button: "РЕГИСТРАЦИЯ",
+    title: "СОЗДАТЬ ПРОФИЛЬ",
+    name: "ИМЯ ИГРОКА",
+    email: "ЭЛЕКТРОННАЯ ПОЧТА",
+    password: "ПАРОЛЬ",
+    show: "ПОКАЗАТЬ ПАРОЛЬ",
+    hide: "СКРЫТЬ ПАРОЛЬ",
+    submit: "ЗАРЕГИСТРИРОВАТЬСЯ",
+    google: "ПРОДОЛЖИТЬ С GOOGLE",
+    guest: "ВОЙТИ КАК ГОСТЬ",
+    required: "Для начала игры зарегистрируйся или войди как гость",
+    success: "Профиль создан!",
+    error: "Заполни все поля. Пароль должен содержать не меньше 6 символов.",
+  },
+  en: {
+    button: "REGISTER",
+    title: "CREATE PROFILE",
+    name: "PLAYER NAME",
+    email: "EMAIL",
+    password: "PASSWORD",
+    show: "SHOW PASSWORD",
+    hide: "HIDE PASSWORD",
+    submit: "REGISTER",
+    google: "CONTINUE WITH GOOGLE",
+    guest: "PLAY AS GUEST",
+    required: "Register or continue as a guest to start the game",
+    success: "Profile created!",
+    error: "Complete every field. Password must contain at least 6 characters.",
+  },
+  es: {
+    button: "REGISTRARSE",
+    title: "CREAR PERFIL",
+    name: "NOMBRE DEL JUGADOR",
+    email: "CORREO ELECTRÓNICO",
+    password: "CONTRASEÑA",
+    show: "MOSTRAR CONTRASEÑA",
+    hide: "OCULTAR CONTRASEÑA",
+    submit: "REGISTRARSE",
+    google: "CONTINUAR CON GOOGLE",
+    guest: "ENTRAR COMO INVITADO",
+    required: "Regístrate o entra como invitado para empezar",
+    success: "¡Perfil creado!",
+    error:
+      "Completa todos los campos. La contraseña debe tener al menos 6 caracteres.",
+  },
 };
 
 export default function App() {
   const [menuOpen, setMenuOpen] = useState(true);
   const [pauseOpen, setPauseOpen] = useState(false);
   const [saveSlotsOpen, setSaveSlotsOpen] = useState(false);
-  const [saveMode, setSaveMode] = useState<'save' | 'load'>('load');
-  const [saveSlots, setSaveSlots] = useState<Array<GameSave | null>>(getStoredSaves);
+  const [saveMode, setSaveMode] = useState<"save" | "load">("load");
+  const [saveSlots, setSaveSlots] =
+    useState<Array<GameSave | null>>(getStoredSaves);
   const [saveRequest, setSaveRequest] = useState(0);
   const [initialSave, setInitialSave] = useState<GameSave | null>(null);
   const pendingSaveSlot = useRef(0);
@@ -40,96 +201,1051 @@ export default function App() {
   const [gameStarted, setGameStarted] = useState(false);
   const [gameId, setGameId] = useState(0);
   const [tutorial, setTutorial] = useState(false);
+  const [startingCoins, setStartingCoins] = useState(0);
+  const [oneHitBoss, setOneHitBoss] = useState(false);
+  const [startingLevelOverride, setStartingLevelOverride] = useState<
+    number | null
+  >(null);
   const [cutscenePlayers, setCutscenePlayers] = useState<1 | 2 | null>(null);
   const [cutsceneStep, setCutsceneStep] = useState(0);
-  const [language, setLanguage] = useState<Language>('ru');
+  const [endingStep, setEndingStep] = useState<number | null>(null);
+  const [merchantMode, setMerchantMode] = useState(false);
+  const [merchantShopOpen, setMerchantShopOpen] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [calendarState, setCalendarState] =
+    useState<CalendarState>(getStoredCalendar);
+  const [boutiqueOpen, setBoutiqueOpen] = useState(false);
+  const [menuTab, setMenuTab] = useState<MenuTab>("main");
+  const [boutiqueOwned, setBoutiqueOwned] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("ashen-heart-boutique") ?? "[]");
+    } catch {
+      return [];
+    }
+  });
+  const monsterJournal = [
+    { id: "slime", name: "СЛИЗЕНЬ", region: "Тёмный лес", unlockLevel: 1 },
+    { id: "goblin", name: "ГОБЛИН", region: "Тёмный лес", unlockLevel: 1 },
+    { id: "goblin-boss", name: "КОРОЛЬ ГОБЛИНОВ", region: "Тёмный лес", unlockLevel: 6 },
+    { id: "scorpion", name: "ПЕСЧАНЫЙ СКОРПИОН", region: "Жаркая пустыня", unlockLevel: 7 },
+    { id: "mummy", name: "МУМИЯ", region: "Жаркая пустыня", unlockLevel: 7 },
+    { id: "mummy-boss", name: "ВЛАДЫКА ГРОБНИЦ", region: "Жаркая пустыня", unlockLevel: 12 },
+    { id: "ice-golem", name: "ЛЕДЯНОЙ ГОЛЕМ", region: "Ледяное кладбище", unlockLevel: 13 },
+  ];
+  const [worldMapOpen, setWorldMapOpen] = useState(false);
+  const [completedRegions, setCompletedRegions] = useState(0);
+  const [travelToLevel, setTravelToLevel] = useState<number | null>(null);
+  const [classPlayers, setClassPlayers] = useState<1 | 2 | null>(null);
+  const [classChoice, setClassChoice] = useState<PlayerClass[]>([]);
+  const [playerClasses, setPlayerClasses] = useState<
+    [PlayerClass, PlayerClass]
+  >(["knight", "knight"]);
+  const [language, setLanguage] = useState<Language>("ru");
   const [volume, setVolume] = useState(70);
-  const [difficulty, setDifficulty] = useState<Difficulty>('normal');
-  const [playerName, setPlayerName] = useState('');
+  const [difficulty, setDifficulty] = useState<Difficulty>("normal");
+  const [playerName, setPlayerName] = useState("");
   const [activePlayerName, setActivePlayerName] = useState(getStoredPlayerName);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [registrationMessage, setRegistrationMessage] = useState('');
-  const [googleMessage, setGoogleMessage] = useState('');
-  const [registered, setRegistered] = useState(() => Boolean(localStorage.getItem('ashen-heart-player')));
+  const [registrationMessage, setRegistrationMessage] = useState("");
+  const [googleMessage, setGoogleMessage] = useState("");
+  const [registered, setRegistered] = useState(() =>
+    Boolean(localStorage.getItem("ashen-heart-player")),
+  );
   const [guest, setGuest] = useState(false);
   const t = text[language];
   const rt = registrationText[language];
-  const enemyMultiplier = difficulty === 'easy' ? .5 : difficulty === 'hard' ? 2 : 1;
-
-  useEffect(() => { setGameVolume(volume / 100); }, [volume]);
-  useEffect(() => { if (gameStarted) setMusicPaused(menuOpen || pauseOpen); }, [gameStarted, menuOpen, pauseOpen]);
+  const enemyMultiplier =
+    difficulty === "easy" ? 0.5 : difficulty === "hard" ? 2 : 1;
 
   useEffect(() => {
-    const applyGoogleUser = (user: any) => { if (!user) return; const name = String(user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Google Player'); const googleEmail = String(user.email || ''); localStorage.setItem('ashen-heart-player', JSON.stringify({ name, email: googleEmail, provider: 'google' })); setPlayerName(name); setEmail(googleEmail); setActivePlayerName(name); setRegistered(true); setGuest(false); setRegistrationMessage(rt.success); setGoogleMessage(''); };
-    void supabase.auth.getSession().then(({ data }) => applyGoogleUser(data.session?.user));
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => applyGoogleUser(session?.user));
+    setGameVolume(volume / 100);
+  }, [volume]);
+  useEffect(() => {
+    const grantKey = "ashen-heart-diamond-grant-150-v1";
+    if (localStorage.getItem(grantKey)) return;
+    setCalendarState((current) => {
+      const next = { ...current, diamonds: current.diamonds + 150 };
+      localStorage.setItem("ashen-heart-calendar", JSON.stringify(next));
+      localStorage.setItem(grantKey, "claimed");
+      return next;
+    });
+  }, []);
+  useEffect(() => {
+    setMusicPaused(pauseOpen);
+  }, [menuOpen, pauseOpen]);
+  useEffect(() => {
+    const beginMenuMusic = () => {
+      startMusic();
+      setMusicPaused(false);
+      window.removeEventListener("pointerdown", beginMenuMusic);
+      window.removeEventListener("keydown", beginMenuMusic);
+    };
+    window.addEventListener("pointerdown", beginMenuMusic);
+    window.addEventListener("keydown", beginMenuMusic);
+    return () => {
+      window.removeEventListener("pointerdown", beginMenuMusic);
+      window.removeEventListener("keydown", beginMenuMusic);
+    };
+  }, []);
+
+  useEffect(() => {
+    const applyGoogleUser = (user: any) => {
+      if (!user) return;
+      const name = String(
+        user.user_metadata?.full_name ||
+          user.user_metadata?.name ||
+          user.email?.split("@")[0] ||
+          "Google Player",
+      );
+      const googleEmail = String(user.email || "");
+      localStorage.setItem(
+        "ashen-heart-player",
+        JSON.stringify({ name, email: googleEmail, provider: "google" }),
+      );
+      setPlayerName(name);
+      setEmail(googleEmail);
+      setActivePlayerName(name);
+      setRegistered(true);
+      setGuest(false);
+      setRegistrationMessage(rt.success);
+      setGoogleMessage("");
+    };
+    void supabase.auth
+      .getSession()
+      .then(({ data }) => applyGoogleUser(data.session?.user));
+    const { data } = supabase.auth.onAuthStateChange((_event, session) =>
+      applyGoogleUser(session?.user),
+    );
     return () => data.subscription.unsubscribe();
   }, [rt.success]);
 
   const continueWithGoogle = async () => {
-    setGoogleMessage('Перенаправляем на Google…');
-    const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
+    setGoogleMessage("Перенаправляем на Google…");
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: window.location.origin },
+    });
     if (error) setGoogleMessage(`Не удалось открыть Google: ${error.message}`);
   };
 
   useEffect(() => {
     const openMenu = (event: KeyboardEvent) => {
-      if (event.code === 'Escape' && gameStarted && !menuOpen) { setSettingsOpen(false); setRegistrationOpen(false); setPauseOpen((current) => !current); }
+      if (event.code === "Escape" && gameStarted && !menuOpen) {
+        setSettingsOpen(false);
+        setRegistrationOpen(false);
+        setPauseOpen((current) => !current);
+      }
     };
-    window.addEventListener('keydown', openMenu);
-    return () => window.removeEventListener('keydown', openMenu);
+    window.addEventListener("keydown", openMenu);
+    return () => window.removeEventListener("keydown", openMenu);
   }, [gameStarted, menuOpen]);
 
-  const startNewGame = () => { setSettingsOpen(false); setRegistrationOpen(false); setModeOpen(true); };
-  const beginGame = (count: 1 | 2, save: GameSave | null = null, startTutorial = false) => { startMusic(); setInitialSave(save); setTutorial(startTutorial); setPlayers(count); setGameId((current) => current + 1); setGameStarted(true); setModeOpen(false); setSaveSlotsOpen(false); setPauseOpen(false); setMenuOpen(false); };
-  const beginCutscene = (count: 1 | 2) => { setCutscenePlayers(count); setCutsceneStep(0); setModeOpen(false); setMenuOpen(false); };
-  const chooseSaveSlot = (index: number) => { const save = saveSlots[index]; if (saveMode === 'load') { if (save) beginGame(save.players, save); return; } pendingSaveSlot.current = index; setSaveRequest((current) => current + 1); };
-  const storeSnapshot = (snapshot: GameSave) => { const frozenSnapshot = structuredClone(snapshot); setSaveSlots((current) => { const next = [...current]; next[pendingSaveSlot.current] = frozenSnapshot; localStorage.setItem('ashen-heart-saves', JSON.stringify(next)); return next; }); setSaveSlotsOpen(false); };
+  const startNewGame = () => {
+    setSettingsOpen(false);
+    setRegistrationOpen(false);
+    setModeOpen(true);
+  };
+  const beginGame = (
+    count: 1 | 2,
+    save: GameSave | null = null,
+    startTutorial = false,
+  ) => {
+    const desertTest =
+      !save &&
+      localStorage.getItem("ashen-heart-one-time-desert-start") !== "used";
+    const bossTest =
+      !desertTest &&
+      !save &&
+      startTutorial &&
+      localStorage.getItem("ashen-heart-one-time-boss-test") !== "used";
+    const oneTimeBoost =
+      bossTest ||
+      (!save &&
+        startTutorial &&
+        localStorage.getItem("ashen-heart-one-time-boost") !== "used");
+    if (desertTest)
+      localStorage.setItem("ashen-heart-one-time-desert-start", "used");
+    if (bossTest)
+      localStorage.setItem("ashen-heart-one-time-boss-test", "used");
+    if (oneTimeBoost)
+      localStorage.setItem("ashen-heart-one-time-boost", "used");
+    startMusic();
+    setInitialSave(save);
+    setStartingLevelOverride(desertTest ? 7 : null);
+    setStartingCoins(oneTimeBoost ? 20000 : 0);
+    setOneHitBoss(bossTest);
+    setTutorial(desertTest || oneTimeBoost ? false : startTutorial);
+    setCompletedRegions(save ? Math.floor(save.level / 6) : desertTest ? 1 : 0);
+    setTravelToLevel(null);
+    setWorldMapOpen(false);
+    setMerchantMode(false);
+    setPlayers(count);
+    setGameId((current) => current + 1);
+    setGameStarted(true);
+    setModeOpen(false);
+    setSaveSlotsOpen(false);
+    setPauseOpen(false);
+    setMenuOpen(false);
+  };
+  const beginCutscene = (count: 1 | 2) => {
+    setCutscenePlayers(count);
+    setCutsceneStep(0);
+    setModeOpen(false);
+    setMenuOpen(false);
+  };
+  const beginClassChoice = (count: 1 | 2) => {
+    setCutscenePlayers(null);
+    setClassPlayers(count);
+    setClassChoice([]);
+  };
+  const chooseClass = (chosen: PlayerClass) => {
+    if (!classPlayers) return;
+    const choices = [...classChoice, chosen];
+    if (choices.length >= classPlayers) {
+      setPlayerClasses([choices[0], choices[1] ?? choices[0]]);
+      const count = classPlayers;
+      setClassPlayers(null);
+      beginGame(count, null, true);
+    } else setClassChoice(choices);
+  };
+  const chooseSaveSlot = (index: number) => {
+    const save = saveSlots[index];
+    if (saveMode === "load") {
+      if (save) beginGame(save.players, save);
+      return;
+    }
+    pendingSaveSlot.current = index;
+    setSaveRequest((current) => current + 1);
+  };
+  const storeSnapshot = (snapshot: GameSave) => {
+    const frozenSnapshot = structuredClone(snapshot);
+    setSaveSlots((current) => {
+      const next = [...current];
+      next[pendingSaveSlot.current] = frozenSnapshot;
+      localStorage.setItem("ashen-heart-saves", JSON.stringify(next));
+      return next;
+    });
+    setSaveSlotsOpen(false);
+  };
   const register = (event: React.FormEvent) => {
     event.preventDefault();
-    if (!playerName.trim() || !email.includes('@') || password.length < 6) { setRegistrationMessage(rt.error); return; }
-    localStorage.setItem('ashen-heart-player', JSON.stringify({ name: playerName.trim(), email: email.trim() }));
-    setRegistered(true); setGuest(false); setActivePlayerName(playerName.trim()); setPassword(''); setRegistrationMessage(rt.success);
+    if (!playerName.trim() || !email.includes("@") || password.length < 6) {
+      setRegistrationMessage(rt.error);
+      return;
+    }
+    localStorage.setItem(
+      "ashen-heart-player",
+      JSON.stringify({ name: playerName.trim(), email: email.trim() }),
+    );
+    setRegistered(true);
+    setGuest(false);
+    setActivePlayerName(playerName.trim());
+    setPassword("");
+    setRegistrationMessage(rt.success);
+  };
+  const regions = [
+    {
+      name: "ТЁМНЫЙ ЛЕС",
+      icon: "♠",
+      description: "Древние чащи и логово гоблинов",
+    },
+    {
+      name: "ЖАРКАЯ ПУСТЫНЯ",
+      icon: "☀",
+      description: "Песчаные руины под палящим небом",
+    },
+    {
+      name: "ЛЕДЯНОЕ КЛАДБИЩЕ",
+      icon: "✦",
+      description: "Замёрзшие могилы и проклятые склепы",
+    },
+    {
+      name: "СМЕРТЕЛЬНЫЕ ГОРЫ",
+      icon: "▲",
+      description: "Ледяные тропы над пропастью",
+    },
+    {
+      name: "ДИКИЙ БЕРЕГ",
+      icon: "≈",
+      description: "Штормы, скалы и последний хранитель",
+    },
+  ];
+  const dailyRewards = [
+    { icon: "◆", title: "200 ОСКОЛКОВ", shards: 200 },
+    { icon: "♦", title: "5 АЛМАЗОВ", diamonds: 5 },
+    { icon: "▣", title: "ОБЫЧНЫЙ СУНДУК", chest: "Обычный сундук" },
+    { icon: "◆", title: "400 ОСКОЛКОВ", shards: 400 },
+    { icon: "♦", title: "10 АЛМАЗОВ", diamonds: 10 },
+    { icon: "▣", title: "РЕДКИЙ СУНДУК", chest: "Редкий сундук" },
+    {
+      icon: "✦",
+      title: "ПОДАРОК ГЕРОЯ",
+      shards: 1000,
+      diamonds: 25,
+      chest: "Легендарный сундук",
+    },
+  ];
+  const boutiqueSkins = [
+    { id: "dune", name: "ДЮНА", price: 100 },
+    { id: "king", name: "КОРОЛЬ", price: 100 },
+    { id: "wizard", name: "ВОЛШЕБНИК", price: 100 },
+    { id: "gentleman", name: "ДЖЕНТЛЬМЕН", price: 100 },
+  ];
+  const boutiqueAccessories = [
+    { id: "propeller-cap", name: "КЕПКА-ВЕРТОЛЁТИК", price: 50 },
+    { id: "frog-cap", name: "КЕПКА-ЛЯГУШКА", price: 50 },
+    { id: "crown", name: "КОРОНА", price: 50 },
+    { id: "headphones", name: "НАУШНИКИ", price: 50 },
+  ];
+  const buyBoutiqueItem = (id: string, price: number) => {
+    if (boutiqueOwned.includes(id) || calendarState.diamonds < price) return;
+    const owned = [...boutiqueOwned, id];
+    const wallet = {
+      ...calendarState,
+      diamonds: calendarState.diamonds - price,
+    };
+    localStorage.setItem("ashen-heart-boutique", JSON.stringify(owned));
+    localStorage.setItem("ashen-heart-calendar", JSON.stringify(wallet));
+    setBoutiqueOwned(owned);
+    setCalendarState(wallet);
+  };
+  const claimDailyReward = (index: number) => {
+    const today = new Date().toLocaleDateString("en-CA");
+    if (
+      index !== calendarState.claimed ||
+      calendarState.lastClaimDate === today
+    )
+      return;
+    const reward = dailyRewards[index];
+    const next: CalendarState = {
+      claimed: calendarState.claimed + 1,
+      lastClaimDate: today,
+      shards: calendarState.shards + (reward.shards ?? 0),
+      diamonds: calendarState.diamonds + (reward.diamonds ?? 0),
+      chests: reward.chest
+        ? [...calendarState.chests, reward.chest]
+        : calendarState.chests,
+    };
+    localStorage.setItem("ashen-heart-calendar", JSON.stringify(next));
+    setCalendarState(next);
+  };
+  const handleVictory = (finishedLevel: number) => {
+    const completed = Math.min(5, Math.ceil(finishedLevel / 6));
+    setCompletedRegions((current) => Math.max(current, completed));
+    if (finishedLevel === 6) setEndingStep(0);
+    else if (finishedLevel === 12) setMerchantMode(true);
+    else setWorldMapOpen(true);
+  };
+  const travelToRegion = (regionIndex: number) => {
+    if (regionIndex > completedRegions) return;
+    setTravelToLevel(regionIndex * 6 + 1);
+    setWorldMapOpen(false);
+    setMerchantMode(false);
+  };
+  const highestVisitedLevel = Math.max(
+    gameStarted ? startingLevelOverride ?? initialSave?.level ?? 1 : 0,
+    ...saveSlots.map((save) => save?.level ?? 0),
+  );
+  const openMenuTab = (tab: MenuTab) => {
+    setMenuTab(tab);
+    setBoutiqueOpen(tab === "boutique");
   };
 
-  return <main className="game-page">
-    {gameStarted && <DungeonGame key={gameId} paused={menuOpen || pauseOpen} enemyMultiplier={enemyMultiplier} profileName={guest ? 'Инкогнито' : activePlayerName || 'Игрок'} players={players} initialSave={initialSave} tutorial={tutorial} saveRequest={saveRequest} onSaveSnapshot={storeSnapshot} />}
-    {cutscenePlayers && <section className={`comic-cutscene scene-${cutsceneStep}`} onClick={() => { if (cutsceneStep < 5) setCutsceneStep((step) => step + 1); else { const count = cutscenePlayers; setCutscenePlayers(null); beginGame(count, null, true); } }}>
-      <div className="comic-sky"><i /><i /><i /></div><div className="ruined-castle"><b /><b /><b /><span /><span /></div><div className="destroyer-shadow"><i /><b /></div><div className="comic-hero"><i className="head" /><i className="body" /><i className="arm" /></div>
-      <div className="comic-caption"><small>ПРОЛОГ · ПЕПЕЛЬНЫЙ ГОРОД</small><p>{['...Где я? Последнее, что я помню — огонь над башнями.', 'Город разрушен. Но под камнями всё ещё бьётся странное сердце...', 'Стой... Эта тень среди огня. Я видел её перед тем, как рухнула главная башня.', 'Это он разрушил город. Я запомню этот силуэт, где бы он ни скрывался.', 'Клянусь пеплом этого города: я найду тебя и отомщу за всех.', 'Хватит лежать. Вставай. Путь начинается здесь.'][cutsceneStep]}</p><b>{cutsceneStep < 5 ? 'НАЖМИ, ЧТОБЫ ПРОДОЛЖИТЬ ▶' : 'ВСТАТЬ И НАЧАТЬ ОБУЧЕНИЕ ▶'}</b></div>
-      <button className="cutscene-skip" onClick={(event) => { event.stopPropagation(); const count = cutscenePlayers; setCutscenePlayers(null); beginGame(count, null, true); }}>ПРОПУСТИТЬ</button>
-    </section>}
-    {gameStarted && !menuOpen && !pauseOpen && <button className="pause-button" aria-label="Пауза" onClick={() => setPauseOpen(true)}><i /><i /></button>}
-    {pauseOpen && !menuOpen && <div className="pause-overlay"><section className="pause-panel"><small>ИГРА ОСТАНОВЛЕНА</small><h2>ПАУЗА</h2><button onClick={() => setPauseOpen(false)}>{t.continue}</button><button onClick={() => { setSaveMode('save'); setSaveSlotsOpen(true); }}>СОХРАНИТЬ ИГРУ</button><button onClick={() => { setPauseOpen(false); setSettingsOpen(true); setMenuOpen(true); }}>{t.settings}</button><button className="pause-exit" onClick={() => { setPauseOpen(false); setSettingsOpen(false); setRegistrationOpen(false); setModeOpen(false); setMenuOpen(true); }}>ГЛАВНОЕ МЕНЮ</button></section></div>}
-    {saveSlotsOpen && <div className="save-overlay"><section className="save-panel"><small>{saveMode === 'save' ? 'ВЫБЕРИ МЕСТО ДЛЯ СОХРАНЕНИЯ' : 'ВЫБЕРИ СОХРАНЁННЫЙ ЭТАП'}</small><h2>{saveMode === 'save' ? 'СОХРАНЕНИЕ' : 'ПРОДОЛЖИТЬ'}</h2><div className="save-slots">{saveSlots.map((save, index) => <button key={index} className={save ? 'filled' : ''} onClick={() => chooseSaveSlot(index)} disabled={saveMode === 'load' && !save}><b>СЛОТ {index + 1}</b>{save ? <><span>УРОВЕНЬ {save.level} · {save.players} ИГРОК{save.players === 2 ? 'А' : ''}</span><time>{new Date(save.savedAt).toLocaleString()}</time></> : <span>ПУСТО</span>}</button>)}</div><button className="settings-back" onClick={() => setSaveSlotsOpen(false)}>← НАЗАД</button></section></div>}
-    {menuOpen && <section className="main-menu" aria-label={t.settings}>
-      <div className="menu-mist mist-one" /><div className="menu-mist mist-two" />
-      {!settingsOpen && !registrationOpen && !modeOpen ? <>
-        <div className="menu-emblem"><span>✦</span></div><p className="menu-kicker">{t.adventure}</p><h1>{t.title}</h1>
-        <div className="menu-divider"><i /><b>◆</b><i /></div>
-        <nav className="menu-actions"><button onClick={startNewGame}>{t.newGame}</button><button onClick={() => { setSaveMode('load'); setSaveSlotsOpen(true); }}>{t.continue}</button><button onClick={() => setSettingsOpen(true)}>{t.settings}</button><button onClick={() => { setRegistrationMessage(''); setRegistrationOpen(true); }}>{rt.button}</button></nav>
-        <p className="menu-message">{t.choose}</p><small>{t.controls}</small>
-      </> : settingsOpen ? <div className="settings-panel">
-        <h2>{t.settingsTitle}</h2>
-        <div className="setting-row"><label>{t.language}</label><div className="setting-options language-options"><button className={language === 'ru' ? 'active' : ''} onClick={() => setLanguage('ru')}>РУССКИЙ</button><button className={language === 'en' ? 'active' : ''} onClick={() => setLanguage('en')}>ENGLISH</button><button className={language === 'es' ? 'active' : ''} onClick={() => setLanguage('es')}>ESPAÑOL</button></div></div>
-        <div className="setting-row"><label htmlFor="volume">{t.volume} <b>{volume}%</b></label><input id="volume" type="range" min="0" max="100" value={volume} onChange={(event) => setVolume(Number(event.target.value))} style={{ '--volume': `${volume}%` } as React.CSSProperties} /></div>
-        <div className="setting-row"><label>{t.difficulty}</label><div className="difficulty-options">{(['easy', 'normal', 'hard'] as Difficulty[]).map((mode) => <button key={mode} className={difficulty === mode ? 'active' : ''} onClick={() => setDifficulty(mode)}><strong>{t[mode]}</strong><small>{t[`${mode}Hint` as 'easyHint' | 'normalHint' | 'hardHint']}</small></button>)}</div></div>
-        <button className="settings-back" onClick={() => setSettingsOpen(false)}>← {t.back}</button>
-      </div> : registrationOpen ? <form className="settings-panel registration-panel" onSubmit={register}>
-        <h2>{rt.title}</h2>
-        <label className="registration-field"><span>{rt.name}</span><input value={playerName} onChange={(event) => setPlayerName(event.target.value)} autoComplete="username" maxLength={24} /></label>
-        <label className="registration-field"><span>{rt.email}</span><input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" /></label>
-        <label className="registration-field"><span>{rt.password}</span><div className="password-input"><input type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" minLength={6} /><button type="button" aria-label={showPassword ? rt.hide : rt.show} title={showPassword ? rt.hide : rt.show} onClick={() => setShowPassword((visible) => !visible)}><i>{showPassword ? '◆' : '◇'}</i><small>{showPassword ? rt.hide : rt.show}</small></button></div></label>
-        <button className="registration-submit" type="submit">{rt.submit}</button>
-        <div className="registration-separator"><i />ИЛИ<i /></div>
-        <button className="google-register" type="button" onClick={continueWithGoogle}><b>G</b><span>{rt.google}</span></button>
-        {googleMessage && <p className="google-message">{googleMessage}</p>}
-        {!registered && <button className="guest-login" type="button" onClick={() => { setGuest(true); setRegistrationMessage(''); setRegistrationOpen(false); }}>{rt.guest}</button>}
-        <p className={`registration-result ${registrationMessage === rt.success ? 'success' : ''}`}>{registrationMessage}</p>
-        <button className="settings-back" type="button" onClick={() => setRegistrationOpen(false)}>← {t.back}</button>
-      </form> : <div className="settings-panel mode-panel"><h2>ВЫБЕРИ РЕЖИМ</h2><p>Сколько игроков будет играть на одной клавиатуре?</p><div className="mode-options"><button onClick={() => beginCutscene(1)}><strong>1 ИГРОК</strong><small>WASD · E · I · Q<br />H — ЛЕЧЕНИЕ ТИММЕЙТА</small></button><button onClick={() => beginCutscene(2)}><strong>2 ИГРОКА</strong><small>СТРЕЛКИ · Ю · Э · Б<br />L — ЛЕЧЕНИЕ ТИММЕЙТА</small></button></div><button className="settings-back" onClick={() => setModeOpen(false)}>← НАЗАД</button></div>}
-    </section>}
-  </main>;
+  return (
+    <main className="game-page">
+      {gameStarted && (
+        <DungeonGame
+          key={gameId}
+          paused={menuOpen || pauseOpen || endingStep !== null || worldMapOpen}
+          enemyMultiplier={enemyMultiplier}
+          startingCoins={startingCoins}
+          oneHitBoss={oneHitBoss}
+          startingLevel={startingLevelOverride}
+          profileName={guest ? "Инкогнито" : activePlayerName || "Игрок"}
+          players={players}
+          playerClass={playerClasses[0]}
+          playerClass2={playerClasses[1]}
+          initialSave={initialSave}
+          tutorial={tutorial}
+          merchantMode={merchantMode}
+          travelToLevel={travelToLevel}
+          saveRequest={saveRequest}
+          onSaveSnapshot={storeSnapshot}
+          onVictory={handleVictory}
+          onShopOpenChange={setMerchantShopOpen}
+        />
+      )}
+      {classPlayers && (
+        <section className="class-select">
+          <div className="class-panel">
+            <div className="class-emblem">✦</div>
+            <small>ПЕПЕЛЬНОЕ СЕРДЦЕ</small>
+            <h2>ВЫБЕРИ КЛАСС · ИГРОК {classChoice.length + 1}</h2>
+            <div className="class-divider">
+              <i />
+              <b>◆</b>
+              <i />
+            </div>
+            <div className="class-grid">
+              <button onClick={() => chooseClass("knight")}>
+                <i>⚔️</i>
+                <strong>РЫЦАРЬ</strong>
+              </button>
+              <button onClick={() => chooseClass("mage")}>
+                <i>🔮</i>
+                <strong>МАГ</strong>
+              </button>
+              <button onClick={() => chooseClass("archer")}>
+                <i>🏹</i>
+                <strong>ЛУЧНИК</strong>
+              </button>
+              <button onClick={() => chooseClass("boxer")}>
+                <i>🥊</i>
+                <strong>БОКСЁР</strong>
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
+      {endingStep !== null && (
+        <section
+          className={`ending-cutscene ending-${endingStep}`}
+          onClick={() => {
+            if (endingStep < 5) setEndingStep(endingStep + 1);
+            else {
+              setEndingStep(null);
+              setMerchantMode(true);
+            }
+          }}
+        >
+          <div className="ending-ruins" />
+          <div className="ending-hero">
+            <i />
+            <b />
+          </div>
+          <div className="fallen-goblin">
+            <i />
+            <b />
+            <span />
+          </div>
+          <div className="ending-caption">
+            <small>{endingStep % 2 === 0 ? "ГЕРОЙ" : "ВОЖДЬ ГОБЛИНОВ"}</small>
+            <p>
+              {
+                [
+                  "Ты разрушал эти земли ради него. Говори: где мне искать убийцу моего города?",
+                  "Я не знаю его имени... Мы звали его Пепельным Странником. Он платил древним золотом.",
+                  "Где он?",
+                  "Ищи Архив Безмолвной башни на севере. Там хранятся договоры и карта его пути.",
+                  "Если ты солгал, я вернусь. Но если там есть ответы — твоя жизнь сегодня останется при тебе.",
+                  "Иди к северным воротам. Там начинается дорога к башне... и там тебя уже ждут.",
+                ][endingStep]
+              }
+            </p>
+            <b>{endingStep < 5 ? "ПРОДОЛЖИТЬ ▶" : "ЗАВЕРШИТЬ РАЗГОВОР ▶"}</b>
+          </div>
+        </section>
+      )}
+      {merchantMode && !merchantShopOpen && !worldMapOpen && !endingStep && (
+        <button
+          className="world-map-button"
+          onClick={() => setWorldMapOpen(true)}
+        >
+          КАРТА МИРА
+        </button>
+      )}
+      {worldMapOpen && (
+        <section className="world-map-overlay">
+          <div className="world-map-panel">
+            <small>ПУТЬ ПЕПЕЛЬНОГО СЕРДЦА</small>
+            <h2>КАРТА МИРА</h2>
+            <p>
+              Каждая новая область открывается после победы над хранителем
+              предыдущей.
+            </p>
+            <div className="world-route">
+              {regions.map((region, index) => {
+                const unlocked = index <= completedRegions;
+                const complete = index < completedRegions;
+                return (
+                  <button
+                    key={region.name}
+                    className={`${unlocked ? "unlocked" : "locked"} ${complete ? "complete" : ""}`}
+                    disabled={
+                      !unlocked || (index === 0 && completedRegions > 0)
+                    }
+                    onClick={() => travelToRegion(index)}
+                  >
+                    <i>{unlocked ? region.icon : "▣"}</i>
+                    <b>{region.name}</b>
+                    <span>
+                      {complete
+                        ? "ПРОЙДЕНО"
+                        : unlocked
+                          ? index === completedRegions && completedRegions < 5
+                            ? "ОТКРЫТО · ВОЙТИ"
+                            : "ТЕКУЩАЯ ОБЛАСТЬ"
+                          : "ЗАКРЫТО"}
+                    </span>
+                    <small>{region.description}</small>
+                  </button>
+                );
+              })}
+            </div>
+            {completedRegions >= 5 ? (
+              <strong className="world-complete">ВСЕ ЗЕМЛИ ОСВОБОЖДЕНЫ!</strong>
+            ) : (
+              <button
+                className="world-map-close"
+                onClick={() => setWorldMapOpen(false)}
+              >
+                ВЕРНУТЬСЯ
+              </button>
+            )}
+          </div>
+        </section>
+      )}
+      {cutscenePlayers && (
+        <section
+          className={`comic-cutscene scene-${cutsceneStep}`}
+          onClick={() => {
+            if (cutsceneStep < 5) setCutsceneStep((step) => step + 1);
+            else beginClassChoice(cutscenePlayers);
+          }}
+        >
+          <div className="comic-sky">
+            <i />
+            <i />
+            <i />
+          </div>
+          <div className="ruined-castle">
+            <b />
+            <b />
+            <b />
+            <span />
+            <span />
+          </div>
+          <div className="destroyer-shadow">
+            <i />
+            <b />
+          </div>
+          <div className="comic-hero">
+            <i className="head" />
+            <i className="body" />
+            <i className="arm" />
+          </div>
+          <div className="comic-caption">
+            <small>ПРОЛОГ · ПЕПЕЛЬНЫЙ ГОРОД</small>
+            <p>
+              {
+                [
+                  "...Где я? Последнее, что я помню — огонь над башнями.",
+                  "Город разрушен. Но под камнями всё ещё бьётся странное сердце...",
+                  "Стой... Эта тень среди огня. Я видел её перед тем, как рухнула главная башня.",
+                  "Это он разрушил город. Я запомню этот силуэт, где бы он ни скрывался.",
+                  "Клянусь пеплом этого города: я найду тебя и отомщу за всех.",
+                  "Хватит лежать. Вставай. Путь начинается здесь.",
+                ][cutsceneStep]
+              }
+            </p>
+            <b>
+              {cutsceneStep < 5
+                ? "НАЖМИ, ЧТОБЫ ПРОДОЛЖИТЬ ▶"
+                : "ВСТАТЬ И НАЧАТЬ ОБУЧЕНИЕ ▶"}
+            </b>
+          </div>
+          <button
+            className="cutscene-skip"
+            onClick={(event) => {
+              event.stopPropagation();
+              beginClassChoice(cutscenePlayers);
+            }}
+          >
+            ПРОПУСТИТЬ
+          </button>
+        </section>
+      )}
+      {gameStarted && !menuOpen && !pauseOpen && (
+        <button
+          className="pause-button"
+          aria-label="Пауза"
+          onClick={() => setPauseOpen(true)}
+        >
+          <i />
+          <i />
+        </button>
+      )}
+      {pauseOpen && !menuOpen && (
+        <div className="pause-overlay">
+          <section className="pause-panel">
+            <small>ИГРА ОСТАНОВЛЕНА</small>
+            <h2>ПАУЗА</h2>
+            <button onClick={() => setPauseOpen(false)}>{t.continue}</button>
+            <button
+              onClick={() => {
+                setSaveMode("save");
+                setSaveSlotsOpen(true);
+              }}
+            >
+              СОХРАНИТЬ ИГРУ
+            </button>
+            <button
+              onClick={() => {
+                setPauseOpen(false);
+                setSettingsOpen(true);
+                setMenuOpen(true);
+              }}
+            >
+              {t.settings}
+            </button>
+            <button
+              className="pause-exit"
+              onClick={() => {
+                setPauseOpen(false);
+                setSettingsOpen(false);
+                setRegistrationOpen(false);
+                setModeOpen(false);
+                setMenuOpen(true);
+              }}
+            >
+              ГЛАВНОЕ МЕНЮ
+            </button>
+          </section>
+        </div>
+      )}
+      {saveSlotsOpen && (
+        <div className="save-overlay">
+          <section className="save-panel">
+            <small>
+              {saveMode === "save"
+                ? "ВЫБЕРИ МЕСТО ДЛЯ СОХРАНЕНИЯ"
+                : "ВЫБЕРИ СОХРАНЁННЫЙ ЭТАП"}
+            </small>
+            <h2>{saveMode === "save" ? "СОХРАНЕНИЕ" : "ПРОДОЛЖИТЬ"}</h2>
+            <div className="save-slots">
+              {saveSlots.map((save, index) => (
+                <button
+                  key={index}
+                  className={save ? "filled" : ""}
+                  onClick={() => chooseSaveSlot(index)}
+                  disabled={saveMode === "load" && !save}
+                >
+                  <b>СЛОТ {index + 1}</b>
+                  {save ? (
+                    <>
+                      <span>
+                        УРОВЕНЬ {save.level} · {save.players} ИГРОК
+                        {save.players === 2 ? "А" : ""}
+                      </span>
+                      <time>{new Date(save.savedAt).toLocaleString()}</time>
+                    </>
+                  ) : (
+                    <span>ПУСТО</span>
+                  )}
+                </button>
+              ))}
+            </div>
+            <button
+              className="settings-back"
+              onClick={() => setSaveSlotsOpen(false)}
+            >
+              ← НАЗАД
+            </button>
+          </section>
+        </div>
+      )}
+      {calendarOpen && (
+        <div className="calendar-overlay">
+          <section className="daily-calendar">
+            <button
+              className="calendar-close"
+              onClick={() => setCalendarOpen(false)}
+            >
+              ✕
+            </button>
+            <small>ДАРЫ ПЕПЕЛЬНОГО СЕРДЦА</small>
+            <h2>ЕЖЕДНЕВНЫЕ НАГРАДЫ</h2>
+            <div className="calendar-wallet">
+              <b>◆ {calendarState.shards}</b>
+              <b>♦ {calendarState.diamonds}</b>
+              <b>▣ {calendarState.chests.length}</b>
+            </div>
+            <div className="daily-grid">
+              {dailyRewards.map((reward, index) => {
+                const claimed = index < calendarState.claimed,
+                  current = index === calendarState.claimed,
+                  claimedToday =
+                    calendarState.lastClaimDate ===
+                    new Date().toLocaleDateString("en-CA");
+                return (
+                  <button
+                    key={index}
+                    className={`${claimed ? "claimed" : ""} ${current ? "current" : ""}`}
+                    disabled={!current || claimedToday}
+                    onClick={() => claimDailyReward(index)}
+                  >
+                    <span>ДЕНЬ {index + 1}</span>
+                    <i>{claimed ? "✓" : reward.icon}</i>
+                    <strong>{reward.title}</strong>
+                    <small>
+                      {claimed
+                        ? "ПОЛУЧЕНО"
+                        : current && !claimedToday
+                          ? "ЗАБРАТЬ"
+                          : current
+                            ? "ПРИХОДИ ЗАВТРА"
+                            : "ЗАКРЫТО"}
+                    </small>
+                  </button>
+                );
+              })}
+            </div>
+            <p>Следующий подарок открывается на следующий календарный день.</p>
+          </section>
+        </div>
+      )}
+      {menuOpen && menuTab === "home" && (
+        <div className="menu-tab-overlay"><section className="menu-tab-panel home-tab-panel"><div className="home-castle-icon"><i /><b /><span /></div><small>ЛИЧНАЯ КРЕПОСТЬ</small><h2>ДОМ</h2><p>Ворота закрыты. Функции дома появятся позже.</p></section></div>
+      )}
+      {menuOpen && menuTab === "inventory" && (
+        <div className="menu-tab-overlay"><section className="menu-tab-panel collection-panel"><small>СОБРАННЫЕ СОКРОВИЩА</small><h2>ИНВЕНТАРЬ</h2><div className="inventory-wallet"><b>◆ {calendarState.shards}</b><b>♦ {calendarState.diamonds}</b><b>▣ {calendarState.chests.length}</b></div><h3>КОЛЛЕКЦИЯ БУТИКА</h3><div className="collection-grid">{[...boutiqueSkins, ...boutiqueAccessories].map((item) => { const owned = boutiqueOwned.includes(item.id); return <div key={item.id} className={owned ? "collected" : "empty"}><i>{owned ? "◆" : "?"}</i><strong>{owned ? item.name : "НЕ ОТКРЫТО"}</strong></div>; })}</div></section></div>
+      )}
+      {menuOpen && menuTab === "journal" && (
+        <div className="menu-tab-overlay"><section className="menu-tab-panel journal-panel"><small>ЗАПИСИ О СОЗДАНИЯХ</small><h2>ДНЕВНИК МОНСТРОВ</h2><div className="journal-grid">{monsterJournal.map((monster) => { const discovered = highestVisitedLevel >= monster.unlockLevel; return <article key={monster.id} className={discovered ? "discovered" : "unknown"}><i className={`journal-monster monster-${monster.id}`}><b /><span /></i><strong>{discovered ? monster.name : "НЕИЗВЕСТНО"}</strong><small>{discovered ? monster.region : "ЕЩЁ НЕ ВСТРЕЧЕН"}</small></article>; })}</div></section></div>
+      )}
+      {boutiqueOpen && (
+        <div className="boutique-overlay">
+          <section className="boutique-panel">
+            <button
+              className="calendar-close"
+              onClick={() => setBoutiqueOpen(false)}
+            >
+              ✕
+            </button>
+            <small>ЛАВКА РЕДКИХ ОБРАЗОВ</small>
+            <h2>БУТИК</h2>
+            <div className="boutique-balance">
+              ♦ АЛМАЗЫ: {calendarState.diamonds}
+            </div>
+            <h3>СКИНЫ</h3>
+            <div className="boutique-grid">
+              {boutiqueSkins.map((item) => {
+                const owned = boutiqueOwned.includes(item.id);
+                return (
+                  <button
+                    key={item.id}
+                    className={owned ? "owned" : ""}
+                    disabled={owned || calendarState.diamonds < item.price}
+                    onClick={() => buyBoutiqueItem(item.id, item.price)}
+                  >
+                    <i className={`boutique-avatar skin-${item.id}`}>
+                      <b className="avatar-hat" />
+                      <b className="avatar-head" />
+                      <b className="avatar-body" />
+                      <b className="avatar-arm left" />
+                      <b className="avatar-arm right" />
+                      <b className="avatar-leg left" />
+                      <b className="avatar-leg right" />
+                      <b className="avatar-detail" />
+                    </i>
+                    <strong>{item.name}</strong>
+                    <span>{owned ? "КУПЛЕНО" : `♦ ${item.price}`}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <h3>АКСЕССУАРЫ</h3>
+            <div className="boutique-grid">
+              {boutiqueAccessories.map((item) => {
+                const owned = boutiqueOwned.includes(item.id);
+                return (
+                  <button
+                    key={item.id}
+                    className={owned ? "owned" : ""}
+                    disabled={owned || calendarState.diamonds < item.price}
+                    onClick={() => buyBoutiqueItem(item.id, item.price)}
+                  >
+                    <i className={`boutique-accessory accessory-${item.id}`}>
+                      <b className="wearer-hair" />
+                      <b className="wearer-head" />
+                      <b className="wearer-body" />
+                      <b className="wearer-arm left" />
+                      <b className="wearer-arm right" />
+                      <b className="wearer-leg left" />
+                      <b className="wearer-leg right" />
+                      <b className="accessory-part main" />
+                      <b className="accessory-part detail-one" />
+                      <b className="accessory-part detail-two" />
+                      <b className="accessory-part detail-three" />
+                    </i>
+                    <strong>{item.name}</strong>
+                    <span>{owned ? "КУПЛЕНО" : `♦ ${item.price}`}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <p>Купленные образы и аксессуары сохраняются в коллекции.</p>
+          </section>
+        </div>
+      )}
+      {menuOpen && (
+        <section className="main-menu" aria-label={t.settings}>
+          <div className="menu-mist mist-one" />
+          <div className="menu-mist mist-two" />
+          {!settingsOpen && !registrationOpen && !modeOpen ? (
+            <>
+              <button
+                className="calendar-menu-button"
+                onClick={() => setCalendarOpen(true)}
+                aria-label="Ежедневные награды"
+              >
+                <i />
+                <b>7</b>
+              </button>
+              <button
+                className="boutique-menu-button"
+                onClick={() => setBoutiqueOpen(true)}
+                aria-label="Бутик"
+              >
+                <i />
+              </button>
+              <div className="menu-emblem">
+                <span>✦</span>
+              </div>
+              <p className="menu-kicker">{t.adventure}</p>
+              <div className="ashen-heart-mark" aria-hidden="true">
+                <i />
+                <span /><span /><span /><span /><span /><span />
+              </div>
+              <h1>{t.title}</h1>
+              <div className="menu-divider">
+                <i />
+                <b>◆</b>
+                <i />
+              </div>
+              <nav className="menu-actions">
+                <button onClick={startNewGame}>{t.newGame}</button>
+                <button
+                  onClick={() => {
+                    setSaveMode("load");
+                    setSaveSlotsOpen(true);
+                  }}
+                >
+                  {t.continue}
+                </button>
+                <button onClick={() => setSettingsOpen(true)}>
+                  {t.settings}
+                </button>
+                <button
+                  onClick={() => {
+                    setRegistrationMessage("");
+                    setRegistrationOpen(true);
+                  }}
+                >
+                  {rt.button}
+                </button>
+              </nav>
+              <p className="menu-message">{t.choose}</p>
+              <small>{t.controls}</small>
+            </>
+          ) : settingsOpen ? (
+            <div className="settings-panel">
+              <h2>{t.settingsTitle}</h2>
+              <div className="setting-row">
+                <label>{t.language}</label>
+                <div className="setting-options language-options">
+                  <button
+                    className={language === "ru" ? "active" : ""}
+                    onClick={() => setLanguage("ru")}
+                  >
+                    РУССКИЙ
+                  </button>
+                  <button
+                    className={language === "en" ? "active" : ""}
+                    onClick={() => setLanguage("en")}
+                  >
+                    ENGLISH
+                  </button>
+                  <button
+                    className={language === "es" ? "active" : ""}
+                    onClick={() => setLanguage("es")}
+                  >
+                    ESPAÑOL
+                  </button>
+                </div>
+              </div>
+              <div className="setting-row">
+                <label htmlFor="volume">
+                  {t.volume} <b>{volume}%</b>
+                </label>
+                <input
+                  id="volume"
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={volume}
+                  onChange={(event) => setVolume(Number(event.target.value))}
+                  style={{ "--volume": `${volume}%` } as React.CSSProperties}
+                />
+              </div>
+              <div className="setting-row">
+                <label>{t.difficulty}</label>
+                <div className="difficulty-options">
+                  {(["easy", "normal", "hard"] as Difficulty[]).map((mode) => (
+                    <button
+                      key={mode}
+                      className={difficulty === mode ? "active" : ""}
+                      onClick={() => setDifficulty(mode)}
+                    >
+                      <strong>{t[mode]}</strong>
+                      <small>
+                        {
+                          t[
+                            `${mode}Hint` as
+                              "easyHint" | "normalHint" | "hardHint"
+                          ]
+                        }
+                      </small>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <button
+                className="settings-back"
+                onClick={() => setSettingsOpen(false)}
+              >
+                ← {t.back}
+              </button>
+            </div>
+          ) : registrationOpen ? (
+            <form
+              className="settings-panel registration-panel"
+              onSubmit={register}
+            >
+              <h2>{rt.title}</h2>
+              <label className="registration-field">
+                <span>{rt.name}</span>
+                <input
+                  value={playerName}
+                  onChange={(event) => setPlayerName(event.target.value)}
+                  autoComplete="username"
+                  maxLength={24}
+                />
+              </label>
+              <label className="registration-field">
+                <span>{rt.email}</span>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  autoComplete="email"
+                />
+              </label>
+              <label className="registration-field">
+                <span>{rt.password}</span>
+                <div className="password-input">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    autoComplete="new-password"
+                    minLength={6}
+                  />
+                  <button
+                    type="button"
+                    aria-label={showPassword ? rt.hide : rt.show}
+                    title={showPassword ? rt.hide : rt.show}
+                    onClick={() => setShowPassword((visible) => !visible)}
+                  >
+                    <i>{showPassword ? "◆" : "◇"}</i>
+                    <small>{showPassword ? rt.hide : rt.show}</small>
+                  </button>
+                </div>
+              </label>
+              <button className="registration-submit" type="submit">
+                {rt.submit}
+              </button>
+              <div className="registration-separator">
+                <i />
+                ИЛИ
+                <i />
+              </div>
+              <button
+                className="google-register"
+                type="button"
+                onClick={continueWithGoogle}
+              >
+                <b>G</b>
+                <span>{rt.google}</span>
+              </button>
+              {googleMessage && (
+                <p className="google-message">{googleMessage}</p>
+              )}
+              {!registered && (
+                <button
+                  className="guest-login"
+                  type="button"
+                  onClick={() => {
+                    setGuest(true);
+                    setRegistrationMessage("");
+                    setRegistrationOpen(false);
+                  }}
+                >
+                  {rt.guest}
+                </button>
+              )}
+              <p
+                className={`registration-result ${registrationMessage === rt.success ? "success" : ""}`}
+              >
+                {registrationMessage}
+              </p>
+              <button
+                className="settings-back"
+                type="button"
+                onClick={() => setRegistrationOpen(false)}
+              >
+                ← {t.back}
+              </button>
+            </form>
+          ) : (
+            <div className="settings-panel mode-panel">
+              <h2>ВЫБЕРИ РЕЖИМ</h2>
+              <p>Сколько игроков будет играть на одной клавиатуре?</p>
+              <div className="mode-options">
+                <button onClick={() => beginCutscene(1)}>
+                  <strong>1 ИГРОК</strong>
+                  <small>
+                    WASD · E · I · Q<br />H — САМОЛЕЧЕНИЕ
+                  </small>
+                </button>
+                <button onClick={() => beginCutscene(2)}>
+                  <strong>2 ИГРОКА</strong>
+                  <small>
+                    СТРЕЛКИ · Ю · Э · Б<br />L — ЛЕЧЕНИЕ ТИММЕЙТА
+                  </small>
+                </button>
+              </div>
+              <button
+                className="settings-back"
+                onClick={() => setModeOpen(false)}
+              >
+                ← НАЗАД
+              </button>
+            </div>
+          )}
+          {!settingsOpen && !registrationOpen && !modeOpen && (
+            <nav className="main-bottom-tabs" aria-label="Разделы главного меню">
+              <button className={menuTab === "home" ? "active" : ""} onClick={() => openMenuTab("home")}><i className="tab-home" /><span>ДОМ</span></button>
+              <button className={menuTab === "journal" ? "active" : ""} onClick={() => openMenuTab("journal")}><i className="tab-journal" /><span>ДНЕВНИК</span></button>
+              <button className={`tab-main-button ${menuTab === "main" ? "active" : ""}`} onClick={() => openMenuTab("main")}><i className="tab-swords" /><span>ГЛАВНАЯ</span></button>
+              <button className={menuTab === "inventory" ? "active" : ""} onClick={() => openMenuTab("inventory")}><i className="tab-armor" /><span>ИНВЕНТАРЬ</span></button>
+              <button className={menuTab === "boutique" ? "active" : ""} onClick={() => openMenuTab("boutique")}><i className="tab-shop" /><span>БУТИК</span></button>
+            </nav>
+          )}
+        </section>
+      )}
+    </main>
+  );
 }

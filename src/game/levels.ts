@@ -3,7 +3,7 @@ export type Wall = { x: number; y: number; w: number; h: number };
 export type Weapon = { name: string; type: 'sword' | 'bow' | 'staff' | 'gloves' | 'armor'; damage: number; defense?: number; durability?: number; color: string };
 export type Rarity = { name: string; color: string; bonus: number; tier: number; chance: number };
 export type LootDrop = { item: Weapon; rarity: Rarity };
-export type EnemyKind = 'slime' | 'goblin' | 'boss';
+export type EnemyKind = 'slime' | 'goblin' | 'mummy' | 'scorpion' | 'iceGolem' | 'boss';
 export type EnemySpawn = Point & { kind: EnemyKind };
 export type Decoration = Point & { kind: 'rock' | 'grass' | 'log'; variant: number };
 export type EnemyStyle = { color: string; hp: number; power: number; speed: number };
@@ -56,17 +56,24 @@ const themes: Array<{ name: string; floor: [string, string, string]; loot: Weapo
   { name: 'Золотая кузница', floor: ['#554426', '#64502c', '#806538'], loot: { name: 'Солнечный лук', type: 'bow', damage: 7, color: '#ffd85e' }, enemy: { color: '#e2a92f', hp: 12, power: 2, speed: .96 } },
   { name: 'Круг гоблинов', floor: ['#24392b', '#2c4634', '#385a40'], loot: { name: 'Клинок вождя', type: 'sword', damage: 10, color: '#9dff79' }, enemy: { color: '#72b957', hp: 15, power: 2, speed: 1.05 } },
 ];
+const regions = [
+  { name: 'Тёмный лес', floor: ['#29443a', '#2d4b40', '#345749'] as [string, string, string], enemy: '#69ad68' },
+  { name: 'Жаркая пустыня', floor: ['#8a5b2d', '#a66f35', '#c48b45'] as [string, string, string], enemy: '#d8943f' },
+  { name: 'Ледяное кладбище', floor: ['#8fcbe0', '#a9dced', '#d7f4fb'] as [string, string, string], enemy: '#78b9d2' },
+  { name: 'Смертельные горы', floor: ['#303944', '#3d4855', '#536170'] as [string, string, string], enemy: '#8096ab' },
+  { name: 'Дикий берег', floor: ['#1f5660', '#286b73', '#36848a'] as [string, string, string], enemy: '#51aeb0' },
+];
 
 function randomFor(seed: number) {
   let value = seed * 9973 + 17;
   return () => { value = (value * 16807) % 2147483647; return (value - 1) / 2147483646; };
 }
 
-const levelSeeds = Array.from({ length: 6 }, (_, index) => index + 1);
+const levelSeeds = Array.from({ length: 30 }, (_, index) => index + 1);
 
 /** Creates a new layout for a level while keeping it stable until the next reroll. */
 export function rerollLevel(number: number) {
-  const index = Math.max(0, Math.min(5, number - 1));
+  const index = Math.max(0, Math.min(29, number - 1));
   levelSeeds[index] = Math.floor(Math.random() * 2_000_000_000) + 1;
 }
 
@@ -83,13 +90,13 @@ function blocksRouteSpine(wall: Wall) {
 }
 
 export function getLevel(number: number): LevelConfig {
-  const index = Math.max(0, Math.min(5, number - 1)); const theme = themes[index]; const random = randomFor(levelSeeds[index]);
-  const round = number === 6; const worldWidth = round ? 640 : ROUTE_WIDTH; const worldHeight = round ? 672 : ROUTE_HEIGHT;
+  const index = Math.max(0, Math.min(29, number - 1)); const regionIndex = Math.floor(index / 6); const localIndex = index % 6; const localNumber = localIndex + 1; const baseTheme = themes[localIndex]; const region = regions[regionIndex]; const theme = { ...baseTheme, name: `${region.name} · ${baseTheme.name}`, floor: region.floor, enemy: { ...baseTheme.enemy, color: region.enemy, hp: baseTheme.enemy.hp + regionIndex * 4, power: baseTheme.enemy.power + Math.floor(regionIndex / 2), speed: baseTheme.enemy.speed + regionIndex * .05 } }; const random = randomFor(levelSeeds[index]);
+  const round = localNumber === 6; const worldWidth = round ? 640 : ROUTE_WIDTH; const worldHeight = round ? 672 : ROUTE_HEIGHT;
   const walls: Wall[] = round ? [] : [
     { x: 0, y: 0, w: worldWidth, h: 32 }, { x: 0, y: worldHeight - 32, w: worldWidth, h: 32 },
     { x: 0, y: 0, w: 32, h: worldHeight }, { x: worldWidth - 32, y: 0, w: 32, h: worldHeight },
   ];
-  for (let i = 0; i < (round ? 0 : 8 + index * 2); i++) {
+  for (let i = 0; i < (round ? 0 : 8 + localIndex * 2); i++) {
     for (let attempt = 0; attempt < 80; attempt++) {
       const horizontal = random() > .5;
       const candidate = { x: round ? 230 + Math.floor(random() * 6) * 32 : 75 + Math.floor(random() * 54) * 32, y: 55 + Math.floor(random() * (round ? 6 : 17)) * 32, w: horizontal ? 64 + Math.floor(random() * 3) * 32 : 32, h: horizontal ? 32 : 64 + Math.floor(random() * 3) * 32 };
@@ -112,13 +119,13 @@ export function getLevel(number: number): LevelConfig {
     }
     return { x: 300, y: 300 };
   };
-  const chestCount = round ? 0 : 2 + Math.floor(random() * 5);
+  const chestCount = round ? 0 : Math.max(1, Math.ceil((2 + Math.floor(random() * 5)) / 3));
   const chests = Array.from({ length: chestCount }, safePoint);
-  const carts = round ? [] : Array.from({ length: 7 + number }, (_, cartIndex) => { const lane = cartIndex % 3; return { x: 220 + random() * 1420, y: [102, 318, 534][lane] }; });
+  const carts = round ? [] : Array.from({ length: 7 + localNumber }, (_, cartIndex) => { const lane = cartIndex % 3; return { x: 220 + random() * 1420, y: [102, 318, 534][lane] }; });
   const enemies: EnemySpawn[] = round
     ? [{ x: 320, y: 260, kind: 'boss' }]
-    : Array.from({ length: (1 + number) * 20 }, (_, index) => ({
-      ...safePoint(), kind: index % 4 === 3 ? 'goblin' as const : 'slime' as const,
+    : Array.from({ length: Math.floor((1 + localNumber) * 20 * (regionIndex === 2 ? .8 : 1)) }, (_, index) => ({
+      ...safePoint(), kind: index % 4 === 3 ? (regionIndex === 1 ? 'mummy' as const : regionIndex === 2 ? 'iceGolem' as const : 'goblin' as const) : (regionIndex === 1 ? 'scorpion' as const : 'slime' as const),
     }));
   const decorations: Decoration[] = [];
   const decorationCount = round ? 32 : 105;
@@ -137,7 +144,7 @@ export function getLevel(number: number): LevelConfig {
     }
   }
   const loot = { ...theme.loot };
-  return { ...theme, worldWidth, worldHeight, round, floor: [...themes[0].floor], loot, enemy: { ...theme.enemy }, walls, chests, carts, enemies, decorations };
+  return { ...theme, worldWidth, worldHeight, round, floor: [...theme.floor], loot, enemy: { ...theme.enemy }, walls, chests, carts, enemies, decorations };
 }
 
 const randomLoot: Array<Weapon & { tier: number }> = [

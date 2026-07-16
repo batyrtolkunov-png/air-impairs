@@ -5,7 +5,8 @@ let musicTimer: number | null = null;
 let masterVolume = 1.4;
 let musicStep = 0;
 let dangerMusic = false;
-const MUSIC_VOLUME = 2.1;
+const MUSIC_VOLUME = 4.2;
+const MUSIC_ENABLED = true;
 
 function setup() {
   if (context) return context;
@@ -34,33 +35,48 @@ export function setGameVolume(value: number) {
 
 export function startMusic() {
   const ctx = setup(); void ctx.resume();
+  if (!MUSIC_ENABLED) { if (music) music.gain.setValueAtTime(0, ctx.currentTime); return; }
   if (musicTimer !== null) return;
-  // A minor pentatonic melody: the same musical identity remains in both modes.
-  const calmMelody = [220, 261.63, 293.66, 329.63, 293.66, 261.63, 196, 220, 261.63, 329.63, 392, 329.63, 293.66, 261.63, 220, 196];
-  const tenseMelody = [220, 261.63, 293.66, 329.63, 349.23, 329.63, 293.66, 261.63];
-  const bassRoots = [110, 98, 130.81, 87.31];
+  // Original contemporary-neoclassical score: piano ostinato, cello bass and soft strings.
+  const calmChords = [[220, 261.63, 329.63], [174.61, 220, 261.63], [196, 261.63, 329.63], [196, 246.94, 293.66]];
+  const tenseChords = [[220, 261.63, 311.13], [207.65, 246.94, 293.66], [174.61, 220, 261.63], [164.81, 207.65, 246.94]];
+  const bassRoots = [110, 87.31, 98, 98];
+  const calmScale = [392, 440, 493.88, 523.25, 587.33, 659.25, 698.46, 783.99];
+  const dangerScale = [392, 415.3, 466.16, 493.88, 523.25, 554.37, 622.25, 659.25];
+  let melodyIndex = 3, melodyDirection = 1, phraseLength = 5 + Math.floor(Math.random() * 7), phraseStep = 0, previousMelody = 0;
   const playBeat = () => {
     if (!context || !music) return;
-    const melody = dangerMusic ? tenseMelody : calmMelody;
-    const note = melody[musicStep % melody.length]; const bass = bassRoots[Math.floor(musicStep / 4) % bassRoots.length];
-    tone(note, dangerMusic ? .28 : .44, dangerMusic ? .055 : .048, 'triangle', music);
-    tone(note * 2, .16, dangerMusic ? .018 : .012, 'sine', music, .055);
-    if (musicStep % 4 === 0) { tone(bass, dangerMusic ? .42 : .8, dangerMusic ? .095 : .065, 'sine', music); tone(bass * 1.5, .65, .018, 'triangle', music, .08); }
-    if (!dangerMusic && musicStep % 4 === 2) tone(bass * 2, .25, .022, 'sine', music);
+    const chordIndex = Math.floor(musicStep / 8) % 4; const chord = (dangerMusic ? tenseChords : calmChords)[chordIndex];
+    const arpeggioOrder = dangerMusic ? [0, 1, 2, 1, 0, 2, 1, 2] : [0, 1, 2, 1, 2, 1, 0, 1];
+    const piano = chord[arpeggioOrder[musicStep % 8]] * 2;
+    tone(piano, dangerMusic ? .24 : .52, dangerMusic ? .052 : .044, 'triangle', music);
+    tone(piano * 2, .09, .009, 'sine', music, .012);
+    if (musicStep % 8 === 0) {
+      const bass = bassRoots[chordIndex]; tone(bass, dangerMusic ? 1.3 : 2.4, dangerMusic ? .09 : .07, 'sine', music);
+      chord.forEach((note, index) => tone(note / 2, dangerMusic ? 1.5 : 2.8, dangerMusic ? .017 : .012, index === 1 ? 'sine' : 'triangle', music!, index * .035));
+    }
+    const scale = dangerMusic ? dangerScale : calmScale;
+    if (phraseStep >= phraseLength) { phraseStep = 0; phraseLength = 4 + Math.floor(Math.random() * 9); melodyDirection = Math.random() < .5 ? -1 : 1; if (Math.random() < .35) melodyIndex = Math.floor(Math.random() * scale.length); }
+    if (Math.random() < .22) melodyDirection *= -1;
+    const leap = Math.random() < .18 ? 2 : 1; melodyIndex = Math.max(0, Math.min(scale.length - 1, melodyIndex + melodyDirection * leap));
+    if (melodyIndex === 0 || melodyIndex === scale.length - 1) melodyDirection *= -1;
+    let melodyNote = scale[melodyIndex]; if (melodyNote === previousMelody) melodyNote = scale[(melodyIndex + 1) % scale.length]; previousMelody = melodyNote; phraseStep++;
+    const rest = Math.random() < (dangerMusic ? .1 : .24); if (!rest) { const octave = !dangerMusic && Math.random() < .13 ? 2 : 1; tone(melodyNote * octave, dangerMusic ? .3 : .55 + Math.random() * .45, dangerMusic ? .021 : .024 + Math.random() * .012, 'sine', music, .035); if (Math.random() < .42) tone(melodyNote / 2, .65 + Math.random() * .5, .009, 'triangle', music, .08); }
     if (dangerMusic) {
-      // Two low pulses imitate a heartbeat without breaking the melody.
-      tone(58, .11, .11, 'sine', music); tone(52, .13, .085, 'sine', music, .17);
-      if (musicStep % 2 === 1) tone(note * 1.5, .2, .025, 'triangle', music, .09);
+      tone(55, .1, .085, 'sine', music); if (musicStep % 2 === 1) tone(52, .12, .065, 'sine', music, .13);
+      if (musicStep % 4 === 3) tone(piano * 1.05946, .2, .014, 'sawtooth', music, .05);
     }
     musicStep++;
+    musicTimer = window.setTimeout(playBeat, dangerMusic ? 260 : 390);
   };
-  playBeat(); musicTimer = window.setInterval(playBeat, 360);
+  playBeat();
 }
 
 export function setMusicDanger(danger: boolean) { dangerMusic = danger; }
 
 export function setMusicPaused(paused: boolean) {
   if (!context || !music) return;
+  if (!MUSIC_ENABLED) { music.gain.setValueAtTime(0, context.currentTime); return; }
   music.gain.cancelScheduledValues(context.currentTime);
   music.gain.setTargetAtTime(paused ? .001 : MUSIC_VOLUME, context.currentTime, paused ? .05 : .35);
 }
@@ -75,7 +91,7 @@ export function playFootstep() {
 
 export function playHurt() {
   const ctx = setup(); void ctx.resume();
-  if (music) { const now = ctx.currentTime; music.gain.cancelScheduledValues(now); music.gain.setValueAtTime(Math.max(.01, music.gain.value), now); music.gain.exponentialRampToValueAtTime(.035, now + .06); music.gain.setValueAtTime(.035, now + .72); music.gain.exponentialRampToValueAtTime(MUSIC_VOLUME, now + 1.5); }
+  if (MUSIC_ENABLED && music) { const now = ctx.currentTime; music.gain.cancelScheduledValues(now); music.gain.setValueAtTime(Math.max(.01, music.gain.value), now); music.gain.exponentialRampToValueAtTime(.035, now + .06); music.gain.setValueAtTime(.035, now + .72); music.gain.exponentialRampToValueAtTime(MUSIC_VOLUME, now + 1.5); }
   const voice = tone(175, .58, .32, 'sawtooth');
   voice.oscillator.frequency.exponentialRampToValueAtTime(82, voice.start + .5);
   tone(118, .48, .16, 'triangle', master!, .05).oscillator.frequency.exponentialRampToValueAtTime(68, ctx.currentTime + .5);

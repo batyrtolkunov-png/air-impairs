@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { getLevel, getRandomLoot, getRouteExit, getRouteStart, getTutorialLevel, isInsideFourWayRoute, rerollLevel, ROUTE_POINTS, type EnemyKind, type LootDrop, type Point, type Weapon } from '../game/levels';
 import { playFootstep, playHurt, setMusicDanger } from '../game/audio';
 
-export type GameSave = { level: number; players: 1 | 2; health: number; health2: number; coins: number; inventory: Weapon[]; inventory2: Weapon[]; inventoryCapacity: number; inventoryCapacity2: number; weapon: Weapon | null; weapon2: Weapon | null; armor: Weapon | null; armorHealth: number; map: ReturnType<typeof getLevel>; hero: Point; hero2: Point; enemies: Enemy[]; openedChests: number[]; chestDrops: LootDrop[]; loot: Point | null; droppedItem: Weapon | null; explored?: Point[]; savedAt: number };
+export type GameSave = { level: number; players: 1 | 2; health: number; health2: number; coins: number; medkits?: number; medkits2?: number; inventory: Weapon[]; inventory2: Weapon[]; inventoryCapacity: number; inventoryCapacity2: number; weapon: Weapon | null; weapon2: Weapon | null; armor: Weapon | null; armor2?: Weapon | null; armorHealth: number; armorHealth2?: number; map: ReturnType<typeof getLevel>; hero: Point; hero2: Point; enemies: Enemy[]; openedChests: number[]; chestDrops: LootDrop[]; loot: Point | null; droppedItem: Weapon | null; explored?: Point[]; savedAt: number };
 
-export type Enemy = Point & { kind: EnemyKind; hp: number; maxHp: number; flash: number; attackUntil: number; stunnedUntil: number; color: string; power: number; speed: number; leapStarted: number; leapUntil: number; leapTargetX: number; leapTargetY: number; nextLeapAt: number };
+export type Enemy = Point & { kind: EnemyKind; hp: number; maxHp: number; flash: number; attackUntil: number; stunnedUntil: number; color: string; power: number; speed: number; leapStarted: number; leapUntil: number; leapTargetX: number; leapTargetY: number; nextLeapAt: number; nextShotAt?: number; nextSummonAt?: number; nextContactAt?: number; playerWasInSummonRadius?: boolean; revived?: boolean; reviveFlashUntil?: number };
 type Projectile = Point & { vx: number; vy: number; damage: number; color: string };
 type SuperFist = Point & { vx: number; vy: number; damage: number; hitTargets: Enemy[] };
 type SwordUltimate = Point & { owner: 1 | 2; started: number; impactAt: number; until: number; color: string; name: string; damageApplied: boolean };
@@ -14,9 +14,46 @@ type StaffPulse = { started: number; damage: number };
 type StaffUltimate = Point & { owner: 1 | 2; dx: number; dy: number; started: number; until: number; nextPulseAt: number; pulseIndex: number; kills: number; color: string; name: string; pulses: StaffPulse[] };
 type GlovesUltimate = Point & { owner: 1 | 2; dx: number; dy: number; started: number; until: number; nextHitAt: number; hitIndex: number; damage: number; color: string; name: string; titanTargetX: number; titanTargetY: number; landed: boolean };
 type MagicWave = Point & { dx: number; dy: number; color: string; started: number; until: number };
+type SandTornado = Point & { vx: number; vy: number; damage: number; until: number; style?: 'sand' | 'ice' | 'iceRing' | 'iceLarge' | 'iceShard'; impactAt?: number; split?: boolean };
+type Tomb = Point & { spawnedAt: number; sinksAt: number };
+type HeroSkin = 'default' | 'knight' | 'ninja';
+type PlayerClass = 'knight' | 'mage' | 'archer' | 'boxer';
+const MERCHANT = Object.freeze({ x: 500, y: 330, hitbox: Object.freeze({ x: 493, y: 310, w: 58, h: 64 }) });
+function getTutorialClassLoot(playerClass: PlayerClass): LootDrop { const items: Record<PlayerClass, Weapon> = { knight: { name: 'Учебный меч', type: 'sword', damage: 2, color: '#dfe8e4' }, mage: { name: 'Учебный посох', type: 'staff', damage: 2, color: '#86bfff' }, archer: { name: 'Учебный лук', type: 'bow', damage: 2, color: '#85d8a3' }, boxer: { name: 'Учебные перчатки', type: 'gloves', damage: 2, color: '#c98355' } }; return { item: items[playerClass], rarity: { name: 'Обычный', color: '#b7b7a8', bonus: 0, tier: 0, chance: 100 } }; }
+
+function segmentHitsRect(from: Point, to: Point, rect: { x: number; y: number; w: number; h: number }) {
+  const dx = to.x - from.x, dy = to.y - from.y;
+  for (let step = 1; step < 20; step++) { const t = step / 20, x = from.x + dx * t, y = from.y + dy * t; if (x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h) return true; }
+  return false;
+}
 
 const WIDTH = 640;
 const HEIGHT = 400;
+const BOSS_HITBOX_RADIUS = 55;
+function enemyHitRadius(enemy: Enemy) { return enemy.kind === 'boss' ? BOSS_HITBOX_RADIUS : enemy.kind === 'goblin' || enemy.kind === 'mummy' || enemy.kind === 'iceGolem' ? 18 : 14; }
+function bossBodyHits(point: Point, enemy: Enemy, extraRadius = 0) { const dx = point.x - enemy.x; return Math.abs(dx) <= 52 + extraRadius && point.y >= enemy.y - 92 - extraRadius && point.y <= enemy.y - 24 + extraRadius; }
+function pointHitsEnemy(point: Point, enemy: Enemy, extraRadius = 0) {
+  const dx = point.x - enemy.x, y = point.y;
+  if (enemy.kind === 'boss') {
+    const limbPadding = 3.2;
+    const head = Math.abs(dx) <= 45 + limbPadding + extraRadius && y >= enemy.y - 175 - limbPadding - extraRadius && y <= enemy.y - 88 + limbPadding + extraRadius;
+    const torso = Math.abs(dx) <= 52 + extraRadius && y >= enemy.y - 92 - extraRadius && y <= enemy.y - 24 + extraRadius;
+    const arms = Math.abs(dx) >= 47 - limbPadding - extraRadius && Math.abs(dx) <= 75 + limbPadding + extraRadius && y >= enemy.y - 94 - limbPadding - extraRadius && y <= enemy.y - 24 + limbPadding + extraRadius;
+    const legs = Math.abs(dx) <= 50 + limbPadding + extraRadius && y >= enemy.y - 29 - limbPadding - extraRadius && y <= enemy.y + 2 + limbPadding + extraRadius;
+    return head || torso || arms || legs;
+  }
+  return Math.hypot(dx, enemy.y - y) <= enemyHitRadius(enemy) + extraRadius;
+}
+function meleeHitsEnemy(origin: Point, facing: Point, reach: number, enemy: Enemy) {
+  if (enemy.kind !== 'boss') { const dx = enemy.x - origin.x, dy = enemy.y - origin.y, distance = Math.max(1, Math.hypot(dx, dy)); return distance <= reach + enemyHitRadius(enemy) && (dx * facing.x + dy * facing.y) / distance > .2; }
+  const rectangles = [
+    { x: enemy.x - 48.2, y: enemy.y - 178.2, w: 96.4, h: 93.4 },
+    { x: enemy.x - 52, y: enemy.y - 92, w: 104, h: 68 },
+    { x: enemy.x - 78.2, y: enemy.y - 97.2, w: 31.4, h: 76.4 }, { x: enemy.x + 46.8, y: enemy.y - 97.2, w: 31.4, h: 76.4 },
+    { x: enemy.x - 53.2, y: enemy.y - 32.2, w: 106.4, h: 37.4 },
+  ];
+  return rectangles.some((rect) => { const hitX = Math.max(rect.x, Math.min(origin.x, rect.x + rect.w)), hitY = Math.max(rect.y, Math.min(origin.y, rect.y + rect.h)); const dx = hitX - origin.x, dy = hitY - origin.y, distance = Math.max(1, Math.hypot(dx, dy)); return distance <= reach && (dx * facing.x + dy * facing.y) / distance > -.05; });
+}
 function pixel(ctx: CanvasRenderingContext2D, x: number, y: number, color: string, size = 8) {
   ctx.fillStyle = color; ctx.fillRect(Math.round(x), Math.round(y), size, size);
 }
@@ -38,13 +75,29 @@ function drawPixelBowIcon(ctx: CanvasRenderingContext2D, x: number, y: number, c
 
 function drawPixelStaffIcon(ctx: CanvasRenderingContext2D, x: number, y: number, color: string) { ctx.save(); ctx.translate(x, y); ctx.rotate(-.65); ctx.fillStyle = '#75482c'; ctx.fillRect(-3, -22, 6, 43); ctx.fillStyle = color; ctx.beginPath(); ctx.arc(0, -24, 9, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#fff'; ctx.fillRect(-2, -27, 4, 4); ctx.restore(); }
 
-function drawDecoration(ctx: CanvasRenderingContext2D, x: number, y: number, kind: 'rock' | 'grass' | 'log', variant: number) {
+function drawDecoration(ctx: CanvasRenderingContext2D, x: number, y: number, kind: 'rock' | 'grass' | 'log', variant: number, desert = false, ice = false) {
   ctx.save(); ctx.translate(Math.round(x), Math.round(y));
-  if (kind === 'grass') {
-    ctx.fillStyle = 'rgba(3,10,6,.25)'; ctx.fillRect(-10, 8, 22, 4);
-    ctx.strokeStyle = variant % 2 ? '#4f8448' : '#5d984e'; ctx.lineWidth = 3; ctx.lineCap = 'square';
+  if (ice && kind === 'rock') {
+    const size = 10 + variant * 2; ctx.fillStyle = 'rgba(22,62,85,.28)'; ctx.fillRect(-size - 3, 7, size * 2 + 8, 5);
+    ctx.fillStyle = '#5ba7c9'; ctx.beginPath(); ctx.moveTo(-size,7); ctx.lineTo(-size+3,-5); ctx.lineTo(1,-11); ctx.lineTo(size+3,-2); ctx.lineTo(size+5,7); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#aeeaff'; ctx.beginPath(); ctx.moveTo(-size+4,-3); ctx.lineTo(0,-8); ctx.lineTo(size-1,-1); ctx.lineTo(2,1); ctx.closePath(); ctx.fill(); ctx.fillStyle='#effcff';ctx.fillRect(-2,-8,5,3);
+  } else if (ice && kind === 'log') {
+    ctx.fillStyle='rgba(20,55,76,.3)';ctx.fillRect(-18,12,38,5);ctx.fillStyle='#4f7890';ctx.fillRect(-14,-15,30,29);ctx.fillStyle='#9ed7e9';ctx.fillRect(-11,-12,24,23);ctx.fillStyle='#dff8ff';ctx.fillRect(-8,-9,5,15);
+    ctx.fillStyle='#44677b';ctx.fillRect(-5,-5,12,3);ctx.fillRect(-1,-10,4,14);ctx.fillStyle='#77bcd6';ctx.fillRect(-17,9,36,6);ctx.fillStyle='#eefcff';ctx.fillRect(-12,8,26,3);
+  } else if (desert && kind === 'rock') {
+    const size = 11 + variant * 2; ctx.fillStyle = 'rgba(70,38,12,.22)'; ctx.beginPath(); ctx.ellipse(2, 7, size + 7, 6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#c99047'; ctx.beginPath(); ctx.moveTo(-size - 4, 7); ctx.quadraticCurveTo(-size / 2, -3, 0, 3); ctx.quadraticCurveTo(size / 2, -8, size + 7, 7); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#e2b263'; ctx.beginPath(); ctx.moveTo(-size + 2, 4); ctx.quadraticCurveTo(-2, -1, 7, 3); ctx.lineTo(13, 7); ctx.lineTo(-size + 1, 7); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#f1cb80'; ctx.fillRect(-2, 0, 5, 2); ctx.fillRect(size - 3, 4, 3, 2);
+  } else if (desert && kind === 'log') {
+    ctx.strokeStyle = '#594126'; ctx.lineWidth = 4; ctx.lineCap = 'square';
+    [[-1,8,-2,-10],[-2,-1,-14,-11],[-3,1,11,-12],[-9,-6,-18,-2],[7,-7,17,-3],[-11,-9,-15,-17],[11,-10,15,-18]].forEach(([x1,y1,x2,y2]) => { ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); });
+    ctx.strokeStyle = '#947044'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-1,8); ctx.lineTo(-2,-10); ctx.stroke(); ctx.fillStyle = 'rgba(55,29,9,.25)'; ctx.fillRect(-20,9,40,4);
+  } else if (kind === 'grass') {
+    ctx.fillStyle = ice ? 'rgba(25,92,125,.3)' : 'rgba(3,10,6,.25)'; ctx.fillRect(-10, 8, 22, 4);
+    ctx.strokeStyle = ice ? (variant % 2 ? '#65c9ed' : '#a9efff') : desert ? (variant % 2 ? '#c99a32' : '#e0b84c') : (variant % 2 ? '#4f8448' : '#5d984e'); ctx.lineWidth = 3; ctx.lineCap = 'square';
     [-8, -3, 2, 7].forEach((offset, index) => { ctx.beginPath(); ctx.moveTo(offset, 9); ctx.lineTo(offset + (index % 2 ? 5 : -4), -4 - (index % 3) * 3); ctx.stroke(); });
-    ctx.fillStyle = '#8fbd62'; ctx.fillRect(-1, -8, 3, 4);
+    ctx.fillStyle = ice ? '#f5feff' : desert ? '#f2d36b' : '#8fbd62'; ctx.fillRect(-1, -8, 3, 4); if (ice) { ctx.fillRect(-12, -4, 3, 3); ctx.fillRect(10, -7, 3, 3); }
   } else if (kind === 'rock') {
     const size = 9 + variant * 2; ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.fillRect(-size, 6, size * 2 + 5, 6);
     ctx.fillStyle = '#46534d'; ctx.beginPath(); ctx.moveTo(-size, 7); ctx.lineTo(-size + 3, -4); ctx.lineTo(3, -9); ctx.lineTo(size, -2); ctx.lineTo(size + 2, 7); ctx.closePath(); ctx.fill();
@@ -99,7 +152,40 @@ function drawTree(ctx: CanvasRenderingContext2D, x: number, y: number, tint: str
   ctx.fillStyle = '#1b3b29'; ctx.fillRect(x + 9, y + 39, 12, 8); ctx.fillRect(x + 30, y + 37, 14, 10); ctx.fillRect(x + 48, y + 35, 9, 9);
 }
 
+function drawCactus(ctx: CanvasRenderingContext2D, x: number, y: number, tint: string) {
+  ctx.fillStyle = 'rgba(35,20,8,.3)'; ctx.fillRect(x + 8, y + 54, 49, 8);
+  ctx.fillStyle = '#75502c'; ctx.fillRect(x + 12, y + 55, 42, 6);
+  ctx.fillStyle = '#193d2b'; ctx.fillRect(x + 26, y + 7, 19, 51);
+  ctx.fillRect(x + 13, y + 25, 14, 14); ctx.fillRect(x + 13, y + 19, 8, 20);
+  ctx.fillRect(x + 44, y + 31, 14, 13); ctx.fillRect(x + 51, y + 23, 8, 19);
+  ctx.fillStyle = tint; ctx.fillRect(x + 29, y + 5, 13, 50);
+  ctx.fillRect(x + 16, y + 22, 9, 13); ctx.fillRect(x + 18, y + 17, 5, 14);
+  ctx.fillRect(x + 43, y + 34, 12, 7); ctx.fillRect(x + 52, y + 25, 5, 14);
+  ctx.fillStyle = '#88b94e'; ctx.fillRect(x + 31, y + 9, 4, 35); ctx.fillRect(x + 18, y + 24, 3, 8); ctx.fillRect(x + 52, y + 28, 3, 8);
+  ctx.fillStyle = '#d8d08a';
+  for (let sy = 12; sy < 52; sy += 10) { ctx.fillRect(x + 25, y + sy, 3, 2); ctx.fillRect(x + 43, y + sy + 4, 3, 2); }
+  ctx.fillStyle = '#ef6d67'; ctx.fillRect(x + 31, y + 1, 9, 5); ctx.fillStyle = '#ffd17a'; ctx.fillRect(x + 34, y, 3, 4);
+}
+
+function drawIceSpire(ctx: CanvasRenderingContext2D, x: number, y: number, tint: string) {
+  ctx.fillStyle = 'rgba(15,45,68,.3)'; ctx.fillRect(x + 7, y + 54, 52, 8);
+  ctx.fillStyle = '#bcecff'; ctx.beginPath(); ctx.moveTo(x + 5, y + 55); ctx.lineTo(x + 18, y + 17); ctx.lineTo(x + 27, y + 55); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = tint; ctx.beginPath(); ctx.moveTo(x + 18, y + 56); ctx.lineTo(x + 36, y + 2); ctx.lineTo(x + 48, y + 56); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#8fdcff'; ctx.beginPath(); ctx.moveTo(x + 40, y + 56); ctx.lineTo(x + 52, y + 20); ctx.lineTo(x + 62, y + 56); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#e9fbff'; ctx.beginPath(); ctx.moveTo(x + 22, y + 48); ctx.lineTo(x + 35, y + 8); ctx.lineTo(x + 36, y + 48); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#5eadd5'; ctx.fillRect(x + 12, y + 52, 44, 5); ctx.fillStyle = '#ffffff'; ctx.fillRect(x + 32, y + 12, 4, 11); ctx.fillRect(x + 49, y + 28, 3, 8);
+}
+
 function drawCart(ctx: CanvasRenderingContext2D, x: number, y: number, color: string) { ctx.fillStyle = 'rgba(0,0,0,.32)'; ctx.fillRect(x - 3, y + 29, 46, 8); ctx.fillStyle = '#272423'; ctx.beginPath(); ctx.arc(x + 8, y + 29, 7, 0, Math.PI * 2); ctx.arc(x + 32, y + 29, 7, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#7c4b2c'; ctx.fillRect(x, y + 6, 40, 21); ctx.fillStyle = color; ctx.fillRect(x + 4, y + 9, 32, 13); ctx.fillStyle = '#b4884f'; ctx.fillRect(x - 3, y + 2, 46, 7); ctx.fillStyle = '#d7b66d'; ctx.fillRect(x + 5, y + 4, 5, 4); ctx.fillRect(x + 30, y + 4, 5, 4); }
+
+function drawMerchant(ctx: CanvasRenderingContext2D, x: number, y: number) {
+  ctx.fillStyle = 'rgba(0,0,0,.38)'; ctx.fillRect(x - 18, y + 36, 65, 8);
+  ctx.fillStyle = '#292421'; ctx.fillRect(x - 7, y + 31, 13, 10); ctx.fillRect(x + 18, y + 31, 13, 10);
+  ctx.fillStyle = '#51361f'; ctx.fillRect(x + 18, y - 2, 38, 43); ctx.fillStyle = '#886038'; ctx.fillRect(x + 22, y + 2, 30, 35); ctx.fillStyle = '#d0a75b'; ctx.fillRect(x + 25, y + 4, 5, 31); ctx.fillRect(x + 43, y + 4, 5, 31);
+  ctx.fillStyle = '#6c4930'; ctx.fillRect(x - 7, y + 3, 12, 31); ctx.fillStyle = '#a06b3d'; ctx.fillRect(x + 3, y, 29, 37); ctx.fillStyle = '#d0a75b'; ctx.fillRect(x + 7, y, 5, 37);
+  ctx.fillStyle = '#d7a678'; ctx.fillRect(x + 7, y - 20, 22, 21); ctx.fillStyle = '#57402d'; ctx.fillRect(x + 7, y - 20, 22, 7); ctx.fillStyle = '#20251e'; ctx.fillRect(x + 12, y - 11, 4, 3); ctx.fillRect(x + 21, y - 11, 4, 3); ctx.fillStyle = '#7d4936'; ctx.fillRect(x + 15, y - 4, 8, 3);
+  ctx.fillStyle = '#172019'; ctx.fillRect(x - 28, y - 42, 106, 15); ctx.strokeStyle = '#cfae60'; ctx.lineWidth = 2; ctx.strokeRect(x - 28, y - 42, 106, 15); ctx.fillStyle = '#f0d780'; ctx.font = 'bold 7px monospace'; ctx.fillText('ТОРГОВЕЦ · E', x - 20, y - 32);
+}
 
 function drawMinimap(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLevel>, level: number, hero: Point, enemies: Enemy[], chestDrops: LootDrop[], openedChests: number[], explored: Point[]) {
   const x = 8, y = 8, width = 135, height = 74, sx = width / map.worldWidth, sy = height / map.worldHeight;
@@ -141,12 +227,88 @@ function drawGoblin(ctx: CanvasRenderingContext2D, e: Enemy, now: number, attack
   ctx.fillStyle = '#342a32'; ctx.fillRect(40, 98 + stride * 3, 20, 12); ctx.fillRect(70, 98 - stride * 3, 20, 12);
 }
 
-function createEnemies(map: ReturnType<typeof getLevel>, multiplier = 1): Enemy[] {
+function drawMummy(ctx: CanvasRenderingContext2D, e: Enemy, now: number, attacking: boolean) {
+  const stride = Math.sin(now / 150 + e.x * .025); const rising = (e.reviveFlashUntil ?? 0) > now;
+  ctx.save(); if (rising) { const progress = 1 - ((e.reviveFlashUntil ?? now) - now) / 900; ctx.globalAlpha = .45 + progress * .55; ctx.translate(0, (1 - progress) * 25); }
+  ctx.fillStyle = 'rgba(54,31,12,.3)'; ctx.beginPath(); ctx.ellipse(64,112,38,9,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#5d4931'; ctx.fillRect(42,54,45,52); ctx.fillStyle = e.flash > 0 ? '#fff' : '#d8c79a'; ctx.fillRect(45,20,39,39); ctx.fillRect(38,58,52,42);
+  ctx.fillStyle = '#a79570'; ctx.fillRect(43,28,42,7); ctx.fillRect(39,47,48,7); ctx.fillRect(37,67,54,7); ctx.fillRect(39,85,51,7);
+  ctx.fillStyle = '#29231d'; ctx.fillRect(52,38,8,7); ctx.fillRect(70,38,8,7); ctx.fillStyle = '#f2b44c'; ctx.fillRect(55,39,3,3); ctx.fillRect(72,39,3,3);
+  ctx.fillStyle = '#c3b486'; ctx.fillRect(27,62 + stride * 2,15,38); ctx.fillRect(87,62 - stride * 2,15,38); ctx.fillStyle = '#88795b'; ctx.fillRect(25,70 + stride * 2,19,6); ctx.fillRect(86,82 - stride * 2,19,6);
+  ctx.fillStyle = '#b5a47a'; ctx.fillRect(42,98 + stride * 2,18,13); ctx.fillRect(70,98 - stride * 2,18,13);
+  if (attacking) { ctx.fillStyle = '#dfca91'; ctx.fillRect(91,55,35,10); ctx.fillStyle = '#9b8964'; ctx.fillRect(105,54,7,12); }
+  if (rising) { ctx.fillStyle = '#e3b65e'; ctx.font = 'bold 13px monospace'; ctx.fillText('ВОССТАЛА', 31, 9); }
+  ctx.restore();
+}
+
+function drawMummyBoss(ctx: CanvasRenderingContext2D, e: Enemy, now: number) {
+  drawMummy(ctx, e, now, e.attackUntil > now);
+  ctx.fillStyle = '#9a6b28'; ctx.fillRect(38,12,52,9); ctx.fillStyle = '#e2b85b'; ctx.fillRect(45,4,9,12); ctx.fillRect(61,0,9,16); ctx.fillRect(77,5,9,11);
+  ctx.fillStyle = '#5b3424'; ctx.fillRect(30,52,9,48); ctx.fillRect(90,52,9,48);
+}
+
+function drawTomb(ctx: CanvasRenderingContext2D, tomb: Tomb, now: number) {
+  const sink = now > tomb.sinksAt ? Math.min(1, (now - tomb.sinksAt) / 550) : 0; ctx.save(); ctx.translate(tomb.x, tomb.y + sink * 48); ctx.globalAlpha = 1 - sink;
+  ctx.fillStyle = 'rgba(50,27,9,.35)'; ctx.fillRect(-19,28,42,7); ctx.fillStyle = '#66584a'; ctx.fillRect(-16,-24,34,55); ctx.fillStyle = '#9a876a'; ctx.fillRect(-12,-20,26,47); ctx.fillStyle = '#44392f'; ctx.fillRect(-7,-10,16,4); ctx.fillRect(-2,-16,5,18); ctx.fillStyle = '#d0ad5a'; ctx.fillRect(-12,20,26,5); ctx.restore();
+}
+
+function drawSandTornado(ctx: CanvasRenderingContext2D, tornado: SandTornado, now: number) {
+  if (tornado.style === 'iceRing' || tornado.style === 'iceLarge') { const large = tornado.style === 'iceLarge'; const warning = now < (tornado.impactAt ?? 0); ctx.save(); ctx.translate(tornado.x,tornado.y); if (warning) { ctx.globalAlpha=.75;ctx.strokeStyle=large?'#dffaff':'#67dfff';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,large?22:10,0,Math.PI*2);ctx.stroke();ctx.fillStyle='rgba(83,207,255,.15)';ctx.fill(); } else { ctx.fillStyle='#62c9ee';ctx.beginPath();ctx.moveTo(0,large?-48:-25);ctx.lineTo(large?17:9,large?13:7);ctx.lineTo(0,large?24:13);ctx.lineTo(large?-17:-9,large?13:7);ctx.closePath();ctx.fill();ctx.fillStyle='#ecffff';ctx.beginPath();ctx.moveTo(-3,large?-39:-20);ctx.lineTo(4,large?8:4);ctx.lineTo(-2,large?13:7);ctx.closePath();ctx.fill(); } ctx.restore();return; }
+  if (tornado.style === 'iceShard') { ctx.save();ctx.translate(tornado.x,tornado.y);ctx.rotate(Math.atan2(tornado.vy,tornado.vx)+Math.PI/2);ctx.fillStyle='#6dd5f4';ctx.beginPath();ctx.moveTo(0,-10);ctx.lineTo(5,6);ctx.lineTo(0,10);ctx.lineTo(-5,6);ctx.closePath();ctx.fill();ctx.fillStyle='#efffff';ctx.fillRect(-1,-6,2,9);ctx.restore();return; }
+  if (tornado.style === 'ice') { ctx.save(); ctx.translate(tornado.x,tornado.y); ctx.rotate(Math.atan2(tornado.vy,tornado.vx)+Math.PI/4); ctx.fillStyle='rgba(117,220,255,.3)';ctx.fillRect(-13,-13,26,26);ctx.fillStyle='#65cbee';ctx.beginPath();ctx.moveTo(0,-15);ctx.lineTo(10,0);ctx.lineTo(0,15);ctx.lineTo(-10,0);ctx.closePath();ctx.fill();ctx.fillStyle='#e9fcff';ctx.beginPath();ctx.moveTo(0,-11);ctx.lineTo(3,0);ctx.lineTo(0,8);ctx.lineTo(-3,0);ctx.closePath();ctx.fill();ctx.restore();return; }
+  ctx.save(); ctx.translate(tornado.x,tornado.y); const spin = now / 115; ctx.rotate(spin);
+  ctx.fillStyle='rgba(87,48,17,.3)';ctx.beginPath();ctx.ellipse(0,17,27,8,0,0,Math.PI*2);ctx.fill();
+  for(let i=0;i<7;i++){const width=7+i*3.2, y=12-i*6;ctx.strokeStyle=i%3===0?'#fff0ae':i%2?'#e8b85c':'#a96e31';ctx.lineWidth=i<2?3:5;ctx.beginPath();ctx.ellipse(0,y,width,4+i*.8,i*.22,0,Math.PI*1.65);ctx.stroke();}
+  ctx.rotate(-spin); for(let i=0;i<9;i++){const angle=spin*1.7+i*2.1, radius=13+(i%3)*8;ctx.fillStyle=i%2?'#f4d27e':'#b77b36';ctx.fillRect(Math.cos(angle)*radius-2,Math.sin(angle)*radius-12-(i%4)*5,4+(i%2)*2,4);}
+  ctx.fillStyle='rgba(255,221,125,.32)';ctx.beginPath();ctx.arc(0,-7,14,0,Math.PI*2);ctx.fill();ctx.fillStyle='#fff1b0';ctx.fillRect(-3,-12,6,9);ctx.restore();
+}
+
+function drawIceGolem(ctx: CanvasRenderingContext2D, e: Enemy, now: number, attacking: boolean) {
+  const step=Math.sin(now/130+e.x*.03)*3;ctx.fillStyle='rgba(19,61,84,.3)';ctx.beginPath();ctx.ellipse(64,110,46,9,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle=e.flash>0?'#fff':'#66b9d7';ctx.fillRect(35,49,58,53);ctx.fillRect(43,20,42,37);ctx.fillStyle='#a9e9f7';ctx.fillRect(41,54,46,16);ctx.fillRect(48,25,30,11);
+  ctx.fillStyle='#193b51';ctx.fillRect(50,37,8,7);ctx.fillRect(70,37,8,7);ctx.fillStyle='#dffcff';ctx.fillRect(53,38,3,3);ctx.fillRect(72,38,3,3);
+  ctx.fillStyle='#4e9dbd';ctx.fillRect(22,58+step,17,41);ctx.fillRect(91,58-step,17,41);ctx.fillStyle='#bcefff';ctx.fillRect(19,84+step,22,13);ctx.fillRect(89,84-step,22,13);
+  ctx.fillStyle='#4388a7';ctx.fillRect(39,98+step,20,14);ctx.fillRect(70,98-step,20,14);ctx.fillStyle='#eefeff';ctx.fillRect(27,55+step,7,15);ctx.fillRect(96,55-step,7,15);
+  if(attacking){ctx.fillStyle='#eaffff';ctx.fillRect(103,76,18,8);ctx.fillStyle='rgba(100,220,255,.35)';ctx.fillRect(99,71,27,18);}
+}
+
+function drawVisibleHitboxes(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLevel>, enemies: Enemy[], hero: Point, secondHero: Point | null) {
+  ctx.save(); ctx.strokeStyle = '#29a8ff'; ctx.lineWidth = 2; ctx.setLineDash([5, 3]);
+  map.walls.forEach((wall) => ctx.strokeRect(wall.x, wall.y, wall.w, wall.h));
+  map.carts.forEach((cart) => ctx.strokeRect(cart.x - 5, cart.y, 50, 36));
+  ctx.strokeRect(hero.x, hero.y, 24, 28); if (secondHero) ctx.strokeRect(secondHero.x, secondHero.y, 24, 28);
+  enemies.forEach((enemy) => {
+    if (enemy.kind !== 'boss') { ctx.beginPath(); ctx.arc(enemy.x, enemy.y, enemyHitRadius(enemy), 0, Math.PI * 2); ctx.stroke(); return; }
+    const pad = 3.2;
+    ctx.strokeRect(enemy.x - 48.2, enemy.y - 178.2, 96.4, 93.4);
+    ctx.strokeRect(enemy.x - 52, enemy.y - 92, 104, 68);
+    ctx.strokeRect(enemy.x - 78.2, enemy.y - 97.2, 31.4, 76.4); ctx.strokeRect(enemy.x + 46.8, enemy.y - 97.2, 31.4, 76.4);
+    ctx.strokeRect(enemy.x - 53.2, enemy.y - 32.2, 106.4, 37.4);
+    ctx.setLineDash([]); ctx.strokeStyle = '#75d8ff'; ctx.strokeRect(enemy.x - 52, enemy.y - 92, 104, 68); ctx.strokeStyle = '#29a8ff'; ctx.setLineDash([5, 3]);
+    void pad;
+  });
+  ctx.restore();
+}
+
+function drawScorpion(ctx: CanvasRenderingContext2D, e: Enemy, now: number, attacking: boolean) {
+  const crawl = Math.sin(now / 95 + e.x * .04) * 4;
+  ctx.fillStyle = 'rgba(47,25,8,.32)'; ctx.beginPath(); ctx.ellipse(64,106,48,10,0,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle = '#56331f'; ctx.lineWidth = 8; ctx.lineCap = 'square';
+  [[42,78,15,62],[42,88,10,88],[45,96,18,108],[86,78,113,62],[86,88,118,88],[83,96,110,108]].forEach(([x1,y1,x2,y2], index) => { ctx.beginPath(); ctx.moveTo(x1,y1 + (index % 2 ? crawl : -crawl)); ctx.lineTo(x2,y2); ctx.stroke(); });
+  ctx.fillStyle = e.flash > 0 ? '#fff' : '#8b4d29'; ctx.fillRect(38,66,52,36); ctx.fillRect(49,55,30,18); ctx.fillStyle = '#c47737'; ctx.fillRect(45,69,38,13); ctx.fillRect(54,58,20,8);
+  ctx.fillStyle = '#19130f'; ctx.fillRect(53,63,6,5); ctx.fillRect(70,63,6,5); ctx.fillStyle = '#ffd45c'; ctx.fillRect(55,63,2,2); ctx.fillRect(72,63,2,2);
+  ctx.strokeStyle = e.flash > 0 ? '#fff' : '#743d22'; ctx.lineWidth = 11; ctx.beginPath(); ctx.moveTo(82,61); ctx.lineTo(99,48); ctx.lineTo(104,29); ctx.lineTo(94,17); ctx.stroke();
+  ctx.fillStyle = '#342016'; ctx.beginPath(); ctx.moveTo(88,15); ctx.lineTo(101,14); ctx.lineTo(94,28); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#4f2b1b'; ctx.fillRect(15,50,23,15); ctx.fillRect(91,50,23,15); ctx.fillStyle = '#b25e2b'; ctx.fillRect(12,45,13,17); ctx.fillRect(104,45,13,17);
+  if (attacking) { ctx.fillStyle = '#8cff65'; ctx.fillRect(92,11,7,7); ctx.fillStyle = 'rgba(105,255,80,.35)'; ctx.fillRect(88,7,15,15); }
+}
+
+function createEnemies(map: ReturnType<typeof getLevel>, multiplier = 1, oneHitBoss = false): Enemy[] {
   const spawns = map.round ? map.enemies : multiplier === .5 ? map.enemies.filter((_, index) => index % 2 === 0) : multiplier === 2 ? map.enemies.flatMap((enemy) => [enemy, { ...enemy, x: enemy.x + 4, y: enemy.y + 4 }]) : map.enemies;
   return spawns.map((enemy) => {
-    const hp = enemy.kind === 'boss' ? map.enemy.hp * 5 : enemy.kind === 'goblin' ? map.enemy.hp * 1.5 : map.enemy.hp;
-    const speed = enemy.kind === 'boss' ? map.enemy.speed * .65 : enemy.kind === 'goblin' ? map.enemy.speed * 1.25 : map.enemy.speed;
-    return { ...enemy, ...map.enemy, color: enemy.kind === 'slime' ? map.enemy.color : '#69ad68', hp, maxHp: hp, power: enemy.kind === 'boss' ? 2 : map.enemy.power, speed, flash: 0, attackUntil: 0, stunnedUntil: 0, leapStarted: 0, leapUntil: 0, leapTargetX: 0, leapTargetY: 0, nextLeapAt: 0 };
+    const hp = enemy.kind === 'boss' ? oneHitBoss ? 1 : map.enemy.hp * 5 : enemy.kind === 'goblin' || enemy.kind === 'mummy' ? map.enemy.hp * 1.5 : enemy.kind === 'iceGolem' ? map.enemy.hp * .75 : map.enemy.hp;
+    const speed = enemy.kind === 'boss' ? map.enemy.speed * .65 : enemy.kind === 'goblin' || enemy.kind === 'iceGolem' ? map.enemy.speed * 1.25 : enemy.kind === 'mummy' ? map.enemy.speed * .8 : map.enemy.speed;
+    return { ...enemy, ...map.enemy, color: enemy.kind === 'slime' ? map.enemy.color : enemy.kind === 'mummy' ? '#d8c79a' : enemy.kind === 'scorpion' ? '#a95d2e' : enemy.kind === 'iceGolem' ? '#6bc8e8' : '#69ad68', hp, maxHp: hp, power: enemy.kind === 'boss' ? 2 : enemy.kind === 'mummy' ? Math.max(.5, map.enemy.power / 2) : enemy.kind === 'iceGolem' ? 1.3 : map.enemy.power, speed, flash: 0, attackUntil: 0, stunnedUntil: 0, leapStarted: 0, leapUntil: 0, leapTargetX: 0, leapTargetY: 0, nextLeapAt: 0, nextShotAt: 0, nextSummonAt: 0, nextContactAt: 0, playerWasInSummonRadius: false, revived: false, reviveFlashUntil: 0 };
   });
 }
 
@@ -206,7 +368,7 @@ function drawHeldWeapon(ctx: CanvasRenderingContext2D, weapon: Weapon, facing: P
   ctx.restore();
 }
 
-function drawHero(ctx: CanvasRenderingContext2D, p: Point, attackProgress: number, weapon: Weapon | null, armor: Weapon | null, facing: Point, moving: boolean, now: number, health: number, profileName: string, female = false, swordUltimate?: SwordUltimate, bowUltimate?: BowUltimate, glovesUltimate?: GlovesUltimate) {
+function drawHero(ctx: CanvasRenderingContext2D, p: Point, attackProgress: number, weapon: Weapon | null, armor: Weapon | null, facing: Point, moving: boolean, now: number, health: number, profileName: string, female = false, swordUltimate?: SwordUltimate, bowUltimate?: BowUltimate, glovesUltimate?: GlovesUltimate, skin: HeroSkin = 'default') {
   ctx.fillStyle = '#241719'; ctx.fillRect(p.x - 7, p.y - 24, 42, 7); ctx.fillStyle = '#6b252b'; ctx.fillRect(p.x - 5, p.y - 22, 38, 3); ctx.fillStyle = '#ef3949'; ctx.fillRect(p.x - 5, p.y - 22, 38 * Math.max(0, health / 10), 3);
   const swordSlamming = Boolean(swordUltimate && now < swordUltimate.impactAt + 250); const bowAiming = Boolean(bowUltimate && now < bowUltimate.rainStarted); const ultimateProgress = swordUltimate ? Math.min(1, (now - swordUltimate.started) / (swordUltimate.impactAt - swordUltimate.started)) : 0; const titanJump = glovesUltimate?.name.includes('титана') && !glovesUltimate.landed ? Math.min(1, (now - glovesUltimate.started) / 520) : 0; const jumpOffset = swordUltimate && now < swordUltimate.impactAt ? -Math.sin(ultimateProgress * Math.PI) * 48 : titanJump ? -Math.sin(titanJump * Math.PI) * 85 : 0; const titanOffsetX = titanJump && glovesUltimate ? (glovesUltimate.titanTargetX - p.x) * titanJump : 0; const titanOffsetY = titanJump && glovesUltimate ? (glovesUltimate.titanTargetY - p.y) * titanJump : 0;
   ctx.save(); ctx.translate(p.x - 11 + titanOffsetX, p.y - 12 + titanOffsetY + jumpOffset); ctx.scale(.38, .38);
@@ -225,6 +387,8 @@ function drawHero(ctx: CanvasRenderingContext2D, p: Point, attackProgress: numbe
   else { drawBentLimb(ctx, 34, 69, phase * .48, .28 + Math.max(0, -phase) * .45, '#e1b87b'); drawBentLimb(ctx, 96, 69, -phase * .48, -.28 - Math.max(0, phase) * .45, '#e1b87b'); }
   drawBentLimb(ctx, 52, 96, phase * .42, Math.max(0, phase) * .65, '#273b62', '#322936');
   drawBentLimb(ctx, 78, 96, -phase * .42, Math.max(0, -phase) * .65, '#273b62', '#322936');
+  if (skin === 'knight') { ctx.fillStyle = '#7f8b94'; ctx.fillRect(35, 18, 60, 40); ctx.fillStyle = '#bac5cc'; ctx.fillRect(41, 23, 48, 8); ctx.fillRect(45, 67, 40, 34); ctx.fillStyle = '#30383d'; ctx.fillRect(48, 38, 34, 7); }
+  if (skin === 'ninja') { ctx.fillStyle = '#15171c'; ctx.fillRect(34, 15, 62, 49); ctx.fillRect(38, 65, 54, 38); ctx.fillStyle = '#59245f'; ctx.fillRect(34, 55, 62, 9); ctx.fillStyle = '#dbe9e7'; ctx.fillRect(48, 37, 34, 9); ctx.fillStyle = '#25212d'; ctx.fillRect(61, 37, 7, 9); }
   if (armor) { ctx.fillStyle = armor.color; ctx.fillRect(32, 64, 15, 32); ctx.fillRect(84, 64, 15, 32); ctx.fillRect(45, 66, 40, 34); ctx.strokeStyle = '#f3efff'; ctx.lineWidth = 4; ctx.strokeRect(48, 70, 34, 26); ctx.fillStyle = '#fff'; ctx.fillRect(62, 70, 6, 26); }
   if (weapon && attackProgress <= 0 && !swordSlamming && !bowAiming) drawHeldWeapon(ctx, weapon, facing);
   if (swordSlamming && weapon?.type === 'sword') { const plunge = ultimateProgress < .55 ? 38 - ultimateProgress / .55 * 26 : 12 + (ultimateProgress - .55) / .45 * 36; ctx.fillStyle = '#70462e'; ctx.fillRect(61, 55, 8, 22); ctx.fillStyle = '#d5a84a'; ctx.fillRect(51, 72, 28, 8); ctx.fillStyle = weapon.color; ctx.fillRect(59, 78, 12, plunge + 25); ctx.fillStyle = '#fff'; ctx.fillRect(61, 80, 3, plunge + 18); ctx.beginPath(); ctx.moveTo(59, 103 + plunge); ctx.lineTo(65, 114 + plunge); ctx.lineTo(71, 103 + plunge); ctx.fill(); }
@@ -243,7 +407,7 @@ function drawHero(ctx: CanvasRenderingContext2D, p: Point, attackProgress: numbe
   ctx.save(); ctx.font = 'bold 8px "Press Start 2P", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.shadowColor = '#69e8ff'; ctx.shadowBlur = 7; ctx.fillStyle = '#dffcff'; ctx.fillText(profileName, p.x + 14, p.y - 29, 150); ctx.restore();
 }
 
-function drawScene(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLevel>, hero: Point, enemies: Enemy[], projectiles: Projectile[], superFists: SuperFist[], swordUltimates: SwordUltimate[], bowUltimates: BowUltimate[], staffUltimates: StaffUltimate[], glovesUltimates: GlovesUltimate[], waves: MagicWave[], now: number, openedChests: number[], chestDrops: LootDrop[], attackProgress: number, loot: Point | null, droppedItem: Weapon | null, level: number, weapon: Weapon | null, weapon2: Weapon | null, armor: Weapon | null, facing: Point, moving: boolean, health: number, superReloading: boolean, profileName: string, secondHero: Point | null, secondFacing: Point, secondMoving: boolean, secondHealth: number, superReloading2: boolean, attackProgress2: number, explored: Point[]) {
+function drawScene(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLevel>, hero: Point, enemies: Enemy[], projectiles: Projectile[], superFists: SuperFist[], swordUltimates: SwordUltimate[], bowUltimates: BowUltimate[], staffUltimates: StaffUltimate[], glovesUltimates: GlovesUltimate[], waves: MagicWave[], sandTornadoes: SandTornado[], tombs: Tomb[], now: number, openedChests: number[], chestDrops: LootDrop[], attackProgress: number, loot: Point | null, droppedItem: Weapon | null, level: number, weapon: Weapon | null, weapon2: Weapon | null, armor: Weapon | null, facing: Point, moving: boolean, health: number, superReloading: boolean, profileName: string, secondHero: Point | null, secondFacing: Point, secondMoving: boolean, secondHealth: number, superReloading2: boolean, attackProgress2: number, armor2: Weapon | null, skin: HeroSkin, skin2: HeroSkin, explored: Point[]) {
   ctx.fillStyle = map.round ? '#0c1510' : map.floor[0]; ctx.fillRect(0, 0, WIDTH, HEIGHT);
   const cameraX = Math.max(0, Math.min(map.worldWidth - WIDTH, hero.x - WIDTH / 2));
   const cameraY = Math.max(0, Math.min(map.worldHeight - HEIGHT, hero.y - HEIGHT / 2)); ctx.save(); ctx.translate(-cameraX, -cameraY);
@@ -251,18 +415,20 @@ function drawScene(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLeve
   for (let y = 32; y < map.worldHeight - 32; y += 64) for (let x = 32; x < map.worldWidth - 32; x += 64) {
     ctx.fillStyle = (x / 64 + y / 64) % 2 ? map.floor[0] : map.floor[1]; ctx.fillRect(x, y, 64, 64);
     pixel(ctx, x + 12, y + 15, map.floor[2], 4); pixel(ctx, x + 43, y + 42, map.floor[2], 3);
-    ctx.strokeStyle = '#64845a'; ctx.beginPath(); ctx.moveTo(x + 25, y + 50); ctx.lineTo(x + 27, y + 43); ctx.lineTo(x + 30, y + 50); ctx.stroke();
+    ctx.strokeStyle = level >= 13 && level <= 18 ? '#dff8ff' : '#64845a'; ctx.beginPath(); ctx.moveTo(x + 25, y + 50); ctx.lineTo(x + 27, y + 43); ctx.lineTo(x + 30, y + 50); ctx.stroke();
   }
   if (map.round) ctx.restore();
   if (!map.round) {
-    ctx.fillStyle = 'rgba(4,10,7,.78)'; ctx.fillRect(32, 32, map.worldWidth - 64, map.worldHeight - 64); ctx.strokeStyle = '#17271d'; ctx.lineWidth = 158; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.beginPath(); ROUTE_POINTS.forEach((point, index) => { if (index === 0) ctx.moveTo(point.x, point.y); else ctx.lineTo(point.x, point.y); }); ctx.stroke(); ctx.strokeStyle = map.floor[1]; ctx.lineWidth = 136; ctx.stroke();
-    ROUTE_POINTS.slice(1).forEach((end, index) => { const start = ROUTE_POINTS[index]; const dx = end.x - start.x, dy = end.y - start.y, length = Math.hypot(dx, dy), nx = -dy / length, ny = dx / length; for (let distance = 20; distance < length; distance += 52) { const px = start.x + dx * distance / length, py = start.y + dy * distance / length; drawTree(ctx, px + nx * 88 - 30, py + ny * 88 - 30, '#315f3c'); drawTree(ctx, px - nx * 88 - 30, py - ny * 88 - 30, '#284f35'); } });
+    const iceRegion = level >= 13 && level <= 18; ctx.fillStyle = iceRegion ? 'rgba(35,94,119,.38)' : 'rgba(4,10,7,.78)'; ctx.fillRect(32, 32, map.worldWidth - 64, map.worldHeight - 64); ctx.strokeStyle = iceRegion ? '#477f9a' : '#17271d'; ctx.lineWidth = 158; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.beginPath(); ROUTE_POINTS.forEach((point, index) => { if (index === 0) ctx.moveTo(point.x, point.y); else ctx.lineTo(point.x, point.y); }); ctx.stroke(); ctx.strokeStyle = map.floor[1]; ctx.lineWidth = 136; ctx.stroke();
+    const desert = level >= 7 && level <= 12, ice = level >= 13 && level <= 18; const borderPlant = desert ? drawCactus : ice ? drawIceSpire : drawTree;
+    ROUTE_POINTS.slice(1).forEach((end, index) => { const start = ROUTE_POINTS[index]; const dx = end.x - start.x, dy = end.y - start.y, length = Math.hypot(dx, dy), nx = -dy / length, ny = dx / length; for (let distance = 20; distance < length; distance += 52) { const px = start.x + dx * distance / length, py = start.y + dy * distance / length; borderPlant(ctx, px + nx * 88 - 30, py + ny * 88 - 30, desert ? '#4f8d43' : ice ? '#79ccef' : '#315f3c'); borderPlant(ctx, px - nx * 88 - 30, py - ny * 88 - 30, desert ? '#397a3c' : ice ? '#559fc8' : '#284f35'); } });
   }
-  map.decorations.forEach((decoration) => drawDecoration(ctx, decoration.x, decoration.y, decoration.kind, decoration.variant));
+  map.decorations.forEach((decoration) => drawDecoration(ctx, decoration.x, decoration.y, decoration.kind, decoration.variant, level >= 7 && level <= 12, level >= 13 && level <= 18));
   map.walls.forEach((wall) => {
-    ctx.fillStyle = '#11271c'; ctx.fillRect(wall.x, wall.y, wall.w, wall.h);
-    if (wall.w >= wall.h) for (let x = wall.x - 12; x < wall.x + wall.w; x += 48) drawTree(ctx, x, wall.y + wall.h / 2 - 34, map.floor[2]);
-    else for (let y = wall.y - 18; y < wall.y + wall.h; y += 48) drawTree(ctx, wall.x + wall.w / 2 - 32, y, map.floor[2]);
+    const desert = level >= 7 && level <= 12, ice = level >= 13 && level <= 18; const wallPlant = desert ? drawCactus : ice ? drawIceSpire : drawTree;
+    ctx.fillStyle = desert ? '#624526' : ice ? '#315f79' : '#11271c'; ctx.fillRect(wall.x, wall.y, wall.w, wall.h);
+    if (wall.w >= wall.h) for (let x = wall.x - 12; x < wall.x + wall.w; x += 48) wallPlant(ctx, x, wall.y + wall.h / 2 - 34, desert ? '#4b8b42' : ice ? '#69bde3' : map.floor[2]);
+    else for (let y = wall.y - 18; y < wall.y + wall.h; y += 48) wallPlant(ctx, wall.x + wall.w / 2 - 32, y, desert ? '#4b8b42' : ice ? '#69bde3' : map.floor[2]);
   });
   map.chests.forEach((chest, index) => { const open = openedChests.includes(index); const drop = chestDrops[index]; if (!drop) return;
     ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(chest.x + 2, chest.y + 34, 50, 9);
@@ -271,6 +437,7 @@ function drawScene(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLeve
     if (!open) { ctx.fillStyle = '#101513'; ctx.fillRect(chest.x - 18, chest.y - 17, 86, 12); ctx.fillStyle = drop.rarity.color; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center'; ctx.fillText(`${drop.rarity.name.toUpperCase()} ${drop.rarity.chance}%`, chest.x + 25, chest.y - 8); ctx.textAlign = 'start'; }
   });
   map.carts.forEach((cart) => drawCart(ctx, cart.x, cart.y, map.floor[2]));
+  if ((level === 6 || level === 12) && !enemies.some((enemy) => enemy.kind === 'boss')) drawMerchant(ctx, MERCHANT.x, MERCHANT.y);
   if (loot && droppedItem) drawLoot(ctx, loot, droppedItem);
   if (!map.round) {
     const routeExit = level === 0 ? { x: map.worldWidth - 70, y: 336 } : getRouteExit(); const exitX = routeExit.x; const exitY = routeExit.y - 46;
@@ -282,7 +449,20 @@ function drawScene(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLeve
     ctx.fillStyle = '#b9faff'; ctx.fillRect(44, portalY + 12, 5, 68);
     ctx.fillStyle = '#f3ffff'; ctx.font = '8px monospace'; ctx.fillText('ПОРТАЛ · E', 51, portalY - 9);
   }
-  if (level === 6 && !enemies.some((enemy) => enemy.kind === 'boss')) {
+  if (level === 7) {
+    const portalY = getRouteStart().y - 46; ctx.fillStyle = '#ffb33f'; ctx.fillRect(32, portalY, 12, 92);
+    ctx.fillStyle = '#ffe08a'; ctx.fillRect(44, portalY + 12, 5, 68);
+    ctx.fillStyle = '#fff0bf'; ctx.font = '8px monospace'; ctx.fillText('ПОРТАЛ В ГРОБНИЦУ · E', 51, portalY - 9);
+  }
+  if (level === 13) {
+    const portalY = getRouteStart().y; const pulse = 1 + Math.sin(now / 180) * .08; ctx.save(); ctx.translate(52, portalY); ctx.scale(pulse, pulse);
+    ctx.fillStyle = 'rgba(56,184,255,.22)'; ctx.beginPath(); ctx.ellipse(0, 0, 33, 50, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#5cf2ff'; ctx.lineWidth = 9; ctx.beginPath(); ctx.ellipse(0, 0, 27, 44, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = '#e7ffff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(0, 0, 17, 34, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(-3, -28, 6, 9); ctx.fillRect(13, 8, 4, 7); ctx.fillRect(-17, 18, 5, 8); ctx.restore();
+    ctx.fillStyle = '#e9fbff'; ctx.font = 'bold 8px monospace'; ctx.fillText('ПОРТАЛ К ЛЕДЯНОМУ БОССУ · E', 87, portalY - 48);
+  }
+  if (level > 0 && level % 6 === 0 && !enemies.some((enemy) => enemy.kind === 'boss')) {
     const pulse = 1 + Math.sin(now / 170) * .08; ctx.save(); ctx.translate(320, 336); ctx.scale(pulse, pulse);
     ctx.fillStyle = 'rgba(90,238,255,.2)'; ctx.beginPath(); ctx.arc(0, 0, 54, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = '#5cf2ff'; ctx.lineWidth = 9; ctx.beginPath(); ctx.ellipse(0, 0, 32, 48, 0, 0, Math.PI * 2); ctx.stroke();
@@ -304,8 +484,11 @@ function drawScene(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLeve
     if (!boss) { ctx.fillStyle = '#171918'; ctx.fillRect(e.x + 1, e.y - 14, 26, 4); ctx.fillStyle = '#54292d'; ctx.fillRect(e.x + 3, e.y - 12, 22, 2); ctx.fillStyle = '#67d06f'; ctx.fillRect(e.x + 3, e.y - 12, 22 * Math.max(0, e.hp / e.maxHp), 2); }
     ctx.save();
     if (boss) { ctx.translate(e.x - 122 + (hero.x - e.x) / distance * force, e.y - 213 + (hero.y - e.y) / distance * force); ctx.scale(1.9, 1.9); }
-    else { ctx.translate(e.x + 1 + (hero.x - e.x) / distance * force, e.y - 5 + (hero.y - e.y) / distance * force); ctx.scale(e.kind === 'goblin' ? .38 : .21, e.kind === 'goblin' ? .38 : .21); }
-    if (e.kind === 'goblin' || boss) { drawGoblin(ctx, e, now, attacking || (boss && e.leapStarted > 0)); ctx.restore(); if (e.stunnedUntil > now) { ctx.fillStyle = '#ffe56b'; ctx.font = `bold ${boss ? 22 : 14}px monospace`; ctx.fillText('★ ★ ★', e.x - (boss ? 42 : 7), e.y - (boss ? 235 : 22) + Math.sin(now / 90) * 3); } return; }
+    else { ctx.translate(e.x + 1 + (hero.x - e.x) / distance * force, e.y - 5 + (hero.y - e.y) / distance * force); ctx.scale(e.kind === 'goblin' || e.kind === 'mummy' || e.kind === 'iceGolem' ? .38 : e.kind === 'scorpion' ? .28 : .21, e.kind === 'goblin' || e.kind === 'mummy' || e.kind === 'iceGolem' ? .38 : e.kind === 'scorpion' ? .28 : .21); }
+    if (e.kind === 'iceGolem') { drawIceGolem(ctx, e, now, attacking); ctx.restore(); if (e.stunnedUntil > now) { ctx.fillStyle = '#eaffff'; ctx.font = 'bold 14px monospace'; ctx.fillText('★ ★ ★', e.x - 7, e.y - 22); } return; }
+    if (e.kind === 'scorpion') { drawScorpion(ctx, e, now, attacking); ctx.restore(); if (e.stunnedUntil > now) { ctx.fillStyle = '#ffe56b'; ctx.font = 'bold 14px monospace'; ctx.fillText('★ ★ ★', e.x - 7, e.y - 22); } return; }
+    if (e.kind === 'mummy') { drawMummy(ctx, e, now, attacking); ctx.restore(); if (e.stunnedUntil > now) { ctx.fillStyle = '#ffe56b'; ctx.font = 'bold 14px monospace'; ctx.fillText('★ ★ ★', e.x - 7, e.y - 22); } return; }
+    if (e.kind === 'goblin' || boss) { if (boss && level === 12) drawMummyBoss(ctx, e, now); else if (boss && level === 18) drawIceGolem(ctx, e, now, attacking); else drawGoblin(ctx, e, now, attacking || (boss && e.leapStarted > 0)); ctx.restore(); if (e.stunnedUntil > now) { ctx.fillStyle = level === 18 ? '#dffcff' : '#ffe56b'; ctx.font = `bold ${boss ? 22 : 14}px monospace`; ctx.fillText('★ ★ ★', e.x - (boss ? 42 : 7), e.y - (boss ? 235 : 22) + Math.sin(now / 90) * 3); } return; }
     const walking = distance > 18 && !attacking; const walkPhase = walking ? Math.sin(now / 105 + e.x * .02) : 0; const hop = walking ? Math.abs(walkPhase) * 9 : 0;
     ctx.fillStyle = 'rgba(0,0,0,.32)'; ctx.beginPath(); ctx.ellipse(64, 112, 49 - hop * .8, 11 - hop * .18, 0, 0, Math.PI * 2); ctx.fill();
     const wobble = Math.sin(now / 180 + e.x * .02) * .045; ctx.translate(0, -hop); ctx.translate(64, 108); ctx.scale(1 + wobble, 1 - wobble); ctx.translate(-64, -108);
@@ -325,8 +508,10 @@ function drawScene(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLeve
   staffUltimates.forEach((ultimate) => drawStaffUltimate(ctx, ultimate, now));
   glovesUltimates.forEach((ultimate) => drawGlovesUltimate(ctx, ultimate, now));
   waves.forEach((wave) => { const progress = Math.min(1, (now - wave.started) / (wave.until - wave.started)); ctx.save(); ctx.translate(wave.x, wave.y); ctx.rotate(Math.atan2(wave.dy, wave.dx)); ctx.globalAlpha = 1 - progress * .65; ctx.fillStyle = wave.color; ctx.fillRect(8, -48, 24 + progress * 48, 96); ctx.fillStyle = '#ffe8c7'; ctx.fillRect(18 + progress * 34, -38, 12, 76); ctx.strokeStyle = '#fff4d8'; ctx.lineWidth = 3; ctx.strokeRect(8, -48, 24 + progress * 48, 96); ctx.restore(); });
-  drawHero(ctx, hero, attackProgress, weapon, armor, facing, moving, now, health, profileName, false, swordUltimates.find((ultimate) => ultimate.owner === 1 && now < ultimate.until), bowUltimates.find((ultimate) => ultimate.owner === 1 && now < ultimate.rainStarted), glovesUltimates.find((ultimate) => ultimate.owner === 1 && ultimate.name.includes('титана') && !ultimate.landed));
-  if (secondHero) drawHero(ctx, secondHero, attackProgress2, weapon2, armor, secondFacing, secondMoving, now, secondHealth, 'Игрок 2', true, swordUltimates.find((ultimate) => ultimate.owner === 2 && now < ultimate.until), bowUltimates.find((ultimate) => ultimate.owner === 2 && now < ultimate.rainStarted), glovesUltimates.find((ultimate) => ultimate.owner === 2 && ultimate.name.includes('титана') && !ultimate.landed));
+  tombs.forEach((tomb) => drawTomb(ctx, tomb, now)); sandTornadoes.forEach((tornado) => drawSandTornado(ctx, tornado, now));
+  drawHero(ctx, hero, attackProgress, weapon, armor, facing, moving, now, health, profileName, false, swordUltimates.find((ultimate) => ultimate.owner === 1 && now < ultimate.until), bowUltimates.find((ultimate) => ultimate.owner === 1 && now < ultimate.rainStarted), glovesUltimates.find((ultimate) => ultimate.owner === 1 && ultimate.name.includes('титана') && !ultimate.landed), skin);
+  if (secondHero) drawHero(ctx, secondHero, attackProgress2, weapon2, armor2, secondFacing, secondMoving, now, secondHealth, 'Игрок 2', true, swordUltimates.find((ultimate) => ultimate.owner === 2 && now < ultimate.until), bowUltimates.find((ultimate) => ultimate.owner === 2 && now < ultimate.rainStarted), glovesUltimates.find((ultimate) => ultimate.owner === 2 && ultimate.name.includes('титана') && !ultimate.landed), skin2);
+  drawVisibleHitboxes(ctx, map, enemies, hero, secondHero);
   const fog = document.createElement('canvas'); fog.width = map.worldWidth; fog.height = map.worldHeight; const fogCtx = fog.getContext('2d'); if (fogCtx) { fogCtx.fillStyle = 'rgba(1,4,3,.94)'; fogCtx.fillRect(0, 0, map.worldWidth, map.worldHeight); fogCtx.globalCompositeOperation = 'destination-out'; explored.forEach((point) => { const gradient = fogCtx.createRadialGradient(point.x, point.y, 160, point.x, point.y, 190); gradient.addColorStop(0, 'rgba(0,0,0,1)'); gradient.addColorStop(1, 'rgba(0,0,0,0)'); fogCtx.fillStyle = gradient; fogCtx.beginPath(); fogCtx.arc(point.x, point.y, 190, 0, Math.PI * 2); fogCtx.fill(); }); ctx.drawImage(fog, 0, 0); }
   ctx.restore();
   drawMinimap(ctx, map, level, hero, enemies, chestDrops, openedChests, explored);
@@ -340,6 +525,15 @@ function drawScene(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLeve
     ctx.fillStyle = '#f0d7b0'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center'; ctx.fillText('ВЕЛИКИЙ ГОБЛИН', 320, 20); ctx.textAlign = 'start';
     ctx.fillStyle = '#35191d'; ctx.fillRect(170, 24, 300, 7); ctx.fillStyle = '#ef3949'; ctx.fillRect(170, 24, 300 * Math.max(0, boss.hp / boss.maxHp), 7);
     ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(172, 25, 296 * Math.max(0, boss.hp / boss.maxHp), 2);
+    if (level === 12) {
+      const ratio = Math.max(0, boss.hp / boss.maxHp);
+      ctx.fillStyle = '#211b17'; ctx.fillRect(142, 3, 356, 36); ctx.fillStyle = '#8b6b3d'; ctx.fillRect(147, 6, 346, 30); ctx.fillStyle = '#cba75b'; ctx.fillRect(151, 9, 338, 24); ctx.fillStyle = '#40352a'; ctx.fillRect(157, 12, 326, 18);
+      ctx.fillStyle = '#e8d7a5'; ctx.fillRect(166, 24, 308, 8); ctx.fillStyle = '#5c371f'; ctx.fillRect(170, 25, 300, 6); ctx.fillStyle = boss.revived ? '#e78232' : '#d3a83e'; ctx.fillRect(170, 25, 300 * ratio, 6); ctx.fillStyle = '#fff0a5'; ctx.fillRect(172, 26, 296 * ratio, 2);
+      ctx.fillStyle = '#d9c79b'; for (let x = 158; x < 483; x += 34) { ctx.fillRect(x, 13, 22, 3); ctx.fillRect(x + 8, 18, 24, 3); }
+      ctx.fillStyle = '#17130f'; ctx.beginPath(); ctx.moveTo(151,18); ctx.lineTo(162,11); ctx.lineTo(173,18); ctx.lineTo(162,25); ctx.closePath(); ctx.fill(); ctx.beginPath(); ctx.moveTo(467,18); ctx.lineTo(478,11); ctx.lineTo(489,18); ctx.lineTo(478,25); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#66d6c4'; ctx.fillRect(159,16,6,4); ctx.fillRect(475,16,6,4);
+      ctx.fillStyle = '#fff0c2'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center'; ctx.fillText(boss.revived ? 'ВЛАДЫКА ГРОБНИЦ · ВОЗРОЖДЁННЫЙ' : 'ВЛАДЫКА ГРОБНИЦ', 320, 20); ctx.textAlign = 'start';
+    }
   }
   ctx.fillStyle = superReloading ? 'rgba(18,18,18,.88)' : 'rgba(78,45,25,.9)'; ctx.beginPath(); ctx.arc(588, 348, 38, 0, Math.PI * 2); ctx.fill();
   ctx.strokeStyle = superReloading ? '#4b4b4b' : '#ffc95c'; ctx.lineWidth = 4; ctx.stroke();
@@ -354,15 +548,20 @@ function drawScene(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLeve
   if (secondHero) { ctx.fillStyle = superReloading2 ? 'rgba(18,18,18,.88)' : 'rgba(57,34,72,.92)'; ctx.beginPath(); ctx.arc(500, 348, 38, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = superReloading2 ? '#4b4b4b' : '#dc83ff'; ctx.lineWidth = 4; ctx.stroke(); if (weapon2?.type === 'sword') drawPixelSwordIcon(ctx, 500, 343, superReloading2 ? '#555' : weapon2.color); else if (weapon2?.type === 'bow') drawPixelBowIcon(ctx, 500, 343, superReloading2 ? '#555' : weapon2.color); else if (weapon2?.type === 'staff') drawPixelStaffIcon(ctx, 500, 343, superReloading2 ? '#555' : weapon2.color); else if (weapon2?.type === 'gloves') drawPixelGlovesIcon(ctx, 500, 343, superReloading2 ? '#555' : weapon2.color); else drawPixelFistIcon(ctx, 500, 343, superReloading2 ? '#555' : '#d99be9'); ctx.textAlign = 'center'; ctx.fillStyle = superReloading2 ? '#777' : '#f0b4ff'; ctx.font = 'bold 10px monospace'; ctx.fillText(superReloading2 ? '...' : 'Б', 500, 367); ctx.textAlign = 'start'; }
 }
 
-export function DungeonGame({ paused = false, enemyMultiplier = 1, profileName, players = 1, initialSave, tutorial = false, saveRequest = 0, onSaveSnapshot }: { paused?: boolean; enemyMultiplier?: number; profileName: string; players?: 1 | 2; initialSave?: GameSave | null; tutorial?: boolean; saveRequest?: number; onSaveSnapshot?: (save: GameSave) => void }) {
-  const startingLevel = initialSave?.level ?? (tutorial ? 0 : 1); const firstMap = initialSave?.map ?? (tutorial ? getTutorialLevel() : getLevel(startingLevel)); const startingPoint = initialSave?.hero ?? (tutorial ? { x: 75, y: 320 } : firstMap.round ? { x: 35, y: 322 } : getRouteStart());
+export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins = 0, oneHitBoss = false, startingLevel: requestedStartingLevel, profileName, players = 1, playerClass = 'knight', playerClass2 = 'knight', initialSave, tutorial = false, merchantMode = false, travelToLevel, saveRequest = 0, onSaveSnapshot, onVictory, onShopOpenChange }: { paused?: boolean; enemyMultiplier?: number; startingCoins?: number; oneHitBoss?: boolean; startingLevel?: number | null; profileName: string; players?: 1 | 2; playerClass?: PlayerClass; playerClass2?: PlayerClass; initialSave?: GameSave | null; tutorial?: boolean; merchantMode?: boolean; travelToLevel?: number | null; saveRequest?: number; onSaveSnapshot?: (save: GameSave) => void; onVictory?: (level: number) => void; onShopOpenChange?: (open: boolean) => void }) {
+  const effectiveTutorial = tutorial;
+  const requestedLevel = initialSave?.level ?? (effectiveTutorial ? 0 : requestedStartingLevel ?? 1);
+  const stageInRegion = requestedLevel > 0 ? ((requestedLevel - 1) % 6) + 1 : 0;
+  const startingLevel = stageInRegion === 4 || stageInRegion === 5 ? requestedLevel + (6 - stageInRegion) : requestedLevel;
+  const savedMapIsRemoved = Boolean(initialSave && startingLevel !== initialSave.level);
+  const firstMap = !savedMapIsRemoved && initialSave?.map ? initialSave.map : effectiveTutorial ? getTutorialLevel() : getLevel(startingLevel); const startingPoint = !savedMapIsRemoved && initialSave?.hero ? initialSave.hero : effectiveTutorial ? { x: 75, y: 320 } : firstMap.round ? { x: 35, y: 322 } : getRouteStart();
   const currentMap = useRef(firstMap);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hero = useRef<Point>(startingPoint);
   const facing = useRef<Point>({ x: 1, y: 0 });
-  const hero2 = useRef<Point>(initialSave?.hero2 ?? (firstMap.round ? { x: 65, y: 322 } : { ...startingPoint, y: startingPoint.y + 32 }));
+  const hero2 = useRef<Point>(!savedMapIsRemoved && initialSave?.hero2 ? initialSave.hero2 : firstMap.round ? { x: 65, y: 322 } : { ...startingPoint, y: startingPoint.y + 32 });
   const facing2 = useRef<Point>({ x: 1, y: 0 });
-  const enemies = useRef<Enemy[]>(initialSave?.enemies ?? createEnemies(firstMap, enemyMultiplier));
+  const enemies = useRef<Enemy[]>(!savedMapIsRemoved && initialSave?.enemies ? initialSave.enemies : createEnemies(firstMap, enemyMultiplier, oneHitBoss));
   const keys = useRef(new Set<string>());
   const projectiles = useRef<Projectile[]>([]);
   const superFists = useRef<SuperFist[]>([]);
@@ -371,6 +570,8 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, profileName, 
   const staffUltimates = useRef<StaffUltimate[]>([]);
   const glovesUltimates = useRef<GlovesUltimate[]>([]);
   const waves = useRef<MagicWave[]>([]);
+  const sandTornadoes = useRef<SandTornado[]>([]);
+  const tombs = useRef<Tomb[]>([]);
   const weaponRef = useRef<Weapon | null>(null);
   const weapon2Ref = useRef<Weapon | null>(null);
   const readyAt = useRef(0);
@@ -381,16 +582,25 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, profileName, 
   const attackUntil2 = useRef(0);
   const healReadyAt = useRef(0);
   const healReadyAt2 = useRef(0);
+  const poisonedUntil = useRef(0);
+  const poisonedUntil2 = useRef(0);
+  const slowedUntil = useRef(0);
+  const slowedUntil2 = useRef(0);
+  const nextPoisonTick = useRef(0);
+  const nextPoisonTick2 = useRef(0);
   const itemPicker = useRef<1 | 2>(1);
   const handledSaveRequest = useRef(saveRequest);
   const nextFootstepAt = useRef(0);
   const ambushAt = useRef(-1);
   const tutorialStep = useRef(0);
-  const explored = useRef<Point[]>(initialSave?.explored ?? [{ ...startingPoint }]);
+  const explored = useRef<Point[]>(!savedMapIsRemoved && initialSave?.explored ? initialSave.explored : [{ ...startingPoint }]);
   const exploredLevel = useRef(startingLevel);
+  const checkpointLevel = useRef(startingLevel);
   const [health, setHealth] = useState(initialSave?.health ?? 10);
   const [health2, setHealth2] = useState(initialSave?.health2 ?? 10);
-  const [coins, setCoins] = useState(initialSave?.coins ?? 0);
+  const [coins, setCoins] = useState(initialSave?.coins ?? startingCoins);
+  const [medkits, setMedkits] = useState(initialSave?.medkits ?? 0);
+  const [medkits2, setMedkits2] = useState(initialSave?.medkits2 ?? 0);
   const [inventory, setInventory] = useState<Weapon[]>(initialSave?.inventory ?? []);
   const [inventory2, setInventory2] = useState<Weapon[]>(initialSave?.inventory2 ?? []);
   const [inventoryCapacity, setInventoryCapacity] = useState(initialSave?.inventoryCapacity ?? 10);
@@ -401,52 +611,79 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, profileName, 
   const [loot, setLoot] = useState<Point | null>(initialSave?.loot ?? null);
   const [droppedItem, setDroppedItem] = useState<Weapon | null>(initialSave?.droppedItem ?? null);
   const [choiceItem, setChoiceItem] = useState<Weapon | null>(null);
-  const [chestDrops, setChestDrops] = useState<LootDrop[]>(() => initialSave?.chestDrops ?? firstMap.chests.map(() => getRandomLoot(startingLevel)));
+  const [chestDrops, setChestDrops] = useState<LootDrop[]>(() => initialSave?.chestDrops ?? firstMap.chests.map(() => startingLevel === 0 ? getTutorialClassLoot(playerClass) : getRandomLoot(startingLevel)));
   const [weapon, setWeapon] = useState<Weapon | null>(initialSave?.weapon ?? null);
   const [weapon2, setWeapon2] = useState<Weapon | null>(initialSave?.weapon2 ?? null);
   const [armor, setArmor] = useState<Weapon | null>(initialSave?.armor ?? null);
+  const [armor2, setArmor2] = useState<Weapon | null>(initialSave?.armor2 ?? null);
   const [armorHealth, setArmorHealth] = useState(initialSave?.armorHealth ?? 0);
+  const [armorHealth2, setArmorHealth2] = useState(initialSave?.armorHealth2 ?? 0);
   const armorHealthRef = useRef(initialSave?.armorHealth ?? 0);
+  const armorHealthRef2 = useRef(initialSave?.armorHealth2 ?? 0);
   const [level, setLevel] = useState(startingLevel);
   const [dead, setDead] = useState(false);
   const [victory, setVictory] = useState(false);
+  const [shopOpen, setShopOpen] = useState(false);
+  const [shopOwner, setShopOwner] = useState<1 | 2>(1);
+  const [pendingPurchase, setPendingPurchase] = useState<string | null>(null);
+  const [skin, setSkin] = useState<HeroSkin>('default');
+  const [skin2, setSkin2] = useState<HeroSkin>('default');
+  const victoryReported = useRef(false);
   const [reloading, setReloading] = useState(false);
   const [superReloading, setSuperReloading] = useState(false);
   const [superReloading2, setSuperReloading2] = useState(false);
   const [teammateFallen, setTeammateFallen] = useState(false);
   const [message, setMessage] = useState(tutorial ? 'ОБУЧЕНИЕ: двигайся клавишами WASD. Второй игрок использует стрелки.' : 'Найди старый сундук в северо-восточной части зала.');
 
+  useEffect(() => { onShopOpenChange?.(shopOpen); return () => onShopOpenChange?.(false); }, [onShopOpenChange, shopOpen]);
+
   const restart = () => {
-    hero.current = getRouteStart(); facing.current = { x: 1, y: 0 };
-    hero2.current = { ...getRouteStart(), y: getRouteStart().y + 32 }; facing2.current = { x: 1, y: 0 };
-    rerollLevel(1);
-    const map = getLevel(1); currentMap.current = map; explored.current = [{ ...getRouteStart() }]; enemies.current = createEnemies(map, enemyMultiplier);
-    ambushAt.current = Math.random() < .1 ? performance.now() + 3000 : -1;
-    keys.current.clear(); projectiles.current = []; superFists.current = []; swordUltimates.current = []; bowUltimates.current = []; staffUltimates.current = []; glovesUltimates.current = []; waves.current = []; readyAt.current = 0; readyAt2.current = 0; attackUntil2.current = 0; healReadyAt.current = 0; healReadyAt2.current = 0; superReadyAt.current = 0; superReadyAt2.current = 0; setReloading(false); setSuperReloading(false); setSuperReloading2(false); setHealth(10); setHealth2(10); setCoins(0); setInventory([]); setInventory2([]); setInventoryCapacity(10); setInventoryCapacity2(10); setInventoryOwner(1); setShowInventory(false); setOpenedChests([]); setLoot(null); setDroppedItem(null); setChoiceItem(null); setChestDrops(map.chests.map(() => getRandomLoot(1)));
-    armorHealthRef.current = 0; setWeapon(null); setWeapon2(null); setArmor(null); setArmorHealth(0); setLevel(1); setDead(false); setTeammateFallen(false); setVictory(false); setMessage('Найди сундук и приготовься к бою.');
+    const checkpoint = checkpointLevel.current; const restartLevel = dead && checkpoint > 0 && checkpoint % 6 === 0 ? checkpoint - 5 : checkpoint; rerollLevel(restartLevel); const map = getLevel(restartLevel); const start = map.round ? { x: 35, y: 322 } : getRouteStart();
+    hero.current = start; facing.current = { x: 1, y: 0 };
+    hero2.current = map.round ? { x: 65, y: 322 } : { ...start, y: start.y + 32 }; facing2.current = { x: 1, y: 0 };
+    currentMap.current = map; explored.current = [{ ...start }]; exploredLevel.current = restartLevel; enemies.current = createEnemies(map, enemyMultiplier);
+    ambushAt.current = -1;
+    slowedUntil.current = 0; slowedUntil2.current = 0;
+    keys.current.clear(); projectiles.current = []; superFists.current = []; swordUltimates.current = []; bowUltimates.current = []; staffUltimates.current = []; glovesUltimates.current = []; waves.current = []; sandTornadoes.current = []; tombs.current = []; readyAt.current = 0; readyAt2.current = 0; attackUntil2.current = 0; healReadyAt.current = 0; healReadyAt2.current = 0; superReadyAt.current = 0; superReadyAt2.current = 0; poisonedUntil.current = 0; poisonedUntil2.current = 0; nextPoisonTick.current = 0; nextPoisonTick2.current = 0; setReloading(false); setSuperReloading(false); setSuperReloading2(false); setHealth(10); setHealth2(10); setInventoryOwner(1); setShowInventory(false); setOpenedChests([]); setLoot(null); setDroppedItem(null); setChoiceItem(null); setChestDrops(map.chests.map(() => getRandomLoot(restartLevel)));
+    checkpointLevel.current = restartLevel; setLevel(restartLevel); setDead(false); setTeammateFallen(false); setVictory(false); victoryReported.current = false; setMessage(restartLevel !== checkpoint ? `Возвращение на первый уровень локации: ${restartLevel}. Здоровье восстановлено, ресурсы сохранены.` : `Уровень ${restartLevel} перезапущен. Здоровье восстановлено, ресурсы сохранены.`);
   };
+
+  useEffect(() => { checkpointLevel.current = level; }, [level]);
 
   useEffect(() => {
     const down = (event: KeyboardEvent) => {
       keys.current.add(event.code);
       if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyH', 'KeyL', 'KeyQ', 'KeyI', 'KeyE', 'Period', 'Quote', 'Comma', 'Semicolon', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(event.code)) event.preventDefault();
+      if (false && event.code === 'KeyY' && !event.repeat) {
+        event.preventDefault(); rerollLevel(13); const map = getLevel(13); const start = getRouteStart(); currentMap.current = map; checkpointLevel.current = 13; exploredLevel.current = 13; explored.current = [{ ...start }]; hero.current = start; hero2.current = { ...start, y: start.y + 32 }; enemies.current = createEnemies(map, enemyMultiplier); keys.current.clear(); projectiles.current = []; superFists.current = []; swordUltimates.current = []; bowUltimates.current = []; staffUltimates.current = []; glovesUltimates.current = []; waves.current = []; sandTornadoes.current = []; tombs.current = []; setLevel(13); setHealth(10); setHealth2(10); setDead(false); setVictory(false); setOpenedChests([]); setChestDrops(map.chests.map(() => getRandomLoot(13))); setLoot(null); setDroppedItem(null); setChoiceItem(null); setMessage('Телепорт Y: Ледяное кладбище · уровень 13.'); return;
+      }
       if (event.code === 'KeyI' && !event.repeat) { keys.current.clear(); setInventoryOwner(1); setShowInventory((current) => inventoryOwner === 1 ? !current : true); return; }
       if (players === 2 && event.code === 'Quote' && !event.repeat) { keys.current.clear(); setInventoryOwner(2); setShowInventory((current) => inventoryOwner === 2 ? !current : true); return; }
+      if (players === 1 && event.code === 'KeyH' && !event.repeat) {
+        const now = performance.now();
+        if (health <= 0) { setMessage('Павший герой не может вылечить себя.'); return; }
+        if (health >= 10) { setMessage('Здоровье уже полное.'); return; }
+        if (medkits <= 0) { setMessage('Аптечки закончились. Купи новую у торговца.'); return; }
+        if (now < healReadyAt.current) { setMessage(`Лечение будет готово через ${Math.ceil((healReadyAt.current - now) / 1000)} сек.`); return; }
+        healReadyAt.current = now + 5000; setMedkits((count) => count - 1); setHealth((current) => Math.min(10, current + 3)); setMessage('Герой использовал аптечку и восстановил 3 HP.'); return;
+      }
       if (players === 2 && event.code === 'KeyH' && !event.repeat) {
         const now = performance.now(); const distance = Math.hypot(hero.current.x - hero2.current.x, hero.current.y - hero2.current.y);
         if (health <= 0) { setMessage('Павший первый игрок не может лечить тиммейта.'); return; }
         if (distance > 80) { setMessage('Подойди ближе к тиммейту, чтобы вылечить его.'); return; }
         if (health2 >= 10) { setMessage('У тиммейта уже полное здоровье.'); return; }
+        if (medkits <= 0) { setMessage('У первого игрока закончились аптечки.'); return; }
         if (now < healReadyAt.current) { setMessage(`Лечение будет готово через ${Math.ceil((healReadyAt.current - now) / 1000)} сек.`); return; }
-        healReadyAt.current = now + 5000; setHealth2((current) => Math.min(10, Math.max(3, current + 3))); setTeammateFallen(false); setMessage(health2 <= 0 ? 'Первый игрок поднял тиммейта с 3 HP!' : 'Первый игрок восстановил тиммейту 3 HP!'); return;
+        healReadyAt.current = now + 5000; setMedkits((count) => count - 1); setHealth2((current) => Math.min(10, Math.max(3, current + 3))); setTeammateFallen(false); setMessage(health2 <= 0 ? 'Первый игрок потратил аптечку и поднял тиммейта с 3 HP!' : 'Первый игрок потратил аптечку и восстановил тиммейту 3 HP!'); return;
       }
       if (players === 2 && event.code === 'KeyL' && !event.repeat) {
         const now = performance.now(); const distance = Math.hypot(hero.current.x - hero2.current.x, hero.current.y - hero2.current.y);
         if (health2 <= 0) { setMessage('Павший второй игрок не может лечить тиммейта.'); return; }
         if (distance > 80) { setMessage('Второму игроку нужно подойти ближе для лечения.'); return; }
         if (health >= 10) { setMessage('У первого игрока уже полное здоровье.'); return; }
+        if (medkits2 <= 0) { setMessage('У второго игрока закончились аптечки.'); return; }
         if (now < healReadyAt2.current) { setMessage(`Лечение второго игрока будет готово через ${Math.ceil((healReadyAt2.current - now) / 1000)} сек.`); return; }
-        healReadyAt2.current = now + 5000; setHealth((current) => Math.min(10, Math.max(3, current + 3))); setTeammateFallen(false); setMessage(health <= 0 ? 'Второй игрок поднял первого с 3 HP!' : 'Второй игрок восстановил первому 3 HP!'); return;
+        healReadyAt2.current = now + 5000; setMedkits2((count) => count - 1); setHealth((current) => Math.min(10, Math.max(3, current + 3))); setTeammateFallen(false); setMessage(health <= 0 ? 'Второй игрок потратил аптечку и поднял первого с 3 HP!' : 'Второй игрок потратил аптечку и восстановил первому 3 HP!'); return;
       }
       if ((event.code === 'KeyQ' || players === 2 && event.code === 'Comma') && !event.repeat) {
         const now = performance.now(); const secondCaster = players === 2 && event.code === 'Comma'; if (secondCaster ? health2 <= 0 : health <= 0) return; const cooldown = secondCaster ? superReadyAt2 : superReadyAt; if (now < cooldown.current) return;
@@ -471,7 +708,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, profileName, 
         if (current?.type === 'staff') {
           const origin = { x: hero.current.x + 13, y: hero.current.y + 18 }; const direction = facing.current;
           waves.current.push({ ...origin, dx: direction.x, dy: direction.y, color: current.color, started: now, until: now + 360 });
-          enemies.current.forEach((enemy) => { const ex = enemy.x + (enemy.kind === 'boss' ? 0 : 14) - origin.x, ey = enemy.y + (enemy.kind === 'boss' ? -100 : 16) - origin.y; const forward = ex * direction.x + ey * direction.y; const side = Math.abs(ex * -direction.y + ey * direction.x); if (forward > 0 && forward < (enemy.kind === 'boss' ? 180 : 80) && side < (enemy.kind === 'boss' ? 135 : 48)) { enemy.hp -= current.damage; enemy.flash = 12; } });
+          enemies.current.forEach((enemy) => { const ex = enemy.x - origin.x, ey = enemy.y - origin.y; const forward = ex * direction.x + ey * direction.y; const side = Math.abs(ex * -direction.y + ey * direction.x); const hitRadius = enemyHitRadius(enemy); if (forward > -hitRadius && forward < 80 + hitRadius && side < 48 + hitRadius) { enemy.hp -= current.damage; enemy.flash = 12; } });
         }
       }
       if (players === 2 && event.code === 'Semicolon' && !event.repeat) {
@@ -485,13 +722,24 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, profileName, 
     const up = (event: KeyboardEvent) => keys.current.delete(event.code);
     window.addEventListener('keydown', down); window.addEventListener('keyup', up);
     return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
-  }, [health, health2, inventoryOwner, players]);
+  }, [health, health2, inventoryOwner, medkits, medkits2, players]);
 
   useEffect(() => { weaponRef.current = weapon; }, [weapon]);
   useEffect(() => { weapon2Ref.current = weapon2; }, [weapon2]);
-  useEffect(() => { if (saveRequest > handledSaveRequest.current) { handledSaveRequest.current = saveRequest; onSaveSnapshot?.({ level, players, health, health2, coins, inventory, inventory2, inventoryCapacity, inventoryCapacity2, weapon, weapon2, armor, armorHealth, map: currentMap.current, hero: { ...hero.current }, hero2: { ...hero2.current }, enemies: enemies.current.map((enemy) => ({ ...enemy })), openedChests: [...openedChests], chestDrops: chestDrops.map((drop) => ({ rarity: { ...drop.rarity }, item: { ...drop.item } })), loot: loot ? { ...loot } : null, droppedItem: droppedItem ? { ...droppedItem } : null, explored: explored.current.map((point) => ({ ...point })), savedAt: Date.now() }); } }, [armor, armorHealth, chestDrops, coins, droppedItem, health, health2, inventory, inventory2, inventoryCapacity, inventoryCapacity2, level, loot, onSaveSnapshot, openedChests, players, saveRequest, weapon, weapon2]);
+  useEffect(() => { if (saveRequest > handledSaveRequest.current) { handledSaveRequest.current = saveRequest; onSaveSnapshot?.({ level, players, health, health2, coins, medkits, medkits2, inventory, inventory2, inventoryCapacity, inventoryCapacity2, weapon, weapon2, armor, armor2, armorHealth, armorHealth2, map: currentMap.current, hero: { ...hero.current }, hero2: { ...hero2.current }, enemies: enemies.current.map((enemy) => ({ ...enemy })), openedChests: [...openedChests], chestDrops: chestDrops.map((drop) => ({ rarity: { ...drop.rarity }, item: { ...drop.item } })), loot: loot ? { ...loot } : null, droppedItem: droppedItem ? { ...droppedItem } : null, explored: explored.current.map((point) => ({ ...point })), savedAt: Date.now() }); } }, [armor, armor2, armorHealth, armorHealth2, chestDrops, coins, droppedItem, health, health2, inventory, inventory2, inventoryCapacity, inventoryCapacity2, level, loot, medkits, medkits2, onSaveSnapshot, openedChests, players, saveRequest, weapon, weapon2]);
   useEffect(() => { setMusicDanger(health === 1 && !dead); return () => setMusicDanger(false); }, [dead, health]);
-  useEffect(() => { ambushAt.current = level > 0 && level < 6 && Math.random() < .1 ? performance.now() + 3000 : -1; }, [level]);
+  useEffect(() => { if (victory && !victoryReported.current) { victoryReported.current = true; window.setTimeout(() => onVictory?.(level), 150); } }, [level, onVictory, victory]);
+  useEffect(() => { if (merchantMode && (level === 6 || level === 12)) { setVictory(false); setMessage(level === 12 ? 'Пустынный торговец прибыл с новым оружием. Подойди и нажми E.' : 'Странствующий торговец прибыл. Подойди и нажми E. Второй игрок использует Ю.'); } else setShopOpen(false); }, [level, merchantMode]);
+  useEffect(() => {
+    if (!travelToLevel || travelToLevel === level) return;
+    rerollLevel(travelToLevel);
+    const map = getLevel(travelToLevel); const start = map.round ? { x: 35, y: 322 } : getRouteStart();
+    currentMap.current = map; explored.current = [{ ...start }]; exploredLevel.current = travelToLevel;
+    hero.current = start; hero2.current = map.round ? { x: 65, y: 322 } : { ...start, y: start.y + 32 };
+    enemies.current = createEnemies(map, enemyMultiplier); keys.current.clear(); projectiles.current = []; superFists.current = []; swordUltimates.current = []; bowUltimates.current = []; staffUltimates.current = []; glovesUltimates.current = []; waves.current = [];
+    setLevel(travelToLevel); setOpenedChests([]); setChestDrops(map.chests.map(() => getRandomLoot(travelToLevel))); setLoot(null); setDroppedItem(null); setChoiceItem(null); setVictory(false); victoryReported.current = false; setDead(false); setMessage(`Новая область: ${map.name}. Найди путь к её хранителю.`);
+  }, [travelToLevel]);
+  useEffect(() => { ambushAt.current = -1; }, [level]);
   useEffect(() => { if (exploredLevel.current !== level) { exploredLevel.current = level; explored.current = [{ ...hero.current }, ...(players === 2 ? [{ ...hero2.current }] : [])]; } }, [level, players]);
 
   const acceptItem = () => {
@@ -499,14 +747,14 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, profileName, 
     const secondPicker = itemPicker.current === 2; const targetInventory = secondPicker ? inventory2 : inventory; const targetCapacity = secondPicker ? inventoryCapacity2 : inventoryCapacity;
     if (targetInventory.length >= targetCapacity) { setMessage(`Рюкзак ${secondPicker ? 'второго' : 'первого'} игрока заполнен: ${targetCapacity}/${targetCapacity}.`); return; }
     if (secondPicker) setInventory2((current) => [...current, choiceItem]); else setInventory((current) => [...current, choiceItem]);
-    if (choiceItem.type === 'armor') { const durability = choiceItem.durability ?? 5; armorHealthRef.current = durability; setArmorHealth(durability); setArmor(choiceItem); setMessage(`${choiceItem.name} надета. Прочность: ${durability}.`); }
+    if (choiceItem.type === 'armor') { const durability = choiceItem.durability ?? 5; if (secondPicker) { armorHealthRef2.current = durability; setArmorHealth2(durability); setArmor2(choiceItem); } else { armorHealthRef.current = durability; setArmorHealth(durability); setArmor(choiceItem); } setMessage(`${choiceItem.name} надета игроком ${secondPicker ? 2 : 1}. Прочность: ${durability}.`); }
     else if (itemPicker.current === 2) { setWeapon2(choiceItem); setMessage(`Второй игрок получил «${choiceItem.name}». Урон: ${choiceItem.damage}.`); }
     else { setWeapon(choiceItem); setMessage(`Первый игрок получил «${choiceItem.name}». Урон: ${choiceItem.damage}.`); }
     setLoot(null); setDroppedItem(null); setChoiceItem(null);
   };
 
   const equipInventoryItem = (item: Weapon) => {
-    if (item.type === 'armor') { const durability = item.durability ?? 5; armorHealthRef.current = durability; setArmorHealth(durability); setArmor(item); setMessage(`${item.name} надета из рюкзака.`); }
+    if (item.type === 'armor') { const durability = item.durability ?? 5; if (inventoryOwner === 2) { armorHealthRef2.current = durability; setArmorHealth2(durability); setArmor2(item); } else { armorHealthRef.current = durability; setArmorHealth(durability); setArmor(item); } setMessage(`${item.name} надета игроком ${inventoryOwner} из рюкзака.`); }
     else if (inventoryOwner === 2) { setWeapon2(item); setMessage(`Второй игрок экипировал ${item.name}.`); }
     else { setWeapon(item); setMessage(`${item.name} экипирован из рюкзака.`); }
     setShowInventory(false);
@@ -520,9 +768,9 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, profileName, 
     const ctx = canvasRef.current?.getContext('2d'); if (!ctx) return;
     ctx.imageSmoothingEnabled = false; let frame = 0; let last = performance.now();
     const loop = (now: number) => {
-      const map = currentMap.current; const dt = Math.min((now - last) / 16.67, 2); last = now; const p = hero.current; const speed = 3 * dt;
+      const map = currentMap.current; const dt = Math.min((now - last) / 16.67, 2); last = now; const p = hero.current; const baseSpeed = 3 * dt; const speed = now < slowedUntil.current ? baseSpeed / 1.5 : baseSpeed; const speed2 = now < slowedUntil2.current ? baseSpeed / 1.5 : baseSpeed;
       [p, ...(players === 2 ? [hero2.current] : [])].forEach((viewer) => { if (!explored.current.some((point) => Math.hypot(point.x - viewer.x, point.y - viewer.y) < 54)) explored.current.push({ x: viewer.x, y: viewer.y }); });
-      if (paused || dead || victory || choiceItem || showInventory) { drawScene(ctx, map, p, enemies.current, projectiles.current, superFists.current, swordUltimates.current, bowUltimates.current, staffUltimates.current, glovesUltimates.current, waves.current, now, openedChests, chestDrops, 0, loot, droppedItem, level, weapon, weapon2, armor, facing.current, false, health, superReloading, profileName, players === 2 ? hero2.current : null, facing2.current, false, health2, superReloading2, 0, explored.current); frame = requestAnimationFrame(loop); return; }
+      if (paused || dead || victory || choiceItem || showInventory || shopOpen) { drawScene(ctx, map, p, enemies.current, projectiles.current, superFists.current, swordUltimates.current, bowUltimates.current, staffUltimates.current, glovesUltimates.current, waves.current, sandTornadoes.current, tombs.current, now, openedChests, chestDrops, 0, loot, droppedItem, level, weapon, weapon2, armor, facing.current, false, health, superReloading, profileName, players === 2 ? hero2.current : null, facing2.current, false, health2, superReloading2, 0, armor2, skin, skin2, explored.current); frame = requestAnimationFrame(loop); return; }
       if (ambushAt.current > 0 && now >= ambushAt.current) {
         ambushAt.current = -1;
         const spawns: Array<Point & { kind: EnemyKind }> = [];
@@ -543,80 +791,111 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, profileName, 
       let dx = 0, dy = 0; if (health > 0) { if (keys.current.has('KeyA') || players === 1 && keys.current.has('ArrowLeft')) dx -= speed; if (keys.current.has('KeyD') || players === 1 && keys.current.has('ArrowRight')) dx += speed;
       if (keys.current.has('KeyW') || players === 1 && keys.current.has('ArrowUp')) dy -= speed; if (keys.current.has('KeyS') || players === 1 && keys.current.has('ArrowDown')) dy += speed; }
       if (dx || dy) { const length = Math.hypot(dx, dy); facing.current = { x: dx / length, y: dy / length }; }
-      const nx = Math.max(34, Math.min(map.worldWidth - 60, p.x + dx)); const ny = Math.max(34, Math.min(map.worldHeight - 64, p.y + dy));
-      const outsideArena = map.round && Math.hypot(nx + 12 - 320, ny + 14 - 336) > 306;
-      const outsideRoute = level !== 0 && !map.round && !isInsideFourWayRoute(nx + 12, ny + 14);
-      const blockedByCart = map.carts.some((cart) => nx + 24 > cart.x - 5 && nx < cart.x + 45 && ny + 28 > cart.y && ny < cart.y + 36);
-      const blocked = outsideArena || outsideRoute || blockedByCart || map.walls.slice(4).some((w) => nx + 24 > w.x && nx < w.x + w.w && ny + 28 > w.y && ny < w.y + w.h); if (!blocked) { p.x = nx; p.y = ny; if ((dx || dy) && now >= nextFootstepAt.current) { playFootstep(); nextFootstepAt.current = now + 280; } }
+      const playerBlocked = (x: number, y: number) => map.round && Math.hypot(x + 12 - 320, y + 14 - 336) > 306 || level !== 0 && !map.round && !isInsideFourWayRoute(x + 12, y + 14) || map.carts.some((cart) => x + 24 > cart.x - 5 && x < cart.x + 45 && y + 28 > cart.y && y < cart.y + 36) || map.walls.slice(4).some((wall) => x + 24 > wall.x && x < wall.x + wall.w && y + 28 > wall.y && y < wall.y + wall.h) || merchantMode && (level === 6 || level === 12) && x + 24 > MERCHANT.hitbox.x && x < MERCHANT.hitbox.x + MERCHANT.hitbox.w && y + 28 > MERCHANT.hitbox.y && y < MERCHANT.hitbox.y + MERCHANT.hitbox.h;
+      const moveSliding = (actor: Point, moveX: number, moveY: number) => { const targetX = Math.max(34, Math.min(map.worldWidth - 60, actor.x + moveX)); const targetY = Math.max(34, Math.min(map.worldHeight - 64, actor.y + moveY)); if (!playerBlocked(targetX, actor.y)) actor.x = targetX; if (!playerBlocked(actor.x, targetY)) actor.y = targetY; };
+      const oldX = p.x, oldY = p.y; moveSliding(p, dx, dy); if ((p.x !== oldX || p.y !== oldY) && now >= nextFootstepAt.current) { playFootstep(); nextFootstepAt.current = now + 280; }
       let dx2 = 0, dy2 = 0; const p2 = hero2.current;
       if (players === 2 && health2 > 0) {
-        if (keys.current.has('ArrowLeft')) dx2 -= speed; if (keys.current.has('ArrowRight')) dx2 += speed; if (keys.current.has('ArrowUp')) dy2 -= speed; if (keys.current.has('ArrowDown')) dy2 += speed;
+        if (keys.current.has('ArrowLeft')) dx2 -= speed2; if (keys.current.has('ArrowRight')) dx2 += speed2; if (keys.current.has('ArrowUp')) dy2 -= speed2; if (keys.current.has('ArrowDown')) dy2 += speed2;
         if (dx2 || dy2) { const length = Math.hypot(dx2, dy2); facing2.current = { x: dx2 / length, y: dy2 / length }; }
-        const nx2 = Math.max(34, Math.min(map.worldWidth - 60, p2.x + dx2)); const ny2 = Math.max(34, Math.min(map.worldHeight - 64, p2.y + dy2));
-        const blocked2 = map.round && Math.hypot(nx2 + 12 - 320, ny2 + 14 - 336) > 306 || level !== 0 && !map.round && !isInsideFourWayRoute(nx2 + 12, ny2 + 14) || map.carts.some((cart) => nx2 + 24 > cart.x - 5 && nx2 < cart.x + 45 && ny2 + 28 > cart.y && ny2 < cart.y + 36) || map.walls.slice(4).some((wall) => nx2 + 24 > wall.x && nx2 < wall.x + wall.w && ny2 + 28 > wall.y && ny2 < wall.y + wall.h);
-        if (!blocked2) { p2.x = nx2; p2.y = ny2; }
+        moveSliding(p2, dx2, dy2);
       }
+      if (merchantMode && (level === 6 || level === 12)) { const nearMerchant1 = Math.hypot(p.x - MERCHANT.x, p.y - MERCHANT.y) < 85, nearMerchant2 = players === 2 && Math.hypot(p2.x - MERCHANT.x, p2.y - MERCHANT.y) < 85; if (keys.current.has('KeyE') && nearMerchant1 || keys.current.has('Period') && nearMerchant2) { setShopOwner(keys.current.has('Period') && nearMerchant2 ? 2 : 1); keys.current.clear(); setShopOpen(true); } }
       const attacking = now < attackUntil.current;
       if (attacking) enemies.current.forEach((e) => {
-        const ex = e.x - p.x, ey = e.y - p.y, distance = Math.hypot(ex, ey);
-        const inFront = distance > 0 && (ex * facing.current.x + ey * facing.current.y) / distance > 0.25;
-        const range = weapon?.type === 'staff' ? 190 : 50 + (e.kind === 'boss' ? 100 : 0);
-        if (weapon?.type !== 'bow' && weapon?.type !== 'staff' && distance < range && inFront && e.flash <= 0) { e.hp -= weapon?.damage || 1; e.flash = 12; }
+        if (weapon?.type !== 'bow' && weapon?.type !== 'staff' && meleeHitsEnemy({ x: p.x + 12, y: p.y + 14 }, facing.current, 58, e) && e.flash <= 0) { e.hp -= weapon?.damage || 1; e.flash = 12; }
       });
       const attacking2 = players === 2 && health2 > 0 && now < attackUntil2.current;
-      if (attacking2) enemies.current.forEach((enemy) => { const ex = enemy.x - p2.x, ey = enemy.y - p2.y, distance = Math.hypot(ex, ey); const inFront = distance > 0 && (ex * facing2.current.x + ey * facing2.current.y) / distance > .25; const range = weapon2?.type === 'staff' ? 190 : 50 + (enemy.kind === 'boss' ? 100 : 0); if (weapon2?.type !== 'bow' && weapon2?.type !== 'staff' && distance < range && inFront && enemy.flash <= 0) { enemy.hp -= weapon2?.damage || 1; enemy.flash = 12; } });
+      if (attacking2) enemies.current.forEach((enemy) => { if (weapon2?.type !== 'bow' && weapon2?.type !== 'staff' && meleeHitsEnemy({ x: p2.x + 12, y: p2.y + 14 }, facing2.current, 58, enemy) && enemy.flash <= 0) { enemy.hp -= weapon2?.damage || 1; enemy.flash = 12; } });
       projectiles.current = projectiles.current.filter((arrow) => {
         arrow.x += arrow.vx * dt; arrow.y += arrow.vy * dt;
         const hitsWall = map.walls.some((wall) => arrow.x > wall.x && arrow.x < wall.x + wall.w && arrow.y > wall.y && arrow.y < wall.y + wall.h);
-        const target = enemies.current.find((e) => Math.hypot(e.x + (e.kind === 'boss' ? 0 : 14) - arrow.x, e.y + (e.kind === 'boss' ? -100 : 16) - arrow.y) < (e.kind === 'boss' ? 115 : 10));
+        const target = enemies.current.find((e) => pointHitsEnemy(arrow, e, 5));
         if (target) { target.hp -= arrow.damage; target.flash = 12; return false; }
         const insideArena = !map.round || Math.hypot(arrow.x - 320, arrow.y - 336) < 336;
         return !hitsWall && insideArena && arrow.x > 0 && arrow.x < map.worldWidth && arrow.y > 0 && arrow.y < map.worldHeight;
       });
       superFists.current = superFists.current.filter((fist) => {
         fist.x += fist.vx * dt; fist.y += fist.vy * dt;
-        const targets = enemies.current.filter((e) => !fist.hitTargets.includes(e) && !(e.kind === 'boss' && e.leapStarted > 0 && now < e.leapUntil) && Math.hypot(e.x + (e.kind === 'boss' ? 0 : 14) - fist.x, e.y + (e.kind === 'boss' ? -100 : 16) - fist.y) < (e.kind === 'boss' ? 145 : 42));
+        const targets = enemies.current.filter((e) => !fist.hitTargets.includes(e) && !(e.kind === 'boss' && e.leapStarted > 0 && now < e.leapUntil) && pointHitsEnemy(fist, e, 28));
         targets.forEach((target) => { target.hp -= fist.damage; target.flash = 12; fist.hitTargets.push(target); });
         if (targets.length) setMessage(`Суперкулак нанёс по 10 урона ${targets.length === 1 ? 'врагу' : 'врагам'}!`);
         const cameraX = Math.max(0, Math.min(map.worldWidth - WIDTH, p.x - WIDTH / 2)); const cameraY = Math.max(0, Math.min(map.worldHeight - HEIGHT, p.y - HEIGHT / 2));
         return fist.x > cameraX - 64 && fist.x < cameraX + WIDTH + 64 && fist.y > cameraY - 64 && fist.y < cameraY + HEIGHT + 64;
       });
       swordUltimates.current = swordUltimates.current.filter((ultimate) => {
-        if (!ultimate.damageApplied && now >= ultimate.impactAt) { ultimate.damageApplied = true; const targets = enemies.current.filter((enemy) => Math.hypot(enemy.x - ultimate.x, enemy.y - ultimate.y) <= 64 + (enemy.kind === 'boss' ? 90 : 0)); targets.forEach((enemy) => { enemy.hp -= ultimate.name.includes('Теневой') ? 8 : 5; enemy.flash = 12; if (ultimate.name.includes('Стальной')) { const distance = Math.max(1, Math.hypot(enemy.x - ultimate.x, enemy.y - ultimate.y)); enemy.x += (enemy.x - ultimate.x) / distance * 35; enemy.y += (enemy.y - ultimate.y) / distance * 35; } if (ultimate.name.includes('вождя')) enemy.stunnedUntil = now + 900; }); setMessage(targets.length ? `Ульта меча поразила ${targets.length === 1 ? 'врага' : 'врагов'}!` : 'Камни вырвались из земли!'); }
+        if (!ultimate.damageApplied && now >= ultimate.impactAt) { ultimate.damageApplied = true; const targets = enemies.current.filter((enemy) => pointHitsEnemy(ultimate, enemy, 64)); targets.forEach((enemy) => { enemy.hp -= ultimate.name.includes('Теневой') ? 8 : 5; enemy.flash = 12; if (ultimate.name.includes('Стальной')) { const distance = Math.max(1, Math.hypot(enemy.x - ultimate.x, enemy.y - ultimate.y)); enemy.x += (enemy.x - ultimate.x) / distance * 35; enemy.y += (enemy.y - ultimate.y) / distance * 35; } if (ultimate.name.includes('вождя')) enemy.stunnedUntil = now + 900; }); setMessage(targets.length ? `Ульта меча поразила ${targets.length === 1 ? 'врага' : 'врагов'}!` : 'Камни вырвались из земли!'); }
         return now < ultimate.until;
       });
       bowUltimates.current = bowUltimates.current.filter((ultimate) => {
         while (now >= ultimate.nextArrowAt && ultimate.nextArrowAt < ultimate.until) { for (let i = 0; i < 5; i++) ultimate.arrows.push({ x: ultimate.x - 60 + Math.random() * 120, y: ultimate.y - 60 + Math.random() * 120, started: ultimate.nextArrowAt, impactAt: ultimate.nextArrowAt + 300, damaged: false }); ultimate.nextArrowAt += 200; }
-        ultimate.arrows.forEach((arrow) => { if (!arrow.damaged && now >= arrow.impactAt) { arrow.damaged = true; enemies.current.filter((enemy) => Math.hypot(enemy.x - arrow.x, enemy.y - arrow.y) < (ultimate.name.includes('Солнечный') ? 27 : 16) + (enemy.kind === 'boss' ? 90 : 0)).forEach((enemy) => { enemy.hp -= ultimate.name.includes('Пламенный') || ultimate.name.includes('Небесный') ? 2 : 1.5; enemy.flash = 12; if (ultimate.name.includes('Ледяной')) enemy.stunnedUntil = now + 650; if (ultimate.name.includes('Охотничий')) enemy.stunnedUntil = Math.max(enemy.stunnedUntil, now + 250); }); } });
+        ultimate.arrows.forEach((arrow) => { if (!arrow.damaged && now >= arrow.impactAt) { arrow.damaged = true; enemies.current.filter((enemy) => pointHitsEnemy(arrow, enemy, ultimate.name.includes('Солнечный') ? 27 : 16)).forEach((enemy) => { enemy.hp -= ultimate.name.includes('Пламенный') || ultimate.name.includes('Небесный') ? 2 : 1.5; enemy.flash = 12; if (ultimate.name.includes('Ледяной')) enemy.stunnedUntil = now + 650; if (ultimate.name.includes('Охотничий')) enemy.stunnedUntil = Math.max(enemy.stunnedUntil, now + 250); }); } });
         ultimate.arrows = ultimate.arrows.filter((arrow) => now < arrow.impactAt + 300); return now < ultimate.until + 300;
       });
       staffUltimates.current = staffUltimates.current.filter((ultimate) => {
         while (now >= ultimate.nextPulseAt && ultimate.pulseIndex < 3) {
           const baseDamage = ultimate.pulseIndex === 0 ? 3 : ultimate.pulseIndex === 1 ? 5 : ultimate.kills; const damage = ultimate.name.includes('пламени') ? baseDamage + 1 : ultimate.name.includes('звёзд') && ultimate.pulseIndex === 2 ? baseDamage + 3 : baseDamage; ultimate.pulses.push({ started: ultimate.nextPulseAt, damage });
-          enemies.current.forEach((enemy) => { const ex = enemy.x - ultimate.x, ey = enemy.y - ultimate.y; const forward = ex * ultimate.dx + ey * ultimate.dy; const side = Math.abs(ex * -ultimate.dy + ey * ultimate.dx); if (forward > 0 && forward < 180 && side < 55 && !(enemy.kind === 'boss' && enemy.leapStarted > 0)) { const wasAlive = enemy.hp > 0; enemy.hp -= damage; enemy.flash = 12; enemy.stunnedUntil = Math.max(enemy.stunnedUntil, now + (ultimate.name.includes('Грозовой') ? 1500 : 1100)); if (ultimate.pulseIndex < 2 && wasAlive && enemy.hp <= 0) ultimate.kills++; } });
+          enemies.current.forEach((enemy) => { const ex = enemy.x - ultimate.x, ey = enemy.y - ultimate.y; const forward = ex * ultimate.dx + ey * ultimate.dy; const side = Math.abs(ex * -ultimate.dy + ey * ultimate.dx); const hitRadius = enemyHitRadius(enemy); if (forward > -hitRadius && forward < 180 + hitRadius && side < 55 + hitRadius && !(enemy.kind === 'boss' && enemy.leapStarted > 0)) { const wasAlive = enemy.hp > 0; enemy.hp -= damage; enemy.flash = 12; enemy.stunnedUntil = Math.max(enemy.stunnedUntil, now + (ultimate.name.includes('Грозовой') ? 1500 : 1100)); if (ultimate.pulseIndex < 2 && wasAlive && enemy.hp <= 0) ultimate.kills++; } });
           ultimate.pulseIndex++; ultimate.nextPulseAt += 600; setMessage(ultimate.pulseIndex === 3 ? `Третья волна нанесла ${damage} урона — столько врагов убили первые две!` : `Волна посоха ${ultimate.pulseIndex}: ${damage} урона и оглушение!`);
         }
         ultimate.pulses = ultimate.pulses.filter((pulse) => now < pulse.started + 520); return now < ultimate.until;
       });
       glovesUltimates.current = glovesUltimates.current.filter((ultimate) => {
         const titan = ultimate.name.includes('титана');
-        if (titan && !ultimate.landed && now >= ultimate.nextHitAt) { ultimate.landed = true; const tx = Math.max(34, Math.min(map.worldWidth - 60, ultimate.titanTargetX)); const ty = Math.max(34, Math.min(map.worldHeight - 64, ultimate.titanTargetY)); const ownerHero = ultimate.owner === 2 ? p2 : p; ownerHero.x = tx; ownerHero.y = ty; ultimate.titanTargetX = tx; ultimate.titanTargetY = ty; enemies.current.filter((enemy) => Math.hypot(enemy.x - tx, enemy.y - ty) <= 16 + (enemy.kind === 'boss' ? 90 : 0)).forEach((enemy) => { enemy.hp -= 15; enemy.flash = 12; }); setMessage('Перчатки титана: прыжок через стену и удар на 15 HP!'); }
-        if (!titan) while (now >= ultimate.nextHitAt && ultimate.hitIndex < 10) { const finalHit = ultimate.hitIndex === 9; enemies.current.forEach((enemy) => { const ex = enemy.x - ultimate.x, ey = enemy.y - ultimate.y; const forward = ex * ultimate.dx + ey * ultimate.dy; const side = Math.abs(ex * -ultimate.dy + ey * ultimate.dx); if (forward > 0 && forward < 105 && side < 55) { const fireBonus = ultimate.name.includes('Огненные') ? .5 : 0; enemy.hp -= (finalHit ? ultimate.damage * 2 : ultimate.damage) + fireBonus; enemy.flash = 12; if (ultimate.name.includes('Грозовые') && ultimate.hitIndex % 3 === 2) enemy.stunnedUntil = now + 700; if (finalHit) { enemy.x += ultimate.dx * 28; enemy.y += ultimate.dy * 28; } } }); if (ultimate.name.includes('Теневые')) { const ownerHero = ultimate.owner === 2 ? p2 : p; ownerHero.x = Math.max(34, Math.min(map.worldWidth - 60, ownerHero.x + ultimate.dx * 5)); ownerHero.y = Math.max(34, Math.min(map.worldHeight - 64, ownerHero.y + ultimate.dy * 5)); } ultimate.hitIndex++; ultimate.nextHitAt += 100; }
+        if (titan && !ultimate.landed && now >= ultimate.nextHitAt) { ultimate.landed = true; const tx = Math.max(34, Math.min(map.worldWidth - 60, ultimate.titanTargetX)); const ty = Math.max(34, Math.min(map.worldHeight - 64, ultimate.titanTargetY)); const ownerHero = ultimate.owner === 2 ? p2 : p; ownerHero.x = tx; ownerHero.y = ty; ultimate.titanTargetX = tx; ultimate.titanTargetY = ty; enemies.current.filter((enemy) => pointHitsEnemy({ x: tx, y: ty }, enemy, 16)).forEach((enemy) => { enemy.hp -= 15; enemy.flash = 12; }); setMessage('Перчатки титана: прыжок через стену и удар на 15 HP!'); }
+        if (!titan) while (now >= ultimate.nextHitAt && ultimate.hitIndex < 10) { const finalHit = ultimate.hitIndex === 9; enemies.current.forEach((enemy) => { const ex = enemy.x - ultimate.x, ey = enemy.y - ultimate.y; const forward = ex * ultimate.dx + ey * ultimate.dy; const side = Math.abs(ex * -ultimate.dy + ey * ultimate.dx); const hitRadius = enemyHitRadius(enemy); if (forward > -hitRadius && forward < 105 + hitRadius && side < 55 + hitRadius) { const fireBonus = ultimate.name.includes('Огненные') ? .5 : 0; enemy.hp -= (finalHit ? ultimate.damage * 2 : ultimate.damage) + fireBonus; enemy.flash = 12; if (ultimate.name.includes('Грозовые') && ultimate.hitIndex % 3 === 2) enemy.stunnedUntil = now + 700; if (finalHit) { enemy.x += ultimate.dx * 28; enemy.y += ultimate.dy * 28; } } }); if (ultimate.name.includes('Теневые')) { const ownerHero = ultimate.owner === 2 ? p2 : p; ownerHero.x = Math.max(34, Math.min(map.worldWidth - 60, ownerHero.x + ultimate.dx * 5)); ownerHero.y = Math.max(34, Math.min(map.worldHeight - 64, ownerHero.y + ultimate.dy * 5)); } ultimate.hitIndex++; ultimate.nextHitAt += 100; }
         return now < ultimate.until;
       });
       waves.current = waves.current.filter((wave) => now < wave.until);
       const showTeammateFallen = () => { setTeammateFallen(true); window.setTimeout(() => setTeammateFallen(false), 3200); };
       const damageHero = (amount: number, hitMessage?: string, second = false) => {
         playHurt();
-        if (armor && armorHealthRef.current > 0) {
-          const nextArmor = Math.max(0, armorHealthRef.current - amount); armorHealthRef.current = nextArmor; setArmorHealth(nextArmor);
-          if (nextArmor === 0) { setArmor(null); setMessage('Броня приняла удар и сломалась!'); } else if (hitMessage) setMessage(`${hitMessage} Броня получила ${amount} урона.`);
+        const wornArmor = second ? armor2 : armor; const wornArmorHealth = second ? armorHealthRef2 : armorHealthRef;
+        if (wornArmor && wornArmorHealth.current > 0) {
+          const nextArmor = Math.max(0, wornArmorHealth.current - amount); wornArmorHealth.current = nextArmor;
+          const updateArmorDurability = (items: Weapon[]) => items.map((item) => item.type === 'armor' && item.name === wornArmor.name ? { ...item, durability: nextArmor } : item);
+          if (second) { setArmorHealth2(nextArmor); setInventory2(updateArmorDurability); setArmor2((current) => nextArmor > 0 && current ? { ...current, durability: nextArmor } : null); }
+          else { setArmorHealth(nextArmor); setInventory(updateArmorDurability); setArmor((current) => nextArmor > 0 && current ? { ...current, durability: nextArmor } : null); }
+          if (nextArmor === 0) setMessage(`Броня игрока ${second ? 2 : 1} приняла удар и сломалась!`); else if (hitMessage) setMessage(`${hitMessage} Броня игрока ${second ? 2 : 1} получила ${amount} урона.`);
         } else if (second) setHealth2((current) => { const next = Math.max(0, current - amount); if (current > 0 && next === 0) { if (health <= 0) { setDead(true); keys.current.clear(); } else showTeammateFallen(); } if (hitMessage) setMessage(`${hitMessage} Второй игрок получил ${amount} урона.`); return next; });
         else setHealth((current) => { const next = Math.max(0, current - amount); if (current > 0 && next === 0) { if (players === 1 || health2 <= 0) { setDead(true); keys.current.clear(); setMessage('Тьма поглотила героя…'); } else showTeammateFallen(); } else if (hitMessage) setMessage(`${hitMessage} Получено ${amount} урона.`); return next; });
       };
       enemies.current.forEach((e) => {
-        e.flash--; const distance1 = health > 0 ? Math.hypot(p.x - e.x, p.y - e.y) : Infinity; const distance2 = players === 2 && health2 > 0 ? Math.hypot(p2.x - e.x, p2.y - e.y) : Infinity; const targetsSecond = distance2 < distance1; const targetHero = targetsSecond ? p2 : p; const ex = targetHero.x - e.x, ey = targetHero.y - e.y, distance = Math.hypot(ex, ey);
+        const sees = (target: Point) => { const from = { x: e.x + 14, y: e.y + 14 }, to = { x: target.x + 12, y: target.y + 14 }; return !map.walls.slice(4).some((wall) => segmentHitsRect(from, to, wall)) && !map.carts.some((cart) => segmentHitsRect(from, to, { x: cart.x - 5, y: cart.y, w: 50, h: 36 })); };
+        e.flash--; const distance1 = health > 0 && sees(p) ? Math.hypot(p.x - e.x, p.y - e.y) : Infinity; const distance2 = players === 2 && health2 > 0 && sees(p2) ? Math.hypot(p2.x - e.x, p2.y - e.y) : Infinity; const targetsSecond = distance2 < distance1; const targetHero = targetsSecond ? p2 : p; const ex = targetHero.x - e.x, ey = targetHero.y - e.y, distance = Math.min(distance1, distance2);
+        if (e.kind === 'boss' && now >= (e.nextContactAt ?? 0)) { const firstTouches = health > 0 && bossBodyHits({ x: p.x + 12, y: p.y + 14 }, e, 12); const secondTouches = players === 2 && health2 > 0 && bossBodyHits({ x: p2.x + 12, y: p2.y + 14 }, e, 12); if (firstTouches || secondTouches) { damageHero(.5, 'Касание туловища босса обжигает героя!', !firstTouches && secondTouches); e.nextContactAt = now + 700; } }
         if (e.stunnedUntil > now) return;
+        if (e.kind === 'iceGolem' && distance <= 128 && now >= (e.nextShotAt ?? 0)) { const length = Math.max(1, distance); sandTornadoes.current.push({ x: e.x, y: e.y, vx: ex / length * 4.2, vy: ey / length * 4.2, damage: e.power, until: now + 3200, style: 'ice' }); e.nextShotAt = now + 1400; e.attackUntil = now + 320; }
+        if (level === 12 && e.kind === 'boss') {
+          const haste = e.revived ? 1.5 : 1;
+          if (distance < 272) e.playerWasInSummonRadius = true;
+          if (now >= (e.nextShotAt ?? 0)) { const length = Math.max(1, distance); sandTornadoes.current.push({ x: e.x, y: e.y, vx: ex / length * 3.4 * haste, vy: ey / length * 3.4 * haste, damage: e.power, until: now + 5000 }); e.nextShotAt = now + 2000 / haste; e.attackUntil = now + 520; }
+          if (distance >= 272 && e.playerWasInSummonRadius && now >= (e.nextSummonAt ?? 0)) {
+            e.playerWasInSummonRadius = false;
+            e.attackUntil = now + 850; e.nextSummonAt = now + 7000 / haste;
+            const graves = [{ x: e.x - 75, y: e.y }, { x: e.x + 75, y: e.y }, { x: e.x, y: e.y - 75 }, { x: e.x, y: e.y + 75 }].map((point) => ({ x: Math.max(45, Math.min(map.worldWidth - 45, point.x)), y: Math.max(55, Math.min(map.worldHeight - 55, point.y)), spawnedAt: now, sinksAt: now + 1250 }));
+            tombs.current.push(...graves); const summons = graves.map((grave) => ({ x: grave.x, y: grave.y, kind: 'mummy' as const })); const summonedMummies = createEnemies({ ...map, enemies: summons }, 1).map((mummy) => ({ ...mummy, hp: mummy.hp / 2, maxHp: mummy.maxHp / 2 })); enemies.current.push(...summonedMummies); setMessage('Владыка гробниц поднял обе руки — из четырёх саркофагов восстали ослабленные мумии!');
+          }
+          return;
+        }
+        if (level === 18 && e.kind === 'boss') {
+          const length = Math.max(1, distance);
+          if (now >= (e.nextShotAt ?? 0)) {
+            sandTornadoes.current.push({ x: e.x, y: e.y, vx: ex / length * 4.8, vy: ey / length * 4.8, damage: 2, until: now + 3600, style: 'ice' });
+            e.nextShotAt = now + 1450; e.attackUntil = now + 420;
+          }
+          if (distance > 128 && now >= (e.nextSummonAt ?? 0)) {
+            e.attackUntil = now + 800; e.nextSummonAt = now + 5200;
+            for (let index = 0; index < 10; index++) { const angle = index / 10 * Math.PI * 2; sandTornadoes.current.push({ x: targetHero.x + 12 + Math.cos(angle) * 32, y: targetHero.y + 14 + Math.sin(angle) * 32, vx: 0, vy: 0, damage: 2, impactAt: now + 750, until: now + 1450, style: 'iceRing' }); }
+            setMessage('Ледяной голем ударил по земле — вокруг героя поднимается кольцо сосулек!');
+          }
+          if (e.hp <= e.maxHp / 2 && now >= e.nextLeapAt) {
+            e.nextLeapAt = now + 4200; e.attackUntil = now + 950;
+            for (let index = 0; index < 5; index++) { const angle = index * 2.4; const radius = index === 0 ? 0 : 28 + (index % 2) * 24; sandTornadoes.current.push({ x: targetHero.x + 12 + Math.cos(angle) * radius, y: targetHero.y + 14 + Math.sin(angle) * radius, vx: 0, vy: 0, damage: 2, impactAt: now + 1050 + index * 130, until: now + 1900 + index * 130, style: 'iceLarge', split: true }); }
+            setMessage('Голем топает! С неба падают большие сосульки — после удара они расколются!');
+          }
+          return;
+        }
         if (e.kind === 'boss' && e.leapStarted > 0) {
           if (now < e.leapUntil) return;
           e.x = e.leapTargetX; e.y = e.leapTargetY; e.leapStarted = 0; e.leapUntil = 0; e.nextLeapAt = now + 4500; e.attackUntil = now + 220;
@@ -624,18 +903,19 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, profileName, 
           else setMessage('Ты успел покинуть зону падения босса!');
           return;
         }
+        if (!Number.isFinite(distance)) return;
         if (e.kind === 'boss' && e.hp < e.maxHp / 2 && distance >= 192 && now >= e.nextLeapAt) {
           e.leapStarted = now; e.leapUntil = now + 1450; e.leapTargetX = targetHero.x; e.leapTargetY = targetHero.y; e.attackUntil = now + 380; setMessage('Босс прыгнул! Уходи из красного круга!'); return;
         }
         const contactDistance = e.kind === 'boss' ? 65 : 14;
         if (distance > contactDistance) {
           const enemySpeed = e.speed * dt; const dx = ex / distance; const dy = ey / distance;
-          const wallGap = 32;
+          const wallGap = 6;
           const canMoveTo = (x: number, y: number) => {
             const outsideArena = map.round && Math.hypot(x + 14 - 320, y + 14 - 336) > 306;
             const outsideRoute = level !== 0 && !map.round && !isInsideFourWayRoute(x + 14, y + 14);
-            const hitsWall = map.walls.slice(4).some((w) => x + 15 > w.x - wallGap && x - 3 < w.x + w.w + wallGap && y + 15 > w.y - wallGap && y - 3 < w.y + w.h + wallGap);
-            const hitsCart = map.carts.some((cart) => x + 15 > cart.x - 5 - wallGap && x - 3 < cart.x + 45 + wallGap && y + 15 > cart.y - wallGap && y - 3 < cart.y + 36 + wallGap);
+            const hitsWall = map.walls.slice(4).some((w) => x + 26 > w.x - wallGap && x < w.x + w.w + wallGap && y + 28 > w.y - wallGap && y < w.y + w.h + wallGap);
+            const hitsCart = map.carts.some((cart) => x + 26 > cart.x - 5 - wallGap && x < cart.x + 45 + wallGap && y + 28 > cart.y - wallGap && y < cart.y + 36 + wallGap);
             return !outsideArena && !outsideRoute && !hitsWall && !hitsCart;
           };
           const directions = [{ x: dx, y: dy }, { x: -dy, y: dx }, { x: dy, y: -dx }, { x: dx * .7 - dy * .7, y: dy * .7 + dx * .7 }, { x: dx * .7 + dy * .7, y: dy * .7 - dx * .7 }];
@@ -643,12 +923,49 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, profileName, 
           if (next) { e.x = next.x; e.y = next.y; }
         }
         const attackInterval = e.kind === 'boss' ? 1600 : 700;
-        if (distance < (e.kind === 'boss' ? 75 : 16) && Math.floor(now / attackInterval) !== Math.floor((now - 17) / attackInterval)) {
+        if (e.kind !== 'iceGolem' && distance < (e.kind === 'boss' ? 94 : 16) && Math.floor(now / attackInterval) !== Math.floor((now - 17) / attackInterval)) {
           e.attackUntil = now + 220;
           damageHero(e.power, undefined, targetsSecond);
+          if (e.kind === 'scorpion' && Math.random() < .07) {
+            const poisonEnd = now + 4000;
+            if (targetsSecond) { poisonedUntil2.current = poisonEnd; nextPoisonTick2.current = now + 1000; }
+            else { poisonedUntil.current = poisonEnd; nextPoisonTick.current = now + 1000; }
+            setMessage(`Скорпион отравил игрока ${targetsSecond ? 2 : 1}! Яд действует 4 секунды.`);
+          }
         }
       });
-      const defeated = enemies.current.filter((e) => e.hp <= 0); enemies.current = enemies.current.filter((e) => e.hp > 0); if (defeated.length) { const reward = defeated.reduce((sum, e) => sum + (e.kind === 'boss' ? 100 : e.kind === 'goblin' ? 10 : 5), 0); setCoins((c) => c + reward); setMessage(defeated.some((e) => e.kind === 'boss') ? 'Великий гоблин повержен! Получено 100 осколков.' : defeated.some((e) => e.kind === 'goblin') ? 'Гоблин повержен и оставил 10 осколков.' : 'Слизень оставил несколько осколков.'); }
+      const newIceShards: SandTornado[] = [];
+      sandTornadoes.current = sandTornadoes.current.filter((tornado) => {
+        tornado.x += tornado.vx * dt; tornado.y += tornado.vy * dt;
+        const waitingToFall = Boolean(tornado.impactAt && now < tornado.impactAt);
+        if (!waitingToFall && tornado.style === 'iceLarge' && tornado.split) {
+          tornado.split = false;
+          for (let index = 0; index < 5; index++) { const angle = index / 5 * Math.PI * 2; newIceShards.push({ x: tornado.x, y: tornado.y, vx: Math.cos(angle) * 4.4, vy: Math.sin(angle) * 4.4, damage: 1, until: now + 1200, style: 'iceShard' }); }
+        }
+        const radius = tornado.style === 'iceLarge' ? 25 : tornado.style === 'iceRing' ? 12 : tornado.style === 'iceShard' ? 13 : 22;
+        const hitFirst = !waitingToFall && health > 0 && Math.hypot(p.x + 12 - tornado.x, p.y + 14 - tornado.y) < radius;
+        const hitSecond = !waitingToFall && players === 2 && health2 > 0 && Math.hypot(p2.x + 12 - tornado.x, p2.y + 14 - tornado.y) < radius;
+        if (hitFirst || hitSecond) {
+          const iceShot = tornado.style?.startsWith('ice');
+          if (tornado.style === 'ice') { if (hitFirst) slowedUntil.current = now + 3000; else slowedUntil2.current = now + 3000; }
+          damageHero(tornado.damage, iceShot ? `Сосулька нанесла ${tornado.damage} HP урона!` : 'Песчаный торнадо настиг героя!', !hitFirst && hitSecond);
+          const mummyBoss = !iceShot ? enemies.current.find((enemy) => level === 12 && enemy.kind === 'boss' && enemy.hp > 0) : undefined;
+          if (mummyBoss) { const healed = Math.min(5, mummyBoss.maxHp - mummyBoss.hp); mummyBoss.hp += healed; if (healed > 0) setMessage(`Торнадо высосал силу героя — Владыка гробниц восстановил ${healed} HP!`); }
+          return false;
+        }
+        return now < tornado.until && tornado.x > 0 && tornado.x < map.worldWidth && tornado.y > 0 && tornado.y < map.worldHeight;
+      });
+      sandTornadoes.current.push(...newIceShards);
+      tombs.current = tombs.current.filter((tomb) => now < tomb.sinksAt + 550);
+      if (health > 0 && now < poisonedUntil.current && now >= nextPoisonTick.current) { nextPoisonTick.current += 1000; damageHero(.5, 'Яд скорпиона обжигает кровь!'); }
+      if (players === 2 && health2 > 0 && now < poisonedUntil2.current && now >= nextPoisonTick2.current) { nextPoisonTick2.current += 1000; damageHero(.5, 'Яд скорпиона обжигает кровь!', true); }
+      const firstDeathMummies = enemies.current.filter((e) => e.kind === 'mummy' && e.hp <= 0 && !e.revived);
+      firstDeathMummies.forEach((mummy) => { mummy.revived = true; mummy.hp = mummy.maxHp / 2; mummy.flash = 0; mummy.stunnedUntil = now + 900; mummy.reviveFlashUntil = now + 900; });
+      const revivingDesertBoss = enemies.current.find((e) => level === 12 && e.kind === 'boss' && e.hp <= 0 && !e.revived);
+      if (revivingDesertBoss) { revivingDesertBoss.revived = true; revivingDesertBoss.hp = revivingDesertBoss.maxHp / 2; revivingDesertBoss.flash = 0; revivingDesertBoss.stunnedUntil = now + 1200; revivingDesertBoss.reviveFlashUntil = now + 1200; revivingDesertBoss.nextShotAt = now + 1200; revivingDesertBoss.nextSummonAt = now + 1800; setMessage('Владыка гробниц воскрес! Все его атаки ускорились в 1,5 раза!'); }
+      const defeated = enemies.current.filter((e) => e.hp <= 0); enemies.current = enemies.current.filter((e) => e.hp > 0);
+      if (firstDeathMummies.length) setMessage(firstDeathMummies.length === 1 ? 'Мумия восстала из песка!' : 'Павшие мумии снова восстали из песка!');
+      if (defeated.length) { const bossFallen = defeated.some((e) => e.kind === 'boss'); const reward = defeated.reduce((sum, e) => sum + (e.kind === 'boss' ? 100 : e.kind === 'goblin' || e.kind === 'mummy' || e.kind === 'iceGolem' ? 10 : 5), 0); setCoins((c) => c + reward); setMessage(bossFallen ? 'Хранитель окончательно повержен! В центре арены открылся портал победы.' : defeated.some((e) => e.kind === 'mummy') ? 'Мумия окончательно повержена и оставила 10 осколков.' : defeated.some((e) => e.kind === 'iceGolem') ? 'Ледяной голем раскололся и оставил 10 осколков.' : defeated.some((e) => e.kind === 'goblin') ? 'Гоблин повержен и оставил 10 осколков.' : 'Слизень оставил несколько осколков.'); if (bossFallen) keys.current.clear(); }
       if (level === 0) {
         const progressX = Math.max(p.x, players === 2 ? p2.x : p.x);
         const steps = [{ x: 330, text: 'Обойди телегу и пройди через пролом. Можно двигаться по диагонали.' }, { x: 590, text: 'Подойди к сундуку и нажми E. Второй игрок использует Ю.' }, { x: 900, text: 'Враг! SPACE — атака первого игрока, Ж — атака второго.' }, { x: 1190, text: 'Используй ульту: Q у первого игрока, Б у второго.' }, { x: 1500, text: 'Рюкзак: I у первого, Э у второго. У ворот нажми E или Ю.' }];
@@ -656,36 +973,52 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, profileName, 
       }
       const secondInteracts = players === 2 && keys.current.has('Period'); const interactionHero = secondInteracts ? p2 : p;
       const nearChest = map.chests.findIndex((chest, index) => !openedChests.includes(index) && Math.hypot(chest.x + 24 - interactionHero.x, chest.y + 20 - interactionHero.y) < 75);
-      if ((keys.current.has('KeyE') || secondInteracts) && nearChest >= 0 && !loot) { const chest = map.chests[nearChest]; const drop = chestDrops[nearChest]; itemPicker.current = secondInteracts ? 2 : 1; if (!secondInteracts) keys.current.delete('KeyE'); setOpenedChests((current) => [...current, nearChest]); setDroppedItem(drop.item); setLoot({ x: chest.x + 8, y: chest.y + 48 }); setMessage(`${drop.rarity.name} сундук: выпал предмет «${drop.item.name}»!`); }
+      if ((keys.current.has('KeyE') || secondInteracts) && nearChest >= 0 && !loot) { const chest = map.chests[nearChest]; const ownerClass = secondInteracts ? playerClass2 : playerClass; let drop = level === 0 ? getTutorialClassLoot(ownerClass) : chestDrops[nearChest]; if (level === 0) setChestDrops((drops) => drops.map((current, index) => index === nearChest ? drop : current)); itemPicker.current = secondInteracts ? 2 : 1; if (!secondInteracts) keys.current.delete('KeyE'); setOpenedChests((current) => [...current, nearChest]); setDroppedItem(drop.item); setLoot({ x: chest.x + 8, y: chest.y + 48 }); if (level > 0 && level < 6 && Math.random() < .1) ambushAt.current = performance.now(); setMessage(`${drop.rarity.name} сундук: выпал предмет «${drop.item.name}»!`); }
       const playerOnePicks = loot && droppedItem && Math.hypot(loot.x - p.x, loot.y - p.y) < 42; const playerTwoPicks = loot && droppedItem && players === 2 && keys.current.has('Period') && Math.hypot(loot.x - p2.x, loot.y - p2.y) < 52;
       if (playerOnePicks || playerTwoPicks) { itemPicker.current = playerTwoPicks || itemPicker.current === 2 && !playerOnePicks ? 2 : 1; keys.current.clear(); setChoiceItem(droppedItem); }
       const nearFirstLevelPortal = level === 1 && p.x < 100 && Math.abs(p.y + 14 - getRouteStart().y) < 75; const secondNearFirstPortal = players === 2 && level === 1 && p2.x < 100 && Math.abs(p2.y + 14 - getRouteStart().y) < 75;
       if (keys.current.has('KeyE') && nearFirstLevelPortal || keys.current.has('Period') && secondNearFirstPortal) {
-        keys.current.delete(secondNearFirstPortal && keys.current.has('Period') ? 'Period' : 'KeyE'); rerollLevel(6); const portalMap = getLevel(6); currentMap.current = portalMap; setLevel(6); setOpenedChests([]); setChestDrops([]); setLoot(null); setDroppedItem(null); setChoiceItem(null); projectiles.current = []; superFists.current = []; swordUltimates.current = []; bowUltimates.current = []; staffUltimates.current = []; glovesUltimates.current = []; waves.current = []; hero.current = { x: 35, y: 322 }; hero2.current = { x: 65, y: 322 }; enemies.current = createEnemies(portalMap, enemyMultiplier); setMessage('Портал перенёс тебя на шестой уровень: Круг гоблинов.');
+        keys.current.delete(secondNearFirstPortal && keys.current.has('Period') ? 'Period' : 'KeyE'); rerollLevel(6); const portalMap = getLevel(6); currentMap.current = portalMap; setLevel(6); setOpenedChests([]); setChestDrops([]); setLoot(null); setDroppedItem(null); setChoiceItem(null); projectiles.current = []; superFists.current = []; swordUltimates.current = []; bowUltimates.current = []; staffUltimates.current = []; glovesUltimates.current = []; waves.current = []; hero.current = { x: 35, y: 322 }; hero2.current = { x: 65, y: 322 }; enemies.current = createEnemies(portalMap, enemyMultiplier, oneHitBoss); setMessage(oneHitBoss ? 'Тестовый босс появился с 1 HP.' : 'Портал перенёс тебя на шестой уровень: Круг гоблинов.');
       }
-      const bossDefeated = level === 6 && !enemies.current.some((enemy) => enemy.kind === 'boss'); const nearVictoryPortal = bossDefeated && Math.hypot(p.x - 320, p.y - 336) < 70; const secondNearVictoryPortal = players === 2 && bossDefeated && Math.hypot(p2.x - 320, p2.y - 336) < 70;
-      if (keys.current.has('KeyE') && nearVictoryPortal || keys.current.has('Period') && secondNearVictoryPortal) { keys.current.clear(); setVictory(true); setMessage('Великий гоблин повержен. Подземелье спасено!'); }
+      const nearDesertPortal = level === 7 && p.x < 100 && Math.abs(p.y + 14 - getRouteStart().y) < 75; const secondNearDesertPortal = players === 2 && level === 7 && p2.x < 100 && Math.abs(p2.y + 14 - getRouteStart().y) < 75;
+      if (keys.current.has('KeyE') && nearDesertPortal || keys.current.has('Period') && secondNearDesertPortal) {
+        setHealth(10); setHealth2(10); setDead(false); setTeammateFallen(false); poisonedUntil.current = 0; poisonedUntil2.current = 0; checkpointLevel.current = 12;
+        keys.current.delete(secondNearDesertPortal && keys.current.has('Period') ? 'Period' : 'KeyE'); rerollLevel(12); const portalMap = getLevel(12); currentMap.current = portalMap; setLevel(12); setOpenedChests([]); setChestDrops([]); setLoot(null); setDroppedItem(null); setChoiceItem(null); projectiles.current = []; superFists.current = []; swordUltimates.current = []; bowUltimates.current = []; staffUltimates.current = []; glovesUltimates.current = []; waves.current = []; hero.current = { x: 35, y: 322 }; hero2.current = { x: 65, y: 322 }; enemies.current = createEnemies(portalMap, enemyMultiplier); victoryReported.current = false; setVictory(false); setMessage('Пустынный портал перенёс героев на уровень 12 — в гробницу хранителя!');
+      }
+      const nearIcePortal = level === 13 && p.x < 100 && Math.abs(p.y + 14 - getRouteStart().y) < 75; const secondNearIcePortal = players === 2 && level === 13 && p2.x < 100 && Math.abs(p2.y + 14 - getRouteStart().y) < 75;
+      if (keys.current.has('KeyE') && nearIcePortal || keys.current.has('Period') && secondNearIcePortal) {
+        setHealth(10); setHealth2(10); setDead(false); setTeammateFallen(false); poisonedUntil.current = 0; poisonedUntil2.current = 0; checkpointLevel.current = 18;
+        keys.current.delete(secondNearIcePortal && keys.current.has('Period') ? 'Period' : 'KeyE'); rerollLevel(18); const portalMap = getLevel(18); currentMap.current = portalMap; setLevel(18); setOpenedChests([]); setChestDrops([]); setLoot(null); setDroppedItem(null); setChoiceItem(null); projectiles.current = []; superFists.current = []; swordUltimates.current = []; bowUltimates.current = []; staffUltimates.current = []; glovesUltimates.current = []; waves.current = []; sandTornadoes.current = []; tombs.current = []; hero.current = { x: 35, y: 322 }; hero2.current = { x: 65, y: 322 }; enemies.current = createEnemies(portalMap, enemyMultiplier); victoryReported.current = false; setVictory(false); setMessage('Ледяной портал перенёс героев на уровень 18 — к боссу Ледяного кладбища!');
+      }
+      const bossDefeated = level > 0 && level % 6 === 0 && !enemies.current.some((enemy) => enemy.kind === 'boss'); const nearVictoryPortal = bossDefeated && Math.hypot(p.x - 320, p.y - 336) < 70; const secondNearVictoryPortal = players === 2 && bossDefeated && Math.hypot(p2.x - 320, p2.y - 336) < 70;
+      if (keys.current.has('KeyE') && nearVictoryPortal || keys.current.has('Period') && secondNearVictoryPortal) { keys.current.clear(); setVictory(true); setMessage(level === 12 ? 'Владыка гробниц повержен. Жаркая пустыня освобождена!' : 'Великий гоблин повержен. Подземелье спасено!'); }
       const routeExit = level === 0 ? { x: map.worldWidth - 70, y: 336 } : getRouteExit(); const nearExit = !map.round && Math.abs(p.x - routeExit.x) < 80 && Math.abs(p.y + 14 - routeExit.y) < 75; const secondNearExit = players === 2 && !map.round && Math.abs(p2.x - routeExit.x) < 80 && Math.abs(p2.y + 14 - routeExit.y) < 75;
       if (keys.current.has('KeyE') && nearExit || keys.current.has('Period') && secondNearExit) {
         keys.current.delete(secondNearExit && keys.current.has('Period') ? 'Period' : 'KeyE');
-        if (level === 6) { setVictory(true); keys.current.clear(); setMessage('Все шесть уровней пройдены! Пепельное сердце спасено.'); }
-        else { const next = level + 1; rerollLevel(next); const nextMap = getLevel(next); currentMap.current = nextMap; setLevel(next); setOpenedChests([]); setChestDrops(nextMap.chests.map(() => getRandomLoot(next))); setLoot(null); setDroppedItem(null); projectiles.current = []; superFists.current = []; swordUltimates.current = []; bowUltimates.current = []; staffUltimates.current = []; glovesUltimates.current = []; waves.current = []; hero.current = nextMap.round ? { x: 35, y: 322 } : getRouteStart(); hero2.current = nextMap.round ? { x: 65, y: 322 } : { ...getRouteStart(), y: getRouteStart().y + 32 }; enemies.current = createEnemies(nextMap, enemyMultiplier); setMessage(`Уровень ${next}: ${nextMap.name}. Враги стали сильнее!`); }
+        if (level > 0 && level % 6 === 0) { setVictory(true); keys.current.clear(); setMessage('Все четыре этапа области пройдены!'); }
+        else { const next = level > 0 && level % 6 === 3 ? level + 3 : level + 1; rerollLevel(next); const nextMap = getLevel(next); currentMap.current = nextMap; setLevel(next); setOpenedChests([]); setChestDrops(nextMap.chests.map(() => getRandomLoot(next))); setLoot(null); setDroppedItem(null); projectiles.current = []; superFists.current = []; swordUltimates.current = []; bowUltimates.current = []; staffUltimates.current = []; glovesUltimates.current = []; waves.current = []; hero.current = nextMap.round ? { x: 35, y: 322 } : getRouteStart(); hero2.current = nextMap.round ? { x: 65, y: 322 } : { ...getRouteStart(), y: getRouteStart().y + 32 }; enemies.current = createEnemies(nextMap, enemyMultiplier); setMessage(`Уровень ${next}: ${nextMap.name}. Враги стали сильнее!`); }
       }
       const attackProgress = attacking ? Math.max(0, (attackUntil.current - now) / 180) : 0;
       const attackProgress2 = attacking2 ? Math.max(0, (attackUntil2.current - now) / 180) : 0;
-      drawScene(ctx, map, p, enemies.current, projectiles.current, superFists.current, swordUltimates.current, bowUltimates.current, staffUltimates.current, glovesUltimates.current, waves.current, now, openedChests, chestDrops, attackProgress, loot, droppedItem, level, weapon, weapon2, armor, facing.current, Boolean(dx || dy), health, superReloading, profileName, players === 2 ? p2 : null, facing2.current, Boolean(dx2 || dy2), health2, superReloading2, attackProgress2, explored.current); frame = requestAnimationFrame(loop);
+      drawScene(ctx, map, p, enemies.current, projectiles.current, superFists.current, swordUltimates.current, bowUltimates.current, staffUltimates.current, glovesUltimates.current, waves.current, sandTornadoes.current, tombs.current, now, openedChests, chestDrops, attackProgress, loot, droppedItem, level, weapon, weapon2, armor, facing.current, Boolean(dx || dy), health, superReloading, profileName, players === 2 ? p2 : null, facing2.current, Boolean(dx2 || dy2), health2, superReloading2, attackProgress2, armor2, skin, skin2, explored.current); frame = requestAnimationFrame(loop);
     };
     frame = requestAnimationFrame(loop); return () => cancelAnimationFrame(frame);
-  }, [armor, chestDrops, choiceItem, dead, droppedItem, enemyMultiplier, health, health2, level, loot, openedChests, paused, players, profileName, showInventory, superReloading, superReloading2, victory, weapon, weapon2]);
+  }, [armor, armor2, chestDrops, choiceItem, dead, droppedItem, enemyMultiplier, health, health2, level, loot, merchantMode, openedChests, paused, players, profileName, shopOpen, showInventory, skin, skin2, superReloading, superReloading2, victory, weapon, weapon2]);
 
+  const shopWeapons: Weapon[] = level === 12 ? [{ name: 'Песчаный клинок', type: 'sword', damage: 10, color: '#e5b85b' }, { name: 'Лук барханов', type: 'bow', damage: 12, color: '#d99a42' }, { name: 'Посох песчаной бури', type: 'staff', damage: 15, color: '#f0c76a' }, { name: 'Когти скорпиона', type: 'gloves', damage: 17, color: '#b96032' }, { name: 'Клинок фараона', type: 'sword', damage: 21, color: '#ffe28a' }] : [{ name: 'Меч каравана', type: 'sword', damage: 4, color: '#e6d4a0' }, { name: 'Лук странника', type: 'bow', damage: 6, color: '#78c999' }, { name: 'Посох туманностей', type: 'staff', damage: 9, color: '#8fb5ff' }, { name: 'Клинок башни', type: 'sword', damage: 13, color: '#d58cff' }, { name: 'Перчатки великана', type: 'gloves', damage: 18, color: '#ff9a5c' }];
+  const buyWeapon = (item: Weapon) => { const price = item.damage * 220; const bag = shopOwner === 2 ? inventory2 : inventory, capacity = shopOwner === 2 ? inventoryCapacity2 : inventoryCapacity; if (coins < price) { setMessage('Недостаточно осколков.'); return; } if (bag.length >= capacity) { setMessage('В рюкзаке нет свободного места.'); return; } setCoins((value) => value - price); if (shopOwner === 2) setInventory2((items) => [...items, item]); else setInventory((items) => [...items, item]); setMessage(`${item.name} куплен игроком ${shopOwner} за ${price} осколков.`); };
+  const buySkin = (newSkin: HeroSkin) => { if (coins < 5000) { setMessage('Для покупки скина нужно 5000 осколков.'); return; } setCoins((value) => value - 5000); if (shopOwner === 2) setSkin2(newSkin); else setSkin(newSkin); setMessage(`Игрок ${shopOwner} приобрёл новый облик.`); };
+  const buyMedkit = () => { const count = shopOwner === 2 ? medkits2 : medkits; if (count >= 5) { setMessage('Можно носить не больше 5 аптечек.'); return; } if (coins < 200) { setMessage('Для аптечки нужно 200 осколков.'); return; } setCoins((value) => value - 200); if (shopOwner === 2) setMedkits2((value) => value + 1); else setMedkits((value) => value + 1); setMessage(`Игрок ${shopOwner} купил аптечку.`); };
+  const confirmPurchase = (key: string, purchase: () => void) => { if (pendingPurchase === key) { purchase(); setPendingPurchase(null); } else { setPendingPurchase(key); setMessage('Нажми на выбранный товар ещё раз, чтобы подтвердить покупку.'); } };
   const visibleInventory = inventoryOwner === 2 ? inventory2 : inventory; const visibleCapacity = inventoryOwner === 2 ? inventoryCapacity2 : inventoryCapacity;
   return <section className="game-shell">
-    <div className="hud">{armor && <span>🛡{armorHealth}</span>}<b>{weapon ? `${weapon.type === 'bow' ? '🏹' : weapon.type === 'staff' ? '✦' : weapon.type === 'gloves' ? '✊' : '⚔'} ${weapon.name.toUpperCase()} · ${weapon.damage}` : `ОСКОЛКИ ${coins}`}</b><span className={reloading ? 'reload busy' : 'reload'}>{reloading ? 'ПЕРЕЗАРЯДКА' : 'ГОТОВО'}</span><span>🎒 I {inventory.length}/{inventoryCapacity}{players === 2 ? ` · Э ${inventory2.length}/${inventoryCapacity2}` : ''}</span><span>LV {level}/6</span></div>
+      <div className="hud">{armor && <span>🛡{armorHealth}</span>}<b>{weapon ? `${weapon.type === 'bow' ? '🏹' : weapon.type === 'staff' ? '✦' : weapon.type === 'gloves' ? '✊' : '⚔'} ${weapon.name.toUpperCase()} · ${weapon.damage}` : `ОСКОЛКИ ${coins}`}</b><span className={reloading ? 'reload busy' : 'reload'}>{reloading ? 'ПЕРЕЗАРЯДКА' : 'ГОТОВО'}</span><span>🎒 I {inventory.length}/{inventoryCapacity}{players === 2 ? ` · Э ${inventory2.length}/${inventoryCapacity2}` : ''}</span><span>LV {level}/30</span></div>
     <div className="canvas-stage"><canvas ref={canvasRef} width={WIDTH} height={HEIGHT} />
+      {shopOpen && <div className="merchant-shop"><div className="shop-heading"><div><small>СТРАНСТВУЮЩИЙ ТОРГОВЕЦ</small><strong>МАГАЗИН · ИГРОК {shopOwner}</strong></div><b>ОСКОЛКИ: {coins}</b><button onClick={() => { setShopOpen(false); setPendingPurchase(null); }}>✕</button></div><div className="shop-confirm">{pendingPurchase ? 'НАЖМИ ЕЩЁ РАЗ ДЛЯ ПОКУПКИ' : 'ВЫБЕРИ ТОВАР'}</div><h3>РАСХОДНИКИ</h3><div className="shop-grid"><button className={pendingPurchase === 'medkit' ? 'confirming' : ''} onClick={() => confirmPurchase('medkit', buyMedkit)}><i>🧰</i><strong>АПТЕЧКА</strong><span>Восстанавливает 3 HP · максимум 5</span><b>200 ◆ · {shopOwner === 2 ? medkits2 : medkits}/5</b></button></div><h3>ОРУЖИЕ</h3><div className="shop-grid">{shopWeapons.map((item) => <button key={item.name} className={pendingPurchase === item.name ? 'confirming' : ''} onClick={() => confirmPurchase(item.name, () => buyWeapon(item))}><i style={{ color: item.color }}>{item.type === 'bow' ? '🏹' : item.type === 'staff' ? '🔮' : item.type === 'gloves' ? '✊' : '⚔️'}</i><strong>{item.name}</strong><span>УРОН {item.damage}</span><b>{item.damage * 220} ◆</b></button>)}</div><h3>ОБЛИКИ</h3><div className="shop-grid skins"><button className={pendingPurchase === 'skin-knight' ? 'confirming' : ''} onClick={() => confirmPurchase('skin-knight', () => buySkin('knight'))}><i>♞</i><strong>РЫЦАРЬ</strong><span>Полноразмерный доспех</span><b>5000 ◆</b></button><button className={pendingPurchase === 'skin-ninja' ? 'confirming' : ''} onClick={() => confirmPurchase('skin-ninja', () => buySkin('ninja'))}><i>🥷</i><strong>НИНДЗЯ</strong><span>Тёмный костюм и маска</span><b>5000 ◆</b></button></div></div>}
       {teammateFallen && <div className="teammate-fallen">ВАШ ТИММЕЙТ ПАЛ</div>}
-      {showInventory && <div className="inventory-panel"><div className="inventory-title"><div><small>РЮКЗАК · ИГРОК {inventoryOwner}</small><strong>{visibleInventory.length}/{visibleCapacity} МЕСТ</strong></div><button onClick={() => { keys.current.clear(); setShowInventory(false); }}>✕</button></div><div className="inventory-grid">{Array.from({ length: visibleCapacity }, (_, index) => { const item = visibleInventory[index]; return <button key={index} className={`inventory-slot ${item ? 'filled' : ''}`} onClick={() => item && equipInventoryItem(item)} title={item?.name}>{item ? <><span>{item.type === 'bow' ? '🏹' : item.type === 'staff' ? '🔮' : item.type === 'gloves' ? '✊' : item.type === 'armor' ? '🛡️' : '⚔️'}</span><small>{item.name}</small><b>{item.type === 'armor' ? `🛡${item.durability}` : `⚔${item.damage}`}</b></> : <i>{index + 1}</i>}</button>; })}</div><div className="inventory-footer"><span>ОСКОЛКИ: {coins}</span>{visibleCapacity < 30 ? <button onClick={upgradeInventory}>УЛУЧШИТЬ ДО {visibleCapacity === 10 ? 20 : 30} · {visibleCapacity === 10 ? 100 : 250}</button> : <b>МАКСИМУМ: 30</b>}</div></div>}
+      {showInventory && <div className="inventory-panel"><div className="inventory-title"><div><small>РЮКЗАК · ИГРОК {inventoryOwner}</small><strong>{visibleInventory.length}/{visibleCapacity} МЕСТ</strong></div><button onClick={() => { keys.current.clear(); setShowInventory(false); }}>✕</button></div><div className="inventory-grid">{Array.from({ length: visibleCapacity }, (_, index) => { const item = visibleInventory[index]; return <button key={index} className={`inventory-slot ${item ? 'filled' : ''}`} onClick={() => item && equipInventoryItem(item)} title={item?.name}>{item ? <><span>{item.type === 'bow' ? '🏹' : item.type === 'staff' ? '🔮' : item.type === 'gloves' ? '✊' : item.type === 'armor' ? '🛡️' : '⚔️'}</span><small>{item.name}</small><b>{item.type === 'armor' ? `🛡${item.durability}` : `⚔${item.damage}`}</b></> : <i>{index + 1}</i>}</button>; })}</div><div className="inventory-footer"><span>ОСКОЛКИ: {coins}</span><strong className="medkit-count">🧰 АПТЕЧКИ: {inventoryOwner === 2 ? medkits2 : medkits}/5</strong>{visibleCapacity < 30 ? <button onClick={upgradeInventory}>УЛУЧШИТЬ ДО {visibleCapacity === 10 ? 20 : 30} · {visibleCapacity === 10 ? 100 : 250}</button> : <b>МАКСИМУМ: 30</b>}</div></div>}
       {choiceItem && <div className="loot-choice"><div className="loot-icon">{choiceItem.type === 'bow' ? '🏹' : choiceItem.type === 'staff' ? '🔮' : choiceItem.type === 'gloves' ? '✊' : choiceItem.type === 'armor' ? '🛡️' : '⚔️'}</div><small>НАЙДЕН ПРЕДМЕТ</small><strong>{choiceItem.name}</strong><p>{choiceItem.type === 'armor' ? `Прочность: ${choiceItem.durability}` : `Урон: ${choiceItem.damage}`}</p><div><button onClick={acceptItem}>В РЮКЗАК</button><button className="secondary" onClick={rejectItem}>ОСТАВИТЬ</button></div></div>}
-      {(dead || victory) && <div className="death-screen"><strong>{victory ? 'ПОЗДРАВЛЯЕМ!' : 'ТЫ ПАЛ'}</strong><p>{victory ? 'Великий гоблин повержен — все шесть подземелий пройдены!' : 'Пепельное сердце погасло'}</p><button onClick={restart}>{victory ? 'СЫГРАТЬ ЕЩЁ' : 'НАЧАТЬ ЗАНОВО'}</button></div>}
+      {(dead || victory) && <div className="death-screen"><strong>{victory ? 'ПОЗДРАВЛЯЕМ!' : 'ТЫ ПАЛ'}</strong><p>{victory ? level === 12 ? 'Владыка гробниц повержен — Жаркая пустыня освобождена!' : 'Великий гоблин повержен — все шесть подземелий пройдены!' : 'Пепельное сердце погасло'}</p><button onClick={restart}>{victory ? 'СЫГРАТЬ ЕЩЁ' : 'НАЧАТЬ ЗАНОВО'}</button></div>}
     </div><div className="dialogue"><i>✦</i><p>{message}</p></div>
   </section>;
 }

@@ -258,6 +258,12 @@ export default function App() {
       region: "Ледяное кладбище",
       unlockLevel: 13,
     },
+    {
+      id: "ice-golem-boss",
+      name: "ЛЕДЯНОЙ ТИТАН",
+      region: "Ледяное кладбище",
+      unlockLevel: 18,
+    },
   ];
   const [worldMapOpen, setWorldMapOpen] = useState(false);
   const [completedRegions, setCompletedRegions] = useState(0);
@@ -1095,6 +1101,8 @@ export default function App() {
                     <i className={`journal-monster monster-${monster.id}`}>
                       <b />
                       <span />
+                      <em />
+                      <u />
                     </i>
                     <strong>{discovered ? monster.name : "НЕИЗВЕСТНО"}</strong>
                     <small>

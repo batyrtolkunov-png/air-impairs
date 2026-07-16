@@ -314,6 +314,29 @@ function drawScorpion(ctx: CanvasRenderingContext2D, e: Enemy, now: number, atta
   if (attacking) { ctx.fillStyle = '#8cff65'; ctx.fillRect(92,11,7,7); ctx.fillStyle = 'rgba(105,255,80,.35)'; ctx.fillRect(88,7,15,15); }
 }
 
+export function BestiaryMonster({ id, hidden = false }: { id: string; hidden?: boolean }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = canvasRef.current, ctx = canvas?.getContext('2d'); if (!canvas || !ctx) return;
+    ctx.clearRect(0, 0, 128, 128); ctx.save(); ctx.translate(0, 5);
+    const enemy: Enemy = { x: 0, y: 0, kind: id.includes('boss') ? 'boss' : id === 'mummy' ? 'mummy' : id === 'scorpion' ? 'scorpion' : id.includes('ice-golem') ? 'iceGolem' : id === 'goblin' ? 'goblin' : 'slime', hp: 10, maxHp: 10, flash: 0, attackUntil: 0, stunnedUntil: 0, color: '#69ad68', power: 1, speed: 1, leapStarted: 0, leapUntil: 0, leapTargetX: 0, leapTargetY: 0, nextLeapAt: 0 };
+    if (id === 'goblin') drawGoblin(ctx, enemy, 0, false);
+    else if (id === 'goblin-boss') { ctx.translate(16, 13); ctx.scale(.75,.75); drawGoblin(ctx, enemy, 0, false); }
+    else if (id === 'mummy') drawMummy(ctx, enemy, 0, false);
+    else if (id === 'mummy-boss') { ctx.translate(16, 13); ctx.scale(.75,.75); drawMummyBoss(ctx, enemy, 0); }
+    else if (id === 'scorpion') drawScorpion(ctx, enemy, 0, false);
+    else if (id === 'ice-golem') drawIceGolem(ctx, enemy, 0, false);
+    else if (id === 'ice-golem-boss') { ctx.translate(16, 13); ctx.scale(.75,.75); drawIceGolem(ctx, enemy, 0, false); }
+    else {
+      ctx.fillStyle='rgba(0,0,0,.32)';ctx.beginPath();ctx.ellipse(64,112,49,11,0,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#14251c';ctx.beginPath();ctx.moveTo(12,98);ctx.lineTo(12,70);ctx.lineTo(24,70);ctx.lineTo(24,48);ctx.lineTo(36,48);ctx.lineTo(36,30);ctx.lineTo(48,30);ctx.lineTo(48,22);ctx.lineTo(82,22);ctx.lineTo(82,30);ctx.lineTo(96,30);ctx.lineTo(96,48);ctx.lineTo(108,48);ctx.lineTo(108,70);ctx.lineTo(118,70);ctx.lineTo(118,98);ctx.lineTo(106,108);ctx.lineTo(22,108);ctx.closePath();ctx.fill();
+      ctx.fillStyle='#69ad68';ctx.fillRect(24,48,82,52);ctx.fillRect(36,32,58,68);ctx.fillRect(48,24,34,76);ctx.fillRect(16,70,98,27);ctx.fillStyle='rgba(255,255,255,.28)';ctx.fillRect(34,40,18,10);ctx.fillRect(29,56,8,24);ctx.fillStyle='#e8f5c8';ctx.fillRect(39,59,18,13);ctx.fillRect(73,59,18,13);ctx.fillStyle='#17231a';ctx.fillRect(47,62,7,9);ctx.fillRect(76,62,7,9);ctx.fillStyle='#315b34';ctx.fillRect(52,84,27,7);
+    }
+    ctx.restore(); if (hidden) { ctx.globalCompositeOperation='source-in'; ctx.fillStyle='#080a09'; ctx.fillRect(0,0,128,128); }
+  }, [hidden, id]);
+  return <canvas ref={canvasRef} className="bestiary-canvas" width={128} height={128} aria-hidden="true" />;
+}
+
 function createEnemies(map: ReturnType<typeof getLevel>, multiplier = 1, oneHitBoss = false): Enemy[] {
   const spawns = map.round ? map.enemies : multiplier === .5 ? map.enemies.filter((_, index) => index % 2 === 0) : multiplier === 2 ? map.enemies.flatMap((enemy) => [enemy, { ...enemy, x: enemy.x + 4, y: enemy.y + 4 }]) : map.enemies;
   return spawns.map((enemy) => {

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { DungeonGame, type GameSave } from "./components/DungeonGame";
+import { BestiaryMonster, DungeonGame, type GameSave } from "./components/DungeonGame";
 import { setGameVolume, setMusicPaused, startMusic } from "./game/audio";
 import { supabase } from "./lib/supabase";
 
@@ -1098,12 +1098,7 @@ export default function App() {
                     key={monster.id}
                     className={discovered ? "discovered" : "unknown"}
                   >
-                    <i className={`journal-monster monster-${monster.id}`}>
-                      <b />
-                      <span />
-                      <em />
-                      <u />
-                    </i>
+                    <BestiaryMonster id={monster.id} hidden={!discovered} />
                     <strong>{discovered ? monster.name : "НЕИЗВЕСТНО"}</strong>
                     <small>
                       {discovered ? monster.region : "ЕЩЁ НЕ ВСТРЕЧЕН"}

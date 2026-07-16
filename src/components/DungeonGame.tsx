@@ -16,7 +16,7 @@ type GlovesUltimate = Point & { owner: 1 | 2; dx: number; dy: number; started: n
 type MagicWave = Point & { dx: number; dy: number; color: string; started: number; until: number };
 type SandTornado = Point & { vx: number; vy: number; damage: number; until: number; style?: 'sand' | 'ice' | 'iceRing' | 'iceLarge' | 'iceShard'; impactAt?: number; split?: boolean };
 type Tomb = Point & { spawnedAt: number; sinksAt: number };
-type HeroSkin = 'default' | 'knight' | 'ninja';
+type HeroSkin = 'default' | 'knight' | 'ninja' | 'dune' | 'king' | 'wizard' | 'gentleman';
 type PlayerClass = 'knight' | 'mage' | 'archer' | 'boxer';
 const MERCHANT = Object.freeze({ x: 500, y: 330, hitbox: Object.freeze({ x: 493, y: 310, w: 58, h: 64 }) });
 function getTutorialClassLoot(playerClass: PlayerClass): LootDrop { const items: Record<PlayerClass, Weapon> = { knight: { name: 'Учебный меч', type: 'sword', damage: 2, color: '#dfe8e4' }, mage: { name: 'Учебный посох', type: 'staff', damage: 2, color: '#86bfff' }, archer: { name: 'Учебный лук', type: 'bow', damage: 2, color: '#85d8a3' }, boxer: { name: 'Учебные перчатки', type: 'gloves', damage: 2, color: '#c98355' } }; return { item: items[playerClass], rarity: { name: 'Обычный', color: '#b7b7a8', bonus: 0, tier: 0, chance: 100 } }; }
@@ -400,6 +400,10 @@ function drawHero(ctx: CanvasRenderingContext2D, p: Point, attackProgress: numbe
   drawBentLimb(ctx, 78, 96, -phase * .42, Math.max(0, -phase) * .65, '#273b62', '#322936');
   if (skin === 'knight') { ctx.fillStyle = '#7f8b94'; ctx.fillRect(35, 18, 60, 40); ctx.fillStyle = '#bac5cc'; ctx.fillRect(41, 23, 48, 8); ctx.fillRect(45, 67, 40, 34); ctx.fillStyle = '#30383d'; ctx.fillRect(48, 38, 34, 7); }
   if (skin === 'ninja') { ctx.fillStyle = '#15171c'; ctx.fillRect(34, 15, 62, 49); ctx.fillRect(38, 65, 54, 38); ctx.fillStyle = '#59245f'; ctx.fillRect(34, 55, 62, 9); ctx.fillStyle = '#dbe9e7'; ctx.fillRect(48, 37, 34, 9); ctx.fillStyle = '#25212d'; ctx.fillRect(61, 37, 7, 9); }
+  if (skin === 'dune') { ctx.fillStyle='#d4a24f';ctx.fillRect(34,13,62,18);ctx.fillRect(29,26,72,32);ctx.fillStyle='#5a3922';ctx.fillRect(40,43,50,12);ctx.fillStyle='#e8c979';ctx.fillRect(49,45,9,5);ctx.fillRect(72,45,9,5);ctx.fillStyle='#b7813f';ctx.fillRect(35,64,60,40);ctx.fillStyle='#67432b';ctx.fillRect(45,88,40,14); }
+  if (skin === 'king') { ctx.fillStyle='#f1c54e';ctx.fillRect(38,12,54,12);ctx.fillRect(42,3,10,20);ctx.fillRect(60,0,10,23);ctx.fillRect(78,4,10,19);ctx.fillStyle='#a52f43';ctx.fillRect(35,64,60,40);ctx.fillStyle='#f0d9b0';ctx.fillRect(35,64,9,40);ctx.fillRect(86,64,9,40);ctx.fillStyle='#d3a943';ctx.fillRect(44,91,42,8); }
+  if (skin === 'wizard') { ctx.fillStyle='#563f9b';ctx.beginPath();ctx.moveTo(65,-5);ctx.lineTo(99,30);ctx.lineTo(78,25);ctx.lineTo(102,39);ctx.lineTo(28,39);ctx.lineTo(50,25);ctx.closePath();ctx.fill();ctx.fillStyle='#49358b';ctx.fillRect(35,64,60,40);ctx.fillStyle='#9cecff';ctx.fillRect(58,73,14,14);ctx.fillStyle='#dffcff';ctx.fillRect(62,76,5,5); }
+  if (skin === 'gentleman') { ctx.fillStyle='#1c1d22';ctx.fillRect(36,4,58,24);ctx.fillRect(27,25,76,10);ctx.fillStyle='#24262c';ctx.fillRect(35,64,60,40);ctx.fillStyle='#f1f1e9';ctx.fillRect(59,64,12,34);ctx.fillStyle='#9c3042';ctx.fillRect(58,68,14,8);ctx.fillStyle='#e4c76b';ctx.strokeStyle='#e4c76b';ctx.lineWidth=3;ctx.strokeRect(72,39,13,12);ctx.fillRect(84,49,4,16); }
   if (armor) { ctx.fillStyle = armor.color; ctx.fillRect(32, 64, 15, 32); ctx.fillRect(84, 64, 15, 32); ctx.fillRect(45, 66, 40, 34); ctx.strokeStyle = '#f3efff'; ctx.lineWidth = 4; ctx.strokeRect(48, 70, 34, 26); ctx.fillStyle = '#fff'; ctx.fillRect(62, 70, 6, 26); }
   if (weapon && attackProgress <= 0 && !swordSlamming && !bowAiming) drawHeldWeapon(ctx, weapon, facing);
   if (swordSlamming && weapon?.type === 'sword') { const plunge = ultimateProgress < .55 ? 38 - ultimateProgress / .55 * 26 : 12 + (ultimateProgress - .55) / .45 * 36; ctx.fillStyle = '#70462e'; ctx.fillRect(61, 55, 8, 22); ctx.fillStyle = '#d5a84a'; ctx.fillRect(51, 72, 28, 8); ctx.fillStyle = weapon.color; ctx.fillRect(59, 78, 12, plunge + 25); ctx.fillStyle = '#fff'; ctx.fillRect(61, 80, 3, plunge + 18); ctx.beginPath(); ctx.moveTo(59, 103 + plunge); ctx.lineTo(65, 114 + plunge); ctx.lineTo(71, 103 + plunge); ctx.fill(); }
@@ -562,7 +566,7 @@ function drawScene(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLeve
   ctx.restore(); }
 }
 
-export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins = 0, oneHitBoss = false, startingLevel: requestedStartingLevel, profileName, players = 1, playerClass = 'knight', playerClass2 = 'knight', initialSave, tutorial = false, merchantMode = false, mobileControls = false, travelToLevel, saveRequest = 0, onSaveSnapshot, onVictory, onShopOpenChange }: { paused?: boolean; enemyMultiplier?: number; startingCoins?: number; oneHitBoss?: boolean; startingLevel?: number | null; profileName: string; players?: 1 | 2; playerClass?: PlayerClass; playerClass2?: PlayerClass; initialSave?: GameSave | null; tutorial?: boolean; merchantMode?: boolean; mobileControls?: boolean; travelToLevel?: number | null; saveRequest?: number; onSaveSnapshot?: (save: GameSave) => void; onVictory?: (level: number) => void; onShopOpenChange?: (open: boolean) => void }) {
+export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins = 0, oneHitBoss = false, startingLevel: requestedStartingLevel, profileName, players = 1, playerClass = 'knight', playerClass2 = 'knight', initialSave, tutorial = false, merchantMode = false, mobileControls = false, equippedSkin = 'default', travelToLevel, saveRequest = 0, onSaveSnapshot, onVictory, onShopOpenChange }: { paused?: boolean; enemyMultiplier?: number; startingCoins?: number; oneHitBoss?: boolean; startingLevel?: number | null; profileName: string; players?: 1 | 2; playerClass?: PlayerClass; playerClass2?: PlayerClass; initialSave?: GameSave | null; tutorial?: boolean; merchantMode?: boolean; mobileControls?: boolean; equippedSkin?: string; travelToLevel?: number | null; saveRequest?: number; onSaveSnapshot?: (save: GameSave) => void; onVictory?: (level: number) => void; onShopOpenChange?: (open: boolean) => void }) {
   const effectiveTutorial = tutorial;
   const requestedLevel = initialSave?.level ?? (effectiveTutorial ? 0 : requestedStartingLevel ?? 1);
   const stageInRegion = requestedLevel > 0 ? ((requestedLevel - 1) % 6) + 1 : 0;
@@ -641,7 +645,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
   const [shopOpen, setShopOpen] = useState(false);
   const [shopOwner, setShopOwner] = useState<1 | 2>(1);
   const [pendingPurchase, setPendingPurchase] = useState<string | null>(null);
-  const [skin, setSkin] = useState<HeroSkin>('default');
+  const [skin, setSkin] = useState<HeroSkin>((['dune','king','wizard','gentleman'].includes(equippedSkin) ? equippedSkin : 'default') as HeroSkin);
   const [skin2, setSkin2] = useState<HeroSkin>('default');
   const victoryReported = useRef(false);
   const [reloading, setReloading] = useState(false);
@@ -740,6 +744,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
   }, [health, health2, inventoryOwner, medkits, medkits2, players]);
 
   useEffect(() => { weaponRef.current = weapon; }, [weapon]);
+  useEffect(() => { if (['dune','king','wizard','gentleman'].includes(equippedSkin)) setSkin(equippedSkin as HeroSkin); }, [equippedSkin]);
   useEffect(() => { weapon2Ref.current = weapon2; }, [weapon2]);
   useEffect(() => { if (saveRequest > handledSaveRequest.current) { handledSaveRequest.current = saveRequest; onSaveSnapshot?.({ level, players, health, health2, coins, medkits, medkits2, inventory, inventory2, inventoryCapacity, inventoryCapacity2, weapon, weapon2, armor, armor2, armorHealth, armorHealth2, map: currentMap.current, hero: { ...hero.current }, hero2: { ...hero2.current }, enemies: enemies.current.map((enemy) => ({ ...enemy })), openedChests: [...openedChests], chestDrops: chestDrops.map((drop) => ({ rarity: { ...drop.rarity }, item: { ...drop.item } })), loot: loot ? { ...loot } : null, droppedItem: droppedItem ? { ...droppedItem } : null, explored: explored.current.map((point) => ({ ...point })), savedAt: Date.now() }); } }, [armor, armor2, armorHealth, armorHealth2, chestDrops, coins, droppedItem, health, health2, inventory, inventory2, inventoryCapacity, inventoryCapacity2, level, loot, medkits, medkits2, onSaveSnapshot, openedChests, players, saveRequest, weapon, weapon2]);
   useEffect(() => { setMusicDanger(health === 1 && !dead); return () => setMusicDanger(false); }, [dead, health]);

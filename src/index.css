@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Rubik:wght@400;700;900&display=swap');
+.boutique-grid button.equipped{border-color:#ffe06d!important;background:#4a4225!important;box-shadow:inset 0 0 0 3px #8f7430,0 0 15px rgba(255,224,109,.45)!important}
 /* Keep the original camera scale visible on every screen. */
 .canvas-stage canvas{object-fit:contain!important;object-position:center!important}
 /* Stepped pixel-art mobile controls. */

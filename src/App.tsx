@@ -227,6 +227,7 @@ export default function App() {
       return [];
     }
   });
+  const [equippedBoutiqueSkin, setEquippedBoutiqueSkin] = useState(() => localStorage.getItem("ashen-heart-equipped-skin") || "default");
   const monsterJournal = [
     { id: "slime", name: "СЛИЗЕНЬ", region: "Тёмный лес", unlockLevel: 1 },
     { id: "goblin", name: "ГОБЛИН", region: "Тёмный лес", unlockLevel: 1 },
@@ -531,6 +532,11 @@ export default function App() {
     setBoutiqueOwned(owned);
     setCalendarState(wallet);
   };
+  const equipBoutiqueSkin = (id: string) => {
+    if (!boutiqueOwned.includes(id)) return;
+    localStorage.setItem("ashen-heart-equipped-skin", id);
+    setEquippedBoutiqueSkin(id);
+  };
   const claimDailyReward = (index: number) => {
     const today = new Date().toLocaleDateString("en-CA");
     if (
@@ -596,6 +602,7 @@ export default function App() {
           onVictory={handleVictory}
           onShopOpenChange={setMerchantShopOpen}
           mobileControls={mobileControls}
+          equippedSkin={equippedBoutiqueSkin}
         />
       )}
       {gameStarted && mobileControls && mobilePortrait && <div className="rotate-phone-overlay"><div className="pixel-phone-rotate"><i /><b /></div><h2>ПОВЕРНИ ТЕЛЕФОН</h2><p>Для игры нужна горизонтальная ориентация экрана</p><span>↻</span></div>}
@@ -955,12 +962,13 @@ export default function App() {
             <div className="boutique-grid">
               {boutiqueSkins.map((item) => {
                 const owned = boutiqueOwned.includes(item.id);
+                const equipped = equippedBoutiqueSkin === item.id;
                 return (
                   <button
                     key={item.id}
-                    className={owned ? "owned" : ""}
-                    disabled={owned || calendarState.diamonds < item.price}
-                    onClick={() => buyBoutiqueItem(item.id, item.price)}
+                    className={`${owned ? "owned" : ""} ${equipped ? "equipped" : ""}`}
+                    disabled={!owned && calendarState.diamonds < item.price}
+                    onClick={() => owned ? equipBoutiqueSkin(item.id) : buyBoutiqueItem(item.id, item.price)}
                   >
                     <i className={`boutique-avatar skin-${item.id}`}>
                       <b className="avatar-hat" />
@@ -973,7 +981,7 @@ export default function App() {
                       <b className="avatar-detail" />
                     </i>
                     <strong>{item.name}</strong>
-                    <span>{owned ? "КУПЛЕНО" : `♦ ${item.price}`}</span>
+                    <span>{equipped ? "НАДЕТО" : owned ? "НАДЕТЬ" : `♦ ${item.price}`}</span>
                   </button>
                 );
               })}

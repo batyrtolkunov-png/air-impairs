@@ -236,6 +236,13 @@ function drawGoblin(ctx: CanvasRenderingContext2D, e: Enemy, now: number, attack
     ctx.fillStyle = '#67503a'; ctx.fillRect(31, 68, 10, 31); ctx.fillRect(88, 68, 10, 31); ctx.fillStyle = e.flash > 0 ? '#fff' : e.color; ctx.fillRect(28, 93 + stride * 2, 16, 9); ctx.fillRect(86, 93 - stride * 2, 16, 9);
   }
   ctx.fillStyle = '#342a32'; ctx.fillRect(40, 98 + stride * 3, 20, 12); ctx.fillRect(70, 98 - stride * 3, 20, 12);
+  if (e.kind === 'boss') {
+    ctx.fillStyle = '#7b2637'; ctx.fillRect(31, 62, 10, 39); ctx.fillRect(89, 62, 10, 39); ctx.fillStyle = '#bc3b4e'; ctx.fillRect(40, 65, 50, 35);
+    ctx.fillStyle = '#f0d7b0'; ctx.fillRect(40, 65, 7, 35); ctx.fillRect(83, 65, 7, 35); ctx.fillStyle = '#d5a83e'; ctx.fillRect(47, 91, 36, 7);
+    ctx.fillStyle = '#6b431c'; ctx.fillRect(36, 12, 58, 20); ctx.fillStyle = '#f1c54e'; ctx.beginPath(); ctx.moveTo(36, 28); ctx.lineTo(36, 10); ctx.lineTo(48, 20); ctx.lineTo(58, 1); ctx.lineTo(68, 20); ctx.lineTo(81, 2); ctx.lineTo(94, 20); ctx.lineTo(94, 31); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#fff0a0'; ctx.fillRect(43, 23, 44, 5); ctx.fillStyle = '#d94f45'; ctx.fillRect(48, 19, 7, 7); ctx.fillStyle = '#63bce2'; ctx.fillRect(62, 18, 7, 8); ctx.fillStyle = '#70cb68'; ctx.fillRect(76, 19, 7, 7);
+    ctx.fillStyle = '#d5a83e'; ctx.fillRect(25, 66, 14, 12); ctx.fillRect(91, 66, 14, 12); ctx.fillStyle = '#ffe190'; ctx.fillRect(29, 68, 6, 5); ctx.fillRect(95, 68, 6, 5);
+  }
 }
 
 function drawMummy(ctx: CanvasRenderingContext2D, e: Enemy, now: number, attacking: boolean) {

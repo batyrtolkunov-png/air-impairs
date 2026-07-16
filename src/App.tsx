@@ -302,6 +302,18 @@ export default function App() {
     setGameVolume(volume / 100);
   }, [volume]);
   useEffect(() => {
+    if (!registered && !guest) {
+      setMenuOpen(true);
+      setGameStarted(false);
+      setPauseOpen(false);
+      setSettingsOpen(false);
+      setDeviceOpen(false);
+      setModeOpen(false);
+      setRegistrationOpen(true);
+      setRegistrationMessage("Для игры необходимо зарегистрироваться или войти через Google.");
+    }
+  }, [guest, registered]);
+  useEffect(() => {
     if (!mobileControls) {
       setMobilePortrait(false);
       return;
@@ -420,6 +432,11 @@ export default function App() {
   }, [gameStarted, menuOpen]);
 
   const startNewGame = () => {
+    if (!registered && !guest) {
+      setRegistrationMessage("Регистрация обязательна для начала игры.");
+      setRegistrationOpen(true);
+      return;
+    }
     setSettingsOpen(false);
     setRegistrationOpen(false);
     setModeOpen(false);
@@ -525,6 +542,7 @@ export default function App() {
     setSaveRequest((current) => current + 1);
   };
   const storeSnapshot = (snapshot: GameSave) => {
+    if (guest) { setSaveSlotsOpen(false); return; }
     const frozenSnapshot = structuredClone(snapshot);
     setSaveSlots((current) => {
       const next = [...current];
@@ -922,6 +940,7 @@ export default function App() {
             <h2>ПАУЗА</h2>
             <button onClick={() => setPauseOpen(false)}>{t.continue}</button>
             <button
+              disabled={guest}
               onClick={() => {
                 setSaveMode("save");
                 setSaveSlotsOpen(true);
@@ -1264,7 +1283,13 @@ export default function App() {
               <nav className="menu-actions">
                 <button onClick={startNewGame}>{t.newGame}</button>
                 <button
+                  disabled={guest}
                   onClick={() => {
+                    if (!registered && !guest) {
+                      setRegistrationMessage("Сначала зарегистрируйся или войди через Google.");
+                      setRegistrationOpen(true);
+                      return;
+                    }
                     setSaveMode("load");
                     setSaveSlotsOpen(true);
                   }}
@@ -1463,7 +1488,8 @@ export default function App() {
               <button
                 className="settings-back"
                 type="button"
-                onClick={() => setRegistrationOpen(false)}
+                onClick={() => (registered || guest) && setRegistrationOpen(false)}
+                disabled={!registered && !guest}
               >
                 ← {t.back}
               </button>

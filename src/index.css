@@ -167,6 +167,7 @@ body { margin: 0; min-width: 320px; min-height: 100vh; overflow: hidden; backgro
 .eyebrow { margin: 0; color: #d5a84a; font-size: 11px; font-weight: 900; letter-spacing: .18em; }
 .status { color: #83b596; font-size: 11px; font-weight: 900; }
 .game-shell { display: flex; width: 100%; height: 100%; flex-direction: column; overflow: hidden; border: 5px solid #0b100f; background: #172521; box-shadow: 0 25px 80px #050807; image-rendering: pixelated; }
+.game-shell{position:fixed;inset:0;width:100vw;height:100dvh;border:0}.canvas-stage{position:absolute!important;inset:0!important;width:100vw;height:100dvh}.canvas-stage canvas{width:100vw!important;height:100dvh!important;object-fit:cover!important;object-position:center!important}.hud{position:absolute;z-index:19;top:0;left:0;right:0;background:linear-gradient(rgba(13,22,18,.92),rgba(13,22,18,.58));border-bottom-color:rgba(11,16,15,.7);pointer-events:none}.inventory-panel,.merchant-shop,.loot-choice,.death-screen{z-index:25}
 .hud { display: flex; justify-content: space-between; padding: 14px 18px; border-bottom: 4px solid #0b100f; background: #1b2925; font-family: 'Press Start 2P'; font-size: 10px; }
 .hud span:first-child { color: #e65f62; font-size: 16px; letter-spacing: 4px; }
 .hud b { color: #e7c765; font-size: 9px; }

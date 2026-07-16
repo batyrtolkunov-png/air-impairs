@@ -374,7 +374,7 @@ export default function App() {
       try { await (screen.orientation as ScreenOrientation & { lock?: (mode: string) => Promise<void> }).lock?.("landscape"); } catch { /* unsupported */ }
       setFullscreenHint("");
     } catch {
-      setFullscreenHint("На iPhone: Поделиться → На экран Домой → открой игру с иконки");
+      setFullscreenHint("На iPhone в Safari: нажми значок телефона слева от названия сайта → три точки → Скрыть панель инструментов");
     }
   };
   const beginGame = (

@@ -273,6 +273,15 @@ export default function App() {
     return () => { window.removeEventListener("resize", updateOrientation); window.removeEventListener("orientationchange", updateOrientation); };
   }, [mobileControls]);
   useEffect(() => {
+    let lastTouchEnd = 0;
+    const preventDoubleTapZoom = (event: TouchEvent) => { const now = Date.now(); if (now - lastTouchEnd < 350) event.preventDefault(); lastTouchEnd = now; };
+    const preventGesture = (event: Event) => event.preventDefault();
+    document.addEventListener("touchend", preventDoubleTapZoom, { passive: false });
+    document.addEventListener("gesturestart", preventGesture, { passive: false });
+    document.addEventListener("gesturechange", preventGesture, { passive: false });
+    return () => { document.removeEventListener("touchend", preventDoubleTapZoom); document.removeEventListener("gesturestart", preventGesture); document.removeEventListener("gesturechange", preventGesture); };
+  }, []);
+  useEffect(() => {
     const grantKey = "ashen-heart-diamond-grant-150-v1";
     if (localStorage.getItem(grantKey)) return;
     setCalendarState((current) => {

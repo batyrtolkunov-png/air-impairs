@@ -357,10 +357,14 @@ export default function App() {
     setModeOpen(false);
     setDeviceOpen(true);
   };
-  const chooseDevice = (mobile: boolean) => {
+  const chooseDevice = async (mobile: boolean) => {
     setMobileControls(mobile);
     setDeviceOpen(false);
-    if (mobile) beginCutscene(1);
+    if (mobile) {
+      try { if (!document.fullscreenElement) await document.documentElement.requestFullscreen({ navigationUI: "hide" }); } catch { /* Fullscreen may require installed PWA on iOS. */ }
+      try { await (screen.orientation as ScreenOrientation & { lock?: (mode: string) => Promise<void> }).lock?.("landscape"); } catch { /* Orientation lock is not available in every mobile browser. */ }
+      beginCutscene(1);
+    }
     else setModeOpen(true);
   };
   const beginGame = (

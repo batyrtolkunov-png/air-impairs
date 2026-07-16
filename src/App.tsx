@@ -929,7 +929,7 @@ export default function App() {
         </div>
       )}
       {menuOpen && menuTab === "home" && (
-        <div className="menu-tab-overlay"><section className="menu-tab-panel home-tab-panel"><div className="home-castle-icon"><i /><b /><span /></div><small>ЛИЧНАЯ КРЕПОСТЬ</small><h2>ДОМ</h2><p>Ворота закрыты. Функции дома появятся позже.</p></section></div>
+        <div className="menu-tab-overlay"><section className="menu-tab-panel home-tab-panel"><div className="pets-paw-icon"><i /><b /><span /><em /><u /></div><small>ВЕРНЫЕ СПУТНИКИ</small><h2>ПИТОМЦЫ</h2><p>Здесь будут жить найденные питомцы. Их способности добавим позже.</p></section></div>
       )}
       {menuOpen && menuTab === "inventory" && (
         <div className="menu-tab-overlay"><section className="menu-tab-panel collection-panel"><small>СОБРАННЫЕ СОКРОВИЩА</small><h2>ИНВЕНТАРЬ</h2><div className="inventory-wallet"><b>◆ {calendarState.shards}</b><b>♦ {calendarState.diamonds}</b><b>▣ {calendarState.chests.length}</b></div><h3>КОЛЛЕКЦИЯ БУТИКА</h3><div className="collection-grid">{[...boutiqueSkins, ...boutiqueAccessories].map((item) => { const owned = boutiqueOwned.includes(item.id); return <div key={item.id} className={owned ? "collected" : "empty"}><i>{owned ? "◆" : "?"}</i><strong>{owned ? item.name : "НЕ ОТКРЫТО"}</strong></div>; })}</div></section></div>
@@ -1271,7 +1271,7 @@ export default function App() {
           )}
           {!settingsOpen && !registrationOpen && !deviceOpen && !modeOpen && (
             <nav className="main-bottom-tabs" aria-label="Разделы главного меню">
-              <button className={menuTab === "home" ? "active" : ""} onClick={() => openMenuTab("home")}><i className="tab-home" /><span>ДОМ</span></button>
+              <button className={menuTab === "home" ? "active" : ""} onClick={() => openMenuTab("home")}><i className="tab-pets" /><span>ПИТОМЦЫ</span></button>
               <button className={menuTab === "journal" ? "active" : ""} onClick={() => openMenuTab("journal")}><i className="tab-journal" /><span>ДНЕВНИК</span></button>
               <button className={`tab-main-button ${menuTab === "main" ? "active" : ""}`} onClick={() => openMenuTab("main")}><i className="tab-swords" /><span>ГЛАВНАЯ</span></button>
               <button className={menuTab === "inventory" ? "active" : ""} onClick={() => openMenuTab("inventory")}><i className="tab-armor" /><span>ИНВЕНТАРЬ</span></button>

@@ -14,7 +14,7 @@ type StaffPulse = { started: number; damage: number };
 type StaffUltimate = Point & { owner: 1 | 2; dx: number; dy: number; started: number; until: number; nextPulseAt: number; pulseIndex: number; kills: number; color: string; name: string; pulses: StaffPulse[] };
 type GlovesUltimate = Point & { owner: 1 | 2; dx: number; dy: number; started: number; until: number; nextHitAt: number; hitIndex: number; damage: number; color: string; name: string; titanTargetX: number; titanTargetY: number; landed: boolean };
 type MagicWave = Point & { dx: number; dy: number; color: string; started: number; until: number };
-type SandTornado = Point & { vx: number; vy: number; damage: number; until: number; style?: 'sand' | 'ice' | 'iceRing' | 'iceSpiritDrop' | 'iceLarge' | 'iceShard' | 'frogTongue'; impactAt?: number; split?: boolean };
+type SandTornado = Point & { vx: number; vy: number; damage: number; until: number; style?: 'sand' | 'ice' | 'iceRing' | 'iceSpiritDrop' | 'iceLarge' | 'iceShard' | 'frogTongue'; impactAt?: number; split?: boolean; source?: Enemy; startedAt?: number; tongueDx?: number; tongueDy?: number; tongueLength?: number; hitPlayer1?: boolean; hitPlayer2?: boolean };
 type Tomb = Point & { spawnedAt: number; sinksAt: number };
 type HeroSkin = 'default' | 'knight' | 'ninja' | 'dune' | 'king' | 'wizard' | 'gentleman';
 type PlayerClass = 'knight' | 'mage' | 'archer' | 'boxer';
@@ -271,7 +271,12 @@ function drawTomb(ctx: CanvasRenderingContext2D, tomb: Tomb, now: number) {
 }
 
 function drawSandTornado(ctx: CanvasRenderingContext2D, tornado: SandTornado, now: number) {
-  if (tornado.style === 'frogTongue') { const angle=Math.atan2(tornado.vy,tornado.vx);ctx.save();ctx.translate(tornado.x,tornado.y);ctx.rotate(angle);ctx.fillStyle='#8f4057';ctx.fillRect(-15,-3,30,7);ctx.fillStyle='#ef8da3';ctx.fillRect(-12,-2,27,4);ctx.fillStyle='#ffd1d8';ctx.fillRect(8,-2,7,2);ctx.restore();return; }
+  if (tornado.style === 'frogTongue') {
+    const started=tornado.startedAt??now,total=Math.max(1,tornado.until-started),progress=Math.max(0,Math.min(1,(now-started)/total));
+    const reach=progress<.45?progress/.45:progress<.65?1:(1-progress)/.35; const length=(tornado.tongueLength??96)*Math.max(0,reach);
+    const dx=tornado.tongueDx??1,dy=tornado.tongueDy??0,source=tornado.source; const x=source?source.x+14:tornado.x,y=source?source.y+14:tornado.y;
+    ctx.save();ctx.translate(x,y);ctx.rotate(Math.atan2(dy,dx));ctx.fillStyle='#8f4057';ctx.fillRect(3,-4,length,9);ctx.fillStyle='#ef8da3';ctx.fillRect(5,-2,Math.max(0,length-4),5);if(length>8){ctx.fillStyle='#ffd1d8';ctx.fillRect(Math.max(5,length-8),-2,7,2);}ctx.restore();return;
+  }
   if (tornado.style === 'iceSpiritDrop') { const warning=now<(tornado.impactAt??0);ctx.save();ctx.translate(tornado.x,tornado.y);if(warning){ctx.fillStyle='rgba(91,215,255,.2)';ctx.beginPath();ctx.arc(0,0,16,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#8fe8ff';ctx.lineWidth=3;ctx.stroke();}else{ctx.fillStyle='#61c9ee';ctx.beginPath();ctx.moveTo(0,-34);ctx.lineTo(12,5);ctx.lineTo(0,18);ctx.lineTo(-12,5);ctx.closePath();ctx.fill();ctx.fillStyle='#efffff';ctx.beginPath();ctx.moveTo(-2,-27);ctx.lineTo(4,5);ctx.lineTo(-1,10);ctx.closePath();ctx.fill();}ctx.restore();return;}
   if (tornado.style === 'iceRing' || tornado.style === 'iceLarge') { const large = tornado.style === 'iceLarge'; const warning = now < (tornado.impactAt ?? 0); ctx.save(); ctx.translate(tornado.x,tornado.y); if (warning) { ctx.globalAlpha=.75;ctx.strokeStyle=large?'#dffaff':'#67dfff';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,large?22:10,0,Math.PI*2);ctx.stroke();ctx.fillStyle='rgba(83,207,255,.15)';ctx.fill(); } else { ctx.fillStyle='#62c9ee';ctx.beginPath();ctx.moveTo(0,large?-48:-25);ctx.lineTo(large?17:9,large?13:7);ctx.lineTo(0,large?24:13);ctx.lineTo(large?-17:-9,large?13:7);ctx.closePath();ctx.fill();ctx.fillStyle='#ecffff';ctx.beginPath();ctx.moveTo(-3,large?-39:-20);ctx.lineTo(4,large?8:4);ctx.lineTo(-2,large?13:7);ctx.closePath();ctx.fill(); } ctx.restore();return; }
   if (tornado.style === 'iceShard') { ctx.save();ctx.translate(tornado.x,tornado.y);ctx.rotate(Math.atan2(tornado.vy,tornado.vx)+Math.PI/2);ctx.fillStyle='#6dd5f4';ctx.beginPath();ctx.moveTo(0,-10);ctx.lineTo(5,6);ctx.lineTo(0,10);ctx.lineTo(-5,6);ctx.closePath();ctx.fill();ctx.fillStyle='#efffff';ctx.fillRect(-1,-6,2,9);ctx.restore();return; }
@@ -946,7 +951,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
         if (e.stunnedUntil > now) return;
         if (e.kind === 'iceGolem' && distance <= 128 && now >= (e.nextShotAt ?? 0)) { const length = Math.max(1, distance); sandTornadoes.current.push({ x: e.x, y: e.y, vx: ex / length * 4.2, vy: ey / length * 4.2, damage: e.power, until: now + 3200, style: 'ice' }); e.nextShotAt = now + 1400; e.attackUntil = now + 320; }
         if (e.kind === 'frog' && distance <= 96) {
-          if (now >= (e.nextShotAt ?? 0)) { const length = Math.max(1, distance); sandTornadoes.current.push({ x: e.x + 14, y: e.y + 14, vx: ex / length * 6.2, vy: ey / length * 6.2, damage: e.power, until: now + 850, style: 'frogTongue' }); e.nextShotAt = now + 1300; e.attackUntil = now + 330; }
+          if (now >= (e.nextShotAt ?? 0)) { const length = Math.max(1, distance); sandTornadoes.current.push({ x: e.x + 14, y: e.y + 14, vx: 0, vy: 0, damage: e.power, startedAt: now, until: now + 760, style: 'frogTongue', source: e, tongueDx: ex / length, tongueDy: ey / length, tongueLength: Math.min(96, length + 12) }); e.nextShotAt = now + 1450; e.attackUntil = now + 760; }
           return;
         }
         if (level === 12 && e.kind === 'boss') {
@@ -1021,20 +1026,22 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
       const newIceShards: SandTornado[] = [];
       sandTornadoes.current = sandTornadoes.current.filter((tornado) => {
         tornado.x += tornado.vx * dt; tornado.y += tornado.vy * dt;
+        if (tornado.style === 'frogTongue') { const started=tornado.startedAt??now,total=Math.max(1,tornado.until-started),progress=Math.max(0,Math.min(1,(now-started)/total));const reach=progress<.45?progress/.45:progress<.65?1:(1-progress)/.35;const source=tornado.source;if(source){tornado.x=source.x+14+(tornado.tongueDx??1)*(tornado.tongueLength??96)*Math.max(0,reach);tornado.y=source.y+14+(tornado.tongueDy??0)*(tornado.tongueLength??96)*Math.max(0,reach);}}
         const waitingToFall = Boolean(tornado.impactAt && now < tornado.impactAt);
         if (!waitingToFall && tornado.style === 'iceLarge' && tornado.split) {
           tornado.split = false;
           for (let index = 0; index < 5; index++) { const angle = index / 5 * Math.PI * 2; newIceShards.push({ x: tornado.x, y: tornado.y, vx: Math.cos(angle) * 4.4, vy: Math.sin(angle) * 4.4, damage: 1, until: now + 1200, style: 'iceShard' }); }
         }
         const radius = tornado.style === 'iceLarge' ? 25 : tornado.style === 'iceSpiritDrop' ? 16 : tornado.style === 'iceRing' ? 12 : tornado.style === 'iceShard' ? 13 : tornado.style === 'frogTongue' ? 8 : 22;
-        const hitFirst = !waitingToFall && health > 0 && Math.hypot(p.x + 12 - tornado.x, p.y + 14 - tornado.y) < radius;
-        const hitSecond = !waitingToFall && players === 2 && health2 > 0 && Math.hypot(p2.x + 12 - tornado.x, p2.y + 14 - tornado.y) < radius;
+        const hitFirst = !waitingToFall && health > 0 && !tornado.hitPlayer1 && Math.hypot(p.x + 12 - tornado.x, p.y + 14 - tornado.y) < radius;
+        const hitSecond = !waitingToFall && players === 2 && health2 > 0 && !tornado.hitPlayer2 && Math.hypot(p2.x + 12 - tornado.x, p2.y + 14 - tornado.y) < radius;
         if (hitFirst || hitSecond) {
           const iceShot = tornado.style?.startsWith('ice');
           if (tornado.style === 'ice') { if (hitFirst) slowedUntil.current = now + 3000; else slowedUntil2.current = now + 3000; }
           damageHero(tornado.damage, tornado.style === 'frogTongue' ? `Язык жабы нанёс ${tornado.damage} HP урона!` : iceShot ? `Сосулька нанесла ${tornado.damage} HP урона!` : 'Песчаный торнадо настиг героя!', !hitFirst && hitSecond);
           const mummyBoss = !iceShot ? enemies.current.find((enemy) => level === 12 && enemy.kind === 'boss' && enemy.hp > 0) : undefined;
           if (mummyBoss) { const healed = Math.min(5, mummyBoss.maxHp - mummyBoss.hp); mummyBoss.hp += healed; if (healed > 0) setMessage(`Торнадо высосал силу героя — Владыка гробниц восстановил ${healed} HP!`); }
+          if (tornado.style === 'frogTongue') { if (hitFirst) tornado.hitPlayer1 = true; if (hitSecond) tornado.hitPlayer2 = true; return now < tornado.until; }
           return false;
         }
         return now < tornado.until && tornado.x > 0 && tornado.x < map.worldWidth && tornado.y > 0 && tornado.y < map.worldHeight;

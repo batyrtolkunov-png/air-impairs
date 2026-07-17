@@ -38,6 +38,14 @@ function actorInsideRoute(x: number, y: number, width: number, height: number) {
   ].every((point) => isInsideFourWayRoute(point.x, point.y));
 }
 
+function isInRouteSafeLane(x: number, y: number, clearance = 34) {
+  return ROUTE_POINTS.slice(1).some((end, index) => {
+    const start = ROUTE_POINTS[index], dx = end.x - start.x, dy = end.y - start.y, lengthSquared = dx * dx + dy * dy;
+    const t = Math.max(0, Math.min(1, ((x - start.x) * dx + (y - start.y) * dy) / Math.max(1, lengthSquared)));
+    return Math.hypot(x - (start.x + dx * t), y - (start.y + dy * t)) <= clearance;
+  });
+}
+
 const WIDTH = 640;
 const HEIGHT = 400;
 const BOSS_HITBOX_RADIUS = 55;
@@ -887,7 +895,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
             const angle = Math.random() * Math.PI * 2; const radius = 76 + Math.random() * 54;
             const x = p.x + Math.cos(angle) * radius; const y = p.y + Math.sin(angle) * radius;
             const outsideRoute = level !== 0 && !actorInsideRoute(x, y, 28, 28);
-            const hitsWall = solidHitboxes.some((wall) => x + 28 > wall.x && x < wall.x + wall.w && y + 28 > wall.y && y < wall.y + wall.h);
+            const hitsWall = map.walls.some((wall) => x + 28 > wall.x && x < wall.x + wall.w && y + 28 > wall.y && y < wall.y + wall.h) || !isInRouteSafeLane(x + 14, y + 14) && plantHitboxes.some((wall) => x + 28 > wall.x && x < wall.x + wall.w && y + 28 > wall.y && y < wall.y + wall.h);
             const hitsCart = map.carts.some((cart) => x + 28 > cart.x - 5 && x < cart.x + 45 && y + 28 > cart.y && y < cart.y + 36);
             if (!outsideRoute && !hitsWall && !hitsCart && spawns.every((spawn) => Math.hypot(spawn.x - x, spawn.y - y) > 16)) { spawns.push({ x, y, kind: index % 3 === 2 ? 'goblin' : 'slime' }); break; }
           }
@@ -899,7 +907,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
       let dx = health > 0 ? mobileMove.current.x * speed : 0, dy = health > 0 ? mobileMove.current.y * speed : 0; if (health > 0) { if (keys.current.has('KeyA') || players === 1 && keys.current.has('ArrowLeft')) dx -= speed; if (keys.current.has('KeyD') || players === 1 && keys.current.has('ArrowRight')) dx += speed;
       if (keys.current.has('KeyW') || players === 1 && keys.current.has('ArrowUp')) dy -= speed; if (keys.current.has('KeyS') || players === 1 && keys.current.has('ArrowDown')) dy += speed; }
       if (dx || dy) { const length = Math.hypot(dx, dy); facing.current = { x: dx / length, y: dy / length }; }
-      const playerBlocked = (x: number, y: number) => map.round && Math.hypot(x + 12 - 320, y + 14 - 336) > 306 || level !== 0 && !map.round && !actorInsideRoute(x, y, 24, 28) || map.carts.some((cart) => x + 24 > cart.x - 5 && x < cart.x + 45 && y + 28 > cart.y && y < cart.y + 36) || solidHitboxes.some((wall) => x + 24 > wall.x - 6 && x < wall.x + wall.w + 6 && y + 28 > wall.y - 6 && y < wall.y + wall.h + 6) || merchantMode && (level === 6 || level === 12 || level === 18) && x + 24 > MERCHANT.hitbox.x && x < MERCHANT.hitbox.x + MERCHANT.hitbox.w && y + 28 > MERCHANT.hitbox.y && y < MERCHANT.hitbox.y + MERCHANT.hitbox.h;
+      const playerBlocked = (x: number, y: number) => map.round && Math.hypot(x + 12 - 320, y + 14 - 336) > 306 || level !== 0 && !map.round && !actorInsideRoute(x, y, 24, 28) || map.carts.some((cart) => x + 24 > cart.x - 5 && x < cart.x + 45 && y + 28 > cart.y && y < cart.y + 36) || map.walls.some((wall) => x + 24 > wall.x - 6 && x < wall.x + wall.w + 6 && y + 28 > wall.y - 6 && y < wall.y + wall.h + 6) || !isInRouteSafeLane(x + 12, y + 14) && plantHitboxes.some((wall) => x + 24 > wall.x - 6 && x < wall.x + wall.w + 6 && y + 28 > wall.y - 6 && y < wall.y + wall.h + 6) || merchantMode && (level === 6 || level === 12 || level === 18) && x + 24 > MERCHANT.hitbox.x && x < MERCHANT.hitbox.x + MERCHANT.hitbox.w && y + 28 > MERCHANT.hitbox.y && y < MERCHANT.hitbox.y + MERCHANT.hitbox.h;
       const moveSliding = (actor: Point, moveX: number, moveY: number) => { const targetX = Math.max(34, Math.min(map.worldWidth - 60, actor.x + moveX)); const targetY = Math.max(34, Math.min(map.worldHeight - 64, actor.y + moveY)); if (!playerBlocked(targetX, actor.y)) actor.x = targetX; if (!playerBlocked(actor.x, targetY)) actor.y = targetY; };
       const oldX = p.x, oldY = p.y; moveSliding(p, dx, dy); if ((p.x !== oldX || p.y !== oldY) && now >= nextFootstepAt.current) { playFootstep(); nextFootstepAt.current = now + 280; }
       let dx2 = 0, dy2 = 0; const p2 = hero2.current;
@@ -1027,7 +1035,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
           const canMoveTo = (x: number, y: number) => {
             const outsideArena = map.round && Math.hypot(x + 14 - 320, y + 14 - 336) > 306;
             const outsideRoute = level !== 0 && !map.round && !actorInsideRoute(x, y, 26, 28);
-            const hitsWall = solidHitboxes.some((w) => x + 26 > w.x - wallGap && x < w.x + w.w + wallGap && y + 28 > w.y - wallGap && y < w.y + w.h + wallGap);
+            const hitsWall = map.walls.some((w) => x + 26 > w.x - wallGap && x < w.x + w.w + wallGap && y + 28 > w.y - wallGap && y < w.y + w.h + wallGap) || !isInRouteSafeLane(x + 13, y + 14) && plantHitboxes.some((w) => x + 26 > w.x - wallGap && x < w.x + w.w + wallGap && y + 28 > w.y - wallGap && y < w.y + w.h + wallGap);
             const hitsCart = map.carts.some((cart) => x + 26 > cart.x - 5 - wallGap && x < cart.x + 45 + wallGap && y + 28 > cart.y - wallGap && y < cart.y + 36 + wallGap);
             return !outsideArena && !outsideRoute && !hitsWall && !hitsCart;
           };

@@ -629,14 +629,16 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
   const stageInRegion = requestedLevel > 0 ? ((requestedLevel - 1) % 6) + 1 : 0;
   const startingLevel = stageInRegion === 4 || stageInRegion === 5 ? requestedLevel + (6 - stageInRegion) : requestedLevel;
   const savedMapIsRemoved = Boolean(initialSave && startingLevel !== initialSave.level);
-  const firstMap = !savedMapIsRemoved && initialSave?.map ? initialSave.map : effectiveTutorial ? getTutorialLevel() : getLevel(startingLevel); const startingPoint = !savedMapIsRemoved && initialSave?.hero ? initialSave.hero : effectiveTutorial ? { x: 75, y: 320 } : firstMap.round ? { x: 35, y: 322 } : getRouteStart();
+  const loadedFirstMap = !savedMapIsRemoved && initialSave?.map ? initialSave.map : effectiveTutorial ? getTutorialLevel() : getLevel(startingLevel);
+  const firstMap = startingLevel >= 19 && startingLevel <= 24 ? { ...loadedFirstMap, enemies: loadedFirstMap.enemies.map((enemy) => enemy.kind === 'slime' ? { ...enemy, kind: 'frog' as const } : enemy) } : loadedFirstMap;
+  const startingPoint = !savedMapIsRemoved && initialSave?.hero ? initialSave.hero : effectiveTutorial ? { x: 75, y: 320 } : firstMap.round ? { x: 35, y: 322 } : getRouteStart();
   const currentMap = useRef(firstMap);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hero = useRef<Point>(startingPoint);
   const facing = useRef<Point>({ x: 1, y: 0 });
   const hero2 = useRef<Point>(!savedMapIsRemoved && initialSave?.hero2 ? initialSave.hero2 : firstMap.round ? { x: 65, y: 322 } : { ...startingPoint, y: startingPoint.y + 32 });
   const facing2 = useRef<Point>({ x: 1, y: 0 });
-  const enemies = useRef<Enemy[]>(!savedMapIsRemoved && initialSave?.enemies ? initialSave.enemies : createEnemies(firstMap, enemyMultiplier, oneHitBoss));
+  const enemies = useRef<Enemy[]>(!savedMapIsRemoved && initialSave?.enemies ? initialSave.enemies.map((enemy) => startingLevel >= 19 && startingLevel <= 24 && enemy.kind === 'slime' ? { ...enemy, kind: 'frog', hp: 4, maxHp: 4, color: '#58a94f', nextShotAt: 0, nextLeapAt: 0 } : enemy) : createEnemies(firstMap, enemyMultiplier, oneHitBoss));
   const keys = useRef(new Set<string>());
   const mobileMove = useRef<Point>({ x: 0, y: 0 });
   const projectiles = useRef<Projectile[]>([]);

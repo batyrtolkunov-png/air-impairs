@@ -319,9 +319,24 @@ function drawFrog(ctx: CanvasRenderingContext2D, e: Enemy, now: number, attackin
   ctx.restore();
 }
 
+function getPlantHitboxes(map: ReturnType<typeof getLevel>) {
+  const hitboxes: { x: number; y: number; w: number; h: number }[] = [];
+  const addPlant = (x: number, y: number) => hitboxes.push({ x: x + 4, y: y + 2, w: 56, h: 58 });
+  if (!map.round) ROUTE_POINTS.slice(1).forEach((end, index) => {
+    const start = ROUTE_POINTS[index], dx = end.x - start.x, dy = end.y - start.y, length = Math.hypot(dx, dy), nx = -dy / length, ny = dx / length;
+    for (let distance = 20; distance < length; distance += 52) { const px = start.x + dx * distance / length, py = start.y + dy * distance / length; addPlant(px + nx * 88 - 30, py + ny * 88 - 30); addPlant(px - nx * 88 - 30, py - ny * 88 - 30); }
+  });
+  map.walls.forEach((wall) => {
+    if (wall.w >= wall.h) for (let x = wall.x - 12; x < wall.x + wall.w; x += 48) addPlant(x, wall.y + wall.h / 2 - 34);
+    else for (let y = wall.y - 18; y < wall.y + wall.h; y += 48) addPlant(wall.x + wall.w / 2 - 32, y);
+  });
+  return hitboxes;
+}
+
 function drawVisibleHitboxes(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLevel>, enemies: Enemy[], hero: Point, secondHero: Point | null) {
   ctx.save(); ctx.strokeStyle = '#29a8ff'; ctx.lineWidth = 2; ctx.setLineDash([5, 3]);
   map.walls.forEach((wall) => ctx.strokeRect(wall.x, wall.y, wall.w, wall.h));
+  getPlantHitboxes(map).forEach((hitbox) => ctx.strokeRect(hitbox.x, hitbox.y, hitbox.w, hitbox.h));
   map.carts.forEach((cart) => ctx.strokeRect(cart.x - 5, cart.y, 50, 36));
   ctx.strokeRect(hero.x, hero.y, 24, 28); if (secondHero) ctx.strokeRect(secondHero.x, secondHero.y, 24, 28);
   enemies.forEach((enemy) => {
@@ -852,7 +867,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
     const ctx = canvasRef.current?.getContext('2d'); if (!ctx) return;
     ctx.imageSmoothingEnabled = false; let frame = 0; let last = performance.now();
     const loop = (now: number) => {
-      const map = currentMap.current; const dt = Math.min((now - last) / 16.67, 2); last = now; const p = hero.current; const baseSpeed = 3 * dt; const speed = now < slowedUntil.current ? baseSpeed / 1.5 : baseSpeed; const speed2 = now < slowedUntil2.current ? baseSpeed / 1.5 : baseSpeed;
+      const map = currentMap.current; const plantHitboxes = getPlantHitboxes(map); const solidHitboxes = [...map.walls, ...plantHitboxes]; const dt = Math.min((now - last) / 16.67, 2); last = now; const p = hero.current; const baseSpeed = 3 * dt; const speed = now < slowedUntil.current ? baseSpeed / 1.5 : baseSpeed; const speed2 = now < slowedUntil2.current ? baseSpeed / 1.5 : baseSpeed;
       [p, ...(players === 2 ? [hero2.current] : [])].forEach((viewer) => { if (!explored.current.some((point) => Math.hypot(point.x - viewer.x, point.y - viewer.y) < 54)) explored.current.push({ x: viewer.x, y: viewer.y }); });
       if (paused || dead || victory || choiceItem || showInventory || shopOpen) { drawScene(ctx, map, p, enemies.current, projectiles.current, superFists.current, swordUltimates.current, bowUltimates.current, staffUltimates.current, glovesUltimates.current, waves.current, sandTornadoes.current, tombs.current, now, openedChests, chestDrops, 0, loot, droppedItem, level, weapon, weapon2, armor, facing.current, false, health, superReloading, profileName, players === 2 ? hero2.current : null, facing2.current, false, health2, superReloading2, 0, armor2, skin, skin2, explored.current, mobileControls); frame = requestAnimationFrame(loop); return; }
       if (ambushAt.current > 0 && now >= ambushAt.current) {
@@ -863,7 +878,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
             const angle = Math.random() * Math.PI * 2; const radius = 76 + Math.random() * 54;
             const x = p.x + Math.cos(angle) * radius; const y = p.y + Math.sin(angle) * radius;
             const outsideRoute = level !== 0 && !actorInsideRoute(x, y, 28, 28);
-            const hitsWall = map.walls.some((wall) => x + 28 > wall.x && x < wall.x + wall.w && y + 28 > wall.y && y < wall.y + wall.h);
+            const hitsWall = solidHitboxes.some((wall) => x + 28 > wall.x && x < wall.x + wall.w && y + 28 > wall.y && y < wall.y + wall.h);
             const hitsCart = map.carts.some((cart) => x + 28 > cart.x - 5 && x < cart.x + 45 && y + 28 > cart.y && y < cart.y + 36);
             if (!outsideRoute && !hitsWall && !hitsCart && spawns.every((spawn) => Math.hypot(spawn.x - x, spawn.y - y) > 16)) { spawns.push({ x, y, kind: index % 3 === 2 ? 'goblin' : 'slime' }); break; }
           }
@@ -875,7 +890,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
       let dx = health > 0 ? mobileMove.current.x * speed : 0, dy = health > 0 ? mobileMove.current.y * speed : 0; if (health > 0) { if (keys.current.has('KeyA') || players === 1 && keys.current.has('ArrowLeft')) dx -= speed; if (keys.current.has('KeyD') || players === 1 && keys.current.has('ArrowRight')) dx += speed;
       if (keys.current.has('KeyW') || players === 1 && keys.current.has('ArrowUp')) dy -= speed; if (keys.current.has('KeyS') || players === 1 && keys.current.has('ArrowDown')) dy += speed; }
       if (dx || dy) { const length = Math.hypot(dx, dy); facing.current = { x: dx / length, y: dy / length }; }
-      const playerBlocked = (x: number, y: number) => map.round && Math.hypot(x + 12 - 320, y + 14 - 336) > 306 || level !== 0 && !map.round && !actorInsideRoute(x, y, 24, 28) || map.carts.some((cart) => x + 24 > cart.x - 5 && x < cart.x + 45 && y + 28 > cart.y && y < cart.y + 36) || map.walls.some((wall) => x + 24 > wall.x - 6 && x < wall.x + wall.w + 6 && y + 28 > wall.y - 6 && y < wall.y + wall.h + 6) || merchantMode && (level === 6 || level === 12 || level === 18) && x + 24 > MERCHANT.hitbox.x && x < MERCHANT.hitbox.x + MERCHANT.hitbox.w && y + 28 > MERCHANT.hitbox.y && y < MERCHANT.hitbox.y + MERCHANT.hitbox.h;
+      const playerBlocked = (x: number, y: number) => map.round && Math.hypot(x + 12 - 320, y + 14 - 336) > 306 || level !== 0 && !map.round && !actorInsideRoute(x, y, 24, 28) || map.carts.some((cart) => x + 24 > cart.x - 5 && x < cart.x + 45 && y + 28 > cart.y && y < cart.y + 36) || solidHitboxes.some((wall) => x + 24 > wall.x - 6 && x < wall.x + wall.w + 6 && y + 28 > wall.y - 6 && y < wall.y + wall.h + 6) || merchantMode && (level === 6 || level === 12 || level === 18) && x + 24 > MERCHANT.hitbox.x && x < MERCHANT.hitbox.x + MERCHANT.hitbox.w && y + 28 > MERCHANT.hitbox.y && y < MERCHANT.hitbox.y + MERCHANT.hitbox.h;
       const moveSliding = (actor: Point, moveX: number, moveY: number) => { const targetX = Math.max(34, Math.min(map.worldWidth - 60, actor.x + moveX)); const targetY = Math.max(34, Math.min(map.worldHeight - 64, actor.y + moveY)); if (!playerBlocked(targetX, actor.y)) actor.x = targetX; if (!playerBlocked(actor.x, targetY)) actor.y = targetY; };
       const oldX = p.x, oldY = p.y; moveSliding(p, dx, dy); if ((p.x !== oldX || p.y !== oldY) && now >= nextFootstepAt.current) { playFootstep(); nextFootstepAt.current = now + 280; }
       let dx2 = 0, dy2 = 0; const p2 = hero2.current;
@@ -893,7 +908,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
       if (attacking2) enemies.current.forEach((enemy) => { if (weapon2?.type !== 'bow' && weapon2?.type !== 'staff' && meleeHitsEnemy({ x: p2.x + 12, y: p2.y + 14 }, facing2.current, 58, enemy) && enemy.flash <= 0) { enemy.hp -= weapon2?.damage || 1; enemy.flash = 12; } });
       projectiles.current = projectiles.current.filter((arrow) => {
         arrow.x += arrow.vx * dt; arrow.y += arrow.vy * dt;
-        const hitsWall = map.walls.some((wall) => arrow.x > wall.x && arrow.x < wall.x + wall.w && arrow.y > wall.y && arrow.y < wall.y + wall.h);
+        const hitsWall = solidHitboxes.some((wall) => arrow.x > wall.x && arrow.x < wall.x + wall.w && arrow.y > wall.y && arrow.y < wall.y + wall.h);
         const target = enemies.current.find((e) => pointHitsEnemy(arrow, e, 5));
         if (target) { target.hp -= arrow.damage; target.flash = 12; return false; }
         const insideArena = !map.round || Math.hypot(arrow.x - 320, arrow.y - 336) < 336;
@@ -945,7 +960,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
         else setHealth((current) => { const next = Math.max(0, current - amount); if (current > 0 && next === 0) { if (players === 1 || health2 <= 0) { setDead(true); keys.current.clear(); setMessage('Тьма поглотила героя…'); } else showTeammateFallen(); } else if (hitMessage) setMessage(`${hitMessage} Получено ${amount} урона.`); return next; });
       };
       enemies.current.forEach((e) => {
-        const sees = (target: Point) => { const from = { x: e.x + 14, y: e.y + 14 }, to = { x: target.x + 12, y: target.y + 14 }; return !map.walls.some((wall) => segmentHitsRect(from, to, wall)) && !map.carts.some((cart) => segmentHitsRect(from, to, { x: cart.x - 5, y: cart.y, w: 50, h: 36 })); };
+        const sees = (target: Point) => { const from = { x: e.x + 14, y: e.y + 14 }, to = { x: target.x + 12, y: target.y + 14 }; return !solidHitboxes.some((wall) => segmentHitsRect(from, to, wall)) && !map.carts.some((cart) => segmentHitsRect(from, to, { x: cart.x - 5, y: cart.y, w: 50, h: 36 })); };
         e.flash--; const distance1 = health > 0 && sees(p) ? Math.hypot(p.x - e.x, p.y - e.y) : Infinity; const distance2 = players === 2 && health2 > 0 && sees(p2) ? Math.hypot(p2.x - e.x, p2.y - e.y) : Infinity; const targetsSecond = distance2 < distance1; const targetHero = targetsSecond ? p2 : p; const ex = targetHero.x - e.x, ey = targetHero.y - e.y, distance = Math.min(distance1, distance2);
         if (e.kind === 'boss' && now >= (e.nextContactAt ?? 0)) { const firstTouches = health > 0 && bossBodyHits({ x: p.x + 12, y: p.y + 14 }, e, 12); const secondTouches = players === 2 && health2 > 0 && bossBodyHits({ x: p2.x + 12, y: p2.y + 14 }, e, 12); if (firstTouches || secondTouches) { damageHero(.5, 'Касание туловища босса обжигает героя!', !firstTouches && secondTouches); e.nextContactAt = now + 700; } }
         if (e.stunnedUntil > now) return;
@@ -1003,7 +1018,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
           const canMoveTo = (x: number, y: number) => {
             const outsideArena = map.round && Math.hypot(x + 14 - 320, y + 14 - 336) > 306;
             const outsideRoute = level !== 0 && !map.round && !actorInsideRoute(x, y, 26, 28);
-            const hitsWall = map.walls.some((w) => x + 26 > w.x - wallGap && x < w.x + w.w + wallGap && y + 28 > w.y - wallGap && y < w.y + w.h + wallGap);
+            const hitsWall = solidHitboxes.some((w) => x + 26 > w.x - wallGap && x < w.x + w.w + wallGap && y + 28 > w.y - wallGap && y < w.y + w.h + wallGap);
             const hitsCart = map.carts.some((cart) => x + 26 > cart.x - 5 - wallGap && x < cart.x + 45 + wallGap && y + 28 > cart.y - wallGap && y < cart.y + 36 + wallGap);
             return !outsideArena && !outsideRoute && !hitsWall && !hitsCart;
           };

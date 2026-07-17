@@ -4,7 +4,7 @@ import { playFootstep, playHurt, setMusicDanger } from '../game/audio';
 
 export type GameSave = { level: number; players: 1 | 2; health: number; health2: number; coins: number; medkits?: number; medkits2?: number; inventory: Weapon[]; inventory2: Weapon[]; inventoryCapacity: number; inventoryCapacity2: number; weapon: Weapon | null; weapon2: Weapon | null; armor: Weapon | null; armor2?: Weapon | null; armorHealth: number; armorHealth2?: number; map: ReturnType<typeof getLevel>; hero: Point; hero2: Point; enemies: Enemy[]; openedChests: number[]; chestDrops: LootDrop[]; loot: Point | null; droppedItem: Weapon | null; explored?: Point[]; savedAt: number };
 
-export type Enemy = Point & { kind: EnemyKind; hp: number; maxHp: number; flash: number; attackUntil: number; stunnedUntil: number; color: string; power: number; speed: number; leapStarted: number; leapUntil: number; leapTargetX: number; leapTargetY: number; nextLeapAt: number; nextShotAt?: number; nextSummonAt?: number; nextContactAt?: number; playerWasInSummonRadius?: boolean; revived?: boolean; reviveFlashUntil?: number };
+export type Enemy = Point & { kind: EnemyKind; hp: number; maxHp: number; flash: number; attackUntil: number; stunnedUntil: number; color: string; power: number; speed: number; leapStarted: number; leapUntil: number; leapTargetX: number; leapTargetY: number; nextLeapAt: number; nextShotAt?: number; nextSummonAt?: number; nextContactAt?: number; playerWasInSummonRadius?: boolean; revived?: boolean; reviveFlashUntil?: number; swallowUntil?: number; swallowedPlayer?: 1 | 2; swallowDamageDone?: boolean };
 type Projectile = Point & { vx: number; vy: number; damage: number; color: string };
 type SuperFist = Point & { vx: number; vy: number; damage: number; hitTargets: Enemy[] };
 type SwordUltimate = Point & { owner: 1 | 2; started: number; impactAt: number; until: number; color: string; name: string; damageApplied: boolean };
@@ -292,7 +292,7 @@ function drawSandTornado(ctx: CanvasRenderingContext2D, tornado: SandTornado, no
   if (tornado.style === 'frogTongue') {
     const started=tornado.startedAt??now,total=Math.max(1,tornado.until-started),progress=Math.max(0,Math.min(1,(now-started)/total));
     const reach=progress<.45?progress/.45:progress<.65?1:(1-progress)/.35; const length=(tornado.tongueLength??96)*Math.max(0,reach);
-    const dx=tornado.tongueDx??1,dy=tornado.tongueDy??0,source=tornado.source; const x=source?source.x+14:tornado.x,y=source?source.y+14:tornado.y;
+    const dx=tornado.tongueDx??1,dy=tornado.tongueDy??0,source=tornado.source; const x=source?source.x+(source.kind==='boss'?0:14):tornado.x,y=source?source.y+(source.kind==='boss'?-55:14):tornado.y;
     ctx.save();ctx.translate(x,y);ctx.rotate(Math.atan2(dy,dx));ctx.fillStyle='#8f4057';ctx.fillRect(3,-4,length,9);ctx.fillStyle='#ef8da3';ctx.fillRect(5,-2,Math.max(0,length-4),5);if(length>8){ctx.fillStyle='#ffd1d8';ctx.fillRect(Math.max(5,length-8),-2,7,2);}ctx.restore();return;
   }
   if (tornado.style === 'iceSpiritDrop') { const warning=now<(tornado.impactAt??0);ctx.save();ctx.translate(tornado.x,tornado.y);if(warning){ctx.fillStyle='rgba(91,215,255,.2)';ctx.beginPath();ctx.arc(0,0,16,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#8fe8ff';ctx.lineWidth=3;ctx.stroke();}else{ctx.fillStyle='#61c9ee';ctx.beginPath();ctx.moveTo(0,-34);ctx.lineTo(12,5);ctx.lineTo(0,18);ctx.lineTo(-12,5);ctx.closePath();ctx.fill();ctx.fillStyle='#efffff';ctx.beginPath();ctx.moveTo(-2,-27);ctx.lineTo(4,5);ctx.lineTo(-1,10);ctx.closePath();ctx.fill();}ctx.restore();return;}
@@ -336,6 +336,8 @@ function drawFrog(ctx: CanvasRenderingContext2D, e: Enemy, now: number, attackin
   if (attacking) { ctx.fillStyle = '#e893a4'; ctx.fillRect(54, 79, 25, 7); ctx.fillStyle = '#ffd1d9'; ctx.fillRect(59, 80, 13, 2); }
   ctx.restore();
 }
+
+function drawFrogBoss(ctx: CanvasRenderingContext2D, e: Enemy, now: number, attacking: boolean) { drawFrog(ctx,e,now,attacking);ctx.fillStyle='#6b431c';ctx.fillRect(35,20,60,13);ctx.fillStyle='#e6bd42';ctx.beginPath();ctx.moveTo(35,23);ctx.lineTo(37,4);ctx.lineTo(49,14);ctx.lineTo(63,-2);ctx.lineTo(76,14);ctx.lineTo(91,3);ctx.lineTo(95,24);ctx.closePath();ctx.fill();ctx.fillStyle='#fff09a';ctx.fillRect(43,18,44,4);ctx.fillStyle='#d94f45';ctx.fillRect(49,13,7,7);ctx.fillStyle='#65bde4';ctx.fillRect(61,11,8,8);ctx.fillStyle='#83cb55';ctx.fillRect(76,13,7,7); }
 
 function drawMudCreature(ctx: CanvasRenderingContext2D, e: Enemy, now: number, attacking: boolean) {
   if (e.kind === 'mudPile') { ctx.fillStyle='rgba(26,18,11,.35)';ctx.fillRect(14,96,100,13);ctx.fillStyle='#3b2a20';ctx.fillRect(20,82,88,22);ctx.fillStyle='#60452f';ctx.fillRect(31,68,62,29);ctx.fillStyle='#80603d';ctx.fillRect(43,61,35,13);ctx.fillStyle='#a1814d';ctx.fillRect(37,76,17,6);ctx.fillRect(73,88,22,5);ctx.fillStyle='#29351d';ctx.fillRect(25,75,9,7);ctx.fillRect(89,67,8,8);return; }
@@ -600,8 +602,8 @@ function drawScene(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLeve
     const airborne = boss && e.leapStarted > 0 && now > e.leapStarted + 380 && now < e.leapUntil;
     if (airborne) {
       ctx.save(); ctx.translate(e.leapTargetX, e.leapTargetY);
-      ctx.fillStyle = 'rgba(151,24,32,.22)'; ctx.beginPath(); ctx.arc(0, 0, 80, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = '#ff4655'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(0, 0, 80, 0, Math.PI * 2); ctx.stroke();
+      const swampJump=level===24,jumpProgress=Math.max(0,Math.min(1,(now-e.leapStarted)/Math.max(1,e.leapUntil-e.leapStarted)));ctx.fillStyle=swampJump?'rgba(22,30,12,.62)':'rgba(151,24,32,.22)'; ctx.beginPath(); ctx.arc(0, 0, swampJump?24+jumpProgress*58:80, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = swampJump?'#81934b':'#ff4655'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(0, 0, swampJump?24+jumpProgress*58:80, 0, Math.PI * 2); ctx.stroke();
       ctx.strokeStyle = 'rgba(255,220,170,.75)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-12, 0); ctx.lineTo(12, 0); ctx.moveTo(0, -12); ctx.lineTo(0, 12); ctx.stroke(); ctx.restore();
       return;
     }
@@ -615,7 +617,7 @@ function drawScene(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLeve
     if (e.kind === 'mudPile' || e.kind === 'mudMonster') { drawMudCreature(ctx, e, now, attacking); ctx.restore(); if (e.kind === 'mudMonster' && e.stunnedUntil > now) { ctx.fillStyle = '#d8c76b'; ctx.font = 'bold 14px monospace'; ctx.fillText('★ ★ ★', e.x - 7, e.y - 22); } return; }
     if (e.kind === 'scorpion') { drawScorpion(ctx, e, now, attacking); ctx.restore(); if (e.stunnedUntil > now) { ctx.fillStyle = '#ffe56b'; ctx.font = 'bold 14px monospace'; ctx.fillText('★ ★ ★', e.x - 7, e.y - 22); } return; }
     if (e.kind === 'mummy') { drawMummy(ctx, e, now, attacking); ctx.restore(); if (e.stunnedUntil > now) { ctx.fillStyle = '#ffe56b'; ctx.font = 'bold 14px monospace'; ctx.fillText('★ ★ ★', e.x - 7, e.y - 22); } return; }
-    if (e.kind === 'goblin' || boss) { if (boss && level === 12) drawMummyBoss(ctx, e, now); else if (boss && level === 18) drawIceGolem(ctx, e, now, attacking); else drawGoblin(ctx, e, now, attacking || (boss && e.leapStarted > 0)); ctx.restore(); if (e.stunnedUntil > now) { ctx.fillStyle = level === 18 ? '#dffcff' : '#ffe56b'; ctx.font = `bold ${boss ? 22 : 14}px monospace`; ctx.fillText('★ ★ ★', e.x - (boss ? 42 : 7), e.y - (boss ? 235 : 22) + Math.sin(now / 90) * 3); } return; }
+    if (e.kind === 'goblin' || boss) { if (boss && level === 12) drawMummyBoss(ctx, e, now); else if (boss && level === 18) drawIceGolem(ctx, e, now, attacking); else if (boss && level === 24) drawFrogBoss(ctx,e,now,attacking); else drawGoblin(ctx, e, now, attacking || (boss && e.leapStarted > 0)); ctx.restore(); if (e.stunnedUntil > now) { ctx.fillStyle = level === 18 ? '#dffcff' : '#ffe56b'; ctx.font = `bold ${boss ? 22 : 14}px monospace`; ctx.fillText('★ ★ ★', e.x - (boss ? 42 : 7), e.y - (boss ? 235 : 22) + Math.sin(now / 90) * 3); } return; }
     const walking = distance > 18 && !attacking; const walkPhase = walking ? Math.sin(now / 105 + e.x * .02) : 0; const hop = walking ? Math.abs(walkPhase) * 9 : 0;
     ctx.fillStyle = 'rgba(0,0,0,.32)'; ctx.beginPath(); ctx.ellipse(64, 112, 49 - hop * .8, 11 - hop * .18, 0, 0, Math.PI * 2); ctx.fill();
     const wobble = Math.sin(now / 180 + e.x * .02) * .045; ctx.translate(0, -hop); ctx.translate(64, 108); ctx.scale(1 + wobble, 1 - wobble); ctx.translate(-64, -108);
@@ -636,20 +638,22 @@ function drawScene(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLeve
   glovesUltimates.forEach((ultimate) => drawGlovesUltimate(ctx, ultimate, now));
   waves.forEach((wave) => { const progress = Math.min(1, (now - wave.started) / (wave.until - wave.started)); ctx.save(); ctx.translate(wave.x, wave.y); ctx.rotate(Math.atan2(wave.dy, wave.dx)); ctx.globalAlpha = 1 - progress * .65; ctx.fillStyle = wave.color; ctx.fillRect(8, -48, 24 + progress * 48, 96); ctx.fillStyle = '#ffe8c7'; ctx.fillRect(18 + progress * 34, -38, 12, 76); ctx.strokeStyle = '#fff4d8'; ctx.lineWidth = 3; ctx.strokeRect(8, -48, 24 + progress * 48, 96); ctx.restore(); });
   tombs.forEach((tomb) => drawTomb(ctx, tomb, now)); sandTornadoes.forEach((tornado) => drawSandTornado(ctx, tornado, now));
-  drawHero(ctx, hero, attackProgress, weapon, armor, facing, moving, now, health, profileName, false, swordUltimates.find((ultimate) => ultimate.owner === 1 && now < ultimate.until), bowUltimates.find((ultimate) => ultimate.owner === 1 && now < ultimate.rainStarted), glovesUltimates.find((ultimate) => ultimate.owner === 1 && ultimate.name.includes('титана') && !ultimate.landed), skin);
-  if (secondHero) drawHero(ctx, secondHero, attackProgress2, weapon2, armor2, secondFacing, secondMoving, now, secondHealth, 'Игрок 2', true, swordUltimates.find((ultimate) => ultimate.owner === 2 && now < ultimate.until), bowUltimates.find((ultimate) => ultimate.owner === 2 && now < ultimate.rainStarted), glovesUltimates.find((ultimate) => ultimate.owner === 2 && ultimate.name.includes('титана') && !ultimate.landed), skin2);
+  const swallowedPlayer=enemies.find((enemy)=>enemy.kind==='boss'&&(enemy.swallowUntil??0)>now)?.swallowedPlayer;
+  if(swallowedPlayer!==1)drawHero(ctx, hero, attackProgress, weapon, armor, facing, moving, now, health, profileName, false, swordUltimates.find((ultimate) => ultimate.owner === 1 && now < ultimate.until), bowUltimates.find((ultimate) => ultimate.owner === 1 && now < ultimate.rainStarted), glovesUltimates.find((ultimate) => ultimate.owner === 1 && ultimate.name.includes('титана') && !ultimate.landed), skin);
+  if (secondHero&&swallowedPlayer!==2) drawHero(ctx, secondHero, attackProgress2, weapon2, armor2, secondFacing, secondMoving, now, secondHealth, 'Игрок 2', true, swordUltimates.find((ultimate) => ultimate.owner === 2 && now < ultimate.until), bowUltimates.find((ultimate) => ultimate.owner === 2 && now < ultimate.rainStarted), glovesUltimates.find((ultimate) => ultimate.owner === 2 && ultimate.name.includes('титана') && !ultimate.landed), skin2);
   drawVisibleHitboxes(ctx, map, enemies, hero, secondHero);
   const fog = document.createElement('canvas'); fog.width = map.worldWidth; fog.height = map.worldHeight; const fogCtx = fog.getContext('2d'); if (fogCtx) { fogCtx.fillStyle = 'rgba(1,4,3,.94)'; fogCtx.fillRect(0, 0, map.worldWidth, map.worldHeight); fogCtx.globalCompositeOperation = 'destination-out'; explored.forEach((point) => { const gradient = fogCtx.createRadialGradient(point.x, point.y, 160, point.x, point.y, 190); gradient.addColorStop(0, 'rgba(0,0,0,1)'); gradient.addColorStop(1, 'rgba(0,0,0,0)'); fogCtx.fillStyle = gradient; fogCtx.beginPath(); fogCtx.arc(point.x, point.y, 190, 0, Math.PI * 2); fogCtx.fill(); }); ctx.drawImage(fog, 0, 0); }
   ctx.restore();
   drawMinimap(ctx, map, level, hero, enemies, chestDrops, openedChests, explored, mobileControls);
   const boss = enemies.find((enemy) => enemy.kind === 'boss');
   if (boss) {
+    ctx.save(); ctx.translate(0, 44);
     ctx.fillStyle = '#251914'; ctx.fillRect(151, 6, 338, 31); ctx.fillStyle = '#6c482b'; ctx.fillRect(156, 9, 328, 25); ctx.fillStyle = '#171012'; ctx.fillRect(162, 12, 316, 19);
     ctx.fillStyle = '#87939a'; ctx.beginPath(); ctx.moveTo(151, 7); ctx.lineTo(139, 1); ctx.lineTo(146, 17); ctx.fill(); ctx.beginPath(); ctx.moveTo(489, 7); ctx.lineTo(501, 1); ctx.lineTo(494, 17); ctx.fill();
     ctx.fillStyle = '#69ad68'; ctx.beginPath(); ctx.moveTo(157, 12); ctx.lineTo(128, 6); ctx.lineTo(153, 25); ctx.fill(); ctx.beginPath(); ctx.moveTo(483, 12); ctx.lineTo(512, 6); ctx.lineTo(487, 25); ctx.fill();
     ctx.fillStyle = '#e8e4bd'; ctx.beginPath(); ctx.moveTo(166, 24); ctx.lineTo(174, 37); ctx.lineTo(180, 23); ctx.fill(); ctx.beginPath(); ctx.moveTo(460, 23); ctx.lineTo(466, 37); ctx.lineTo(474, 24); ctx.fill();
     ctx.fillStyle = '#d7bd63'; ctx.fillRect(146, 17, 9, 9); ctx.fillRect(485, 17, 9, 9);
-    ctx.fillStyle = '#f0d7b0'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center'; ctx.fillText('ВЕЛИКИЙ ГОБЛИН', 320, 20); ctx.textAlign = 'start';
+    ctx.fillStyle = '#f0d7b0'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center'; ctx.fillText(level === 24 ? 'КОРОЛЬ ЖАБ' : 'ВЕЛИКИЙ ГОБЛИН', 320, 20); ctx.textAlign = 'start';
     ctx.fillStyle = '#35191d'; ctx.fillRect(170, 24, 300, 7); ctx.fillStyle = '#ef3949'; ctx.fillRect(170, 24, 300 * Math.max(0, boss.hp / boss.maxHp), 7);
     ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(172, 25, 296 * Math.max(0, boss.hp / boss.maxHp), 2);
     if (level === 12) {
@@ -661,6 +665,8 @@ function drawScene(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLeve
       ctx.fillStyle = '#66d6c4'; ctx.fillRect(159,16,6,4); ctx.fillRect(475,16,6,4);
       ctx.fillStyle = '#fff0c2'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center'; ctx.fillText(boss.revived ? 'ВЛАДЫКА ГРОБНИЦ · ВОЗРОЖДЁННЫЙ' : 'ВЛАДЫКА ГРОБНИЦ', 320, 20); ctx.textAlign = 'start';
     }
+    if(level===24){const ratio=Math.max(0,boss.hp/boss.maxHp);ctx.fillStyle='#172316';ctx.fillRect(140,3,360,37);ctx.fillStyle='#405b32';ctx.fillRect(146,7,348,29);ctx.fillStyle='#81934b';ctx.fillRect(152,11,336,21);ctx.fillStyle='#26351f';ctx.fillRect(163,23,314,9);ctx.fillStyle='#702f3d';ctx.fillRect(167,25,306,6);ctx.fillStyle='#b9d45e';ctx.fillRect(167,25,306*ratio,6);ctx.fillStyle='#e2ef91';ctx.fillRect(169,26,302*ratio,2);ctx.fillStyle='#d8e997';ctx.fillRect(151,8,20,15);ctx.fillRect(469,8,20,15);ctx.fillStyle='#172116';ctx.fillRect(158,13,7,8);ctx.fillRect(475,13,7,8);ctx.fillStyle='#f1c54e';ctx.beginPath();ctx.moveTo(291,10);ctx.lineTo(296,0);ctx.lineTo(306,8);ctx.lineTo(320,-2);ctx.lineTo(334,8);ctx.lineTo(344,0);ctx.lineTo(349,10);ctx.closePath();ctx.fill();ctx.fillStyle='#eef2b0';ctx.font='bold 9px monospace';ctx.textAlign='center';ctx.fillText('КОРОЛЬ ЖАБ',320,20);ctx.textAlign='start';}
+    ctx.restore();
   }
   if (!mobileControls) { ctx.save(); ctx.translate(0, -58);
   ctx.fillStyle = superReloading ? 'rgba(18,18,18,.88)' : 'rgba(78,45,25,.9)'; ctx.beginPath(); ctx.arc(588, 348, 38, 0, Math.PI * 2); ctx.fill();
@@ -1001,7 +1007,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
         }
         const sees = (target: Point) => { const from = { x: e.x + 14, y: e.y + 14 }, to = { x: target.x + 12, y: target.y + 14 }; return !solidHitboxes.some((wall) => segmentHitsRect(from, to, wall)) && !map.carts.some((cart) => segmentHitsRect(from, to, { x: cart.x - 5, y: cart.y, w: 50, h: 36 })); };
         e.flash--; const huntsThroughObstacles=e.kind==='mudMonster'; const distance1 = health > 0 && (huntsThroughObstacles || sees(p)) ? Math.hypot(p.x - e.x, p.y - e.y) : Infinity; const distance2 = players === 2 && health2 > 0 && (huntsThroughObstacles || sees(p2)) ? Math.hypot(p2.x - e.x, p2.y - e.y) : Infinity; const targetsSecond = distance2 < distance1; const targetHero = targetsSecond ? p2 : p; const ex = targetHero.x - e.x, ey = targetHero.y - e.y, distance = Math.min(distance1, distance2);
-        if (e.kind === 'boss' && now >= (e.nextContactAt ?? 0)) { const firstTouches = health > 0 && bossBodyHits({ x: p.x + 12, y: p.y + 14 }, e, 12); const secondTouches = players === 2 && health2 > 0 && bossBodyHits({ x: p2.x + 12, y: p2.y + 14 }, e, 12); if (firstTouches || secondTouches) { damageHero(.5, 'Касание туловища босса обжигает героя!', !firstTouches && secondTouches); e.nextContactAt = now + 700; } }
+        if (e.kind === 'boss' && level !== 24 && now >= (e.nextContactAt ?? 0)) { const firstTouches = health > 0 && bossBodyHits({ x: p.x + 12, y: p.y + 14 }, e, 12); const secondTouches = players === 2 && health2 > 0 && bossBodyHits({ x: p2.x + 12, y: p2.y + 14 }, e, 12); if (firstTouches || secondTouches) { damageHero(.5, 'Касание туловища босса обжигает героя!', !firstTouches && secondTouches); e.nextContactAt = now + 700; } }
         if (e.stunnedUntil > now) return;
         if (e.kind === 'iceGolem' && distance <= 128 && now >= (e.nextShotAt ?? 0)) { const length = Math.max(1, distance); sandTornadoes.current.push({ x: e.x, y: e.y, vx: ex / length * 4.2, vy: ey / length * 4.2, damage: e.power, until: now + 3200, style: 'ice' }); e.nextShotAt = now + 1400; e.attackUntil = now + 320; }
         if (e.kind === 'frog' && distance <= 96) {
@@ -1037,6 +1043,13 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
             setMessage('Голем топает! С неба падают большие сосульки — после удара они расколются!');
           }
           return;
+        }
+        if (level === 24 && e.kind === 'boss') {
+          if ((e.swallowUntil??0)>now && e.swallowedPlayer) { const victim=e.swallowedPlayer===2?p2:p;victim.x=e.x-1;victim.y=e.y-42;e.attackUntil=now+120;return; }
+          if (e.swallowedPlayer && !e.swallowDamageDone) { const second=e.swallowedPlayer===2,victim=second?p2:p,length=Math.max(1,Math.hypot(victim.x-e.x,victim.y-e.y));damageHero(3,'Король жаб прожевал героя 3 секунды и выплюнул его!',second);victim.x=Math.max(34,Math.min(map.worldWidth-60,e.x+(victim.x-e.x)/length*115));victim.y=Math.max(34,Math.min(map.worldHeight-64,e.y+(victim.y-e.y)/length*115));e.swallowDamageDone=true;e.swallowedPlayer=undefined;e.swallowUntil=0;e.nextShotAt=now+1800; }
+          if (e.leapStarted>0) { if(now<e.leapUntil)return;e.x=e.leapTargetX;e.y=e.leapTargetY;e.leapStarted=0;e.leapUntil=0;e.nextLeapAt=now+3100;const hitSecond=players===2&&health2>0&&Math.hypot(p2.x+12-e.x,p2.y+14-e.y)<=82;if(health>0&&Math.hypot(p.x+12-e.x,p.y+14-e.y)<=82||hitSecond)damageHero(2,'Король жаб обрушился сверху и нанёс 2 HP!',!((health>0&&Math.hypot(p.x+12-e.x,p.y+14-e.y)<=82))&&hitSecond);return; }
+          if(distance>192){if(e.hp<=e.maxHp/2&&now>=(e.nextSummonAt??0)){e.nextSummonAt=now+2600;const minion=createEnemies({...map,enemies:[{x:targetHero.x,y:targetHero.y,kind:'frog'}]},1)[0];minion.hp=1;minion.maxHp=1;minion.power=1;minion.leapUntil=now+500;minion.nextLeapAt=now+650;enemies.current.push(minion);damageHero(1,'Маленькая жаба упала прямо на героя!',targetsSecond);setMessage('Король жаб выплюнул маленькую жабу!');}if(now>=e.nextLeapAt){e.leapStarted=now;e.leapUntil=now+1250;e.leapTargetX=targetHero.x;e.leapTargetY=targetHero.y;e.attackUntil=now+500;}return;}
+          if(now>=(e.nextShotAt??0)){const tongueX=targetHero.x+12-e.x,tongueY=targetHero.y+14-(e.y-55),length=Math.max(1,Math.hypot(tongueX,tongueY));sandTornadoes.current.push({x:e.x,y:e.y-55,vx:0,vy:0,damage:3,startedAt:now,until:now+1250,style:'frogTongue',source:e,tongueDx:tongueX/length,tongueDy:tongueY/length,tongueLength:Math.min(192,length+18)});e.nextShotAt=now+2300;e.attackUntil=now+1250;e.swallowDamageDone=false;}return;
         }
         if (e.kind === 'boss' && e.leapStarted > 0) {
           if (now < e.leapUntil) return;
@@ -1080,7 +1093,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
       const newIceShards: SandTornado[] = [];
       sandTornadoes.current = sandTornadoes.current.filter((tornado) => {
         tornado.x += tornado.vx * dt; tornado.y += tornado.vy * dt;
-        if (tornado.style === 'frogTongue') { const started=tornado.startedAt??now,total=Math.max(1,tornado.until-started),progress=Math.max(0,Math.min(1,(now-started)/total));const reach=progress<.45?progress/.45:progress<.65?1:(1-progress)/.35;const source=tornado.source;if(source){tornado.x=source.x+14+(tornado.tongueDx??1)*(tornado.tongueLength??96)*Math.max(0,reach);tornado.y=source.y+14+(tornado.tongueDy??0)*(tornado.tongueLength??96)*Math.max(0,reach);}}
+        if (tornado.style === 'frogTongue') { const started=tornado.startedAt??now,total=Math.max(1,tornado.until-started),progress=Math.max(0,Math.min(1,(now-started)/total));const reach=progress<.45?progress/.45:progress<.65?1:(1-progress)/.35;const source=tornado.source;if(source){tornado.x=source.x+(source.kind==='boss'?0:14)+(tornado.tongueDx??1)*(tornado.tongueLength??96)*Math.max(0,reach);tornado.y=source.y+(source.kind==='boss'?-55:14)+(tornado.tongueDy??0)*(tornado.tongueLength??96)*Math.max(0,reach);}}
         const waitingToFall = Boolean(tornado.impactAt && now < tornado.impactAt);
         if (!waitingToFall && tornado.style === 'iceLarge' && tornado.split) {
           tornado.split = false;
@@ -1091,6 +1104,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
         const hitSecond = !waitingToFall && players === 2 && health2 > 0 && !tornado.hitPlayer2 && Math.hypot(p2.x + 12 - tornado.x, p2.y + 14 - tornado.y) < radius;
         if (hitFirst || hitSecond) {
           const iceShot = tornado.style?.startsWith('ice');
+          if(tornado.style==='frogTongue'&&level===24&&tornado.source?.kind==='boss'){tornado.source.swallowedPlayer=hitFirst?1:2;tornado.source.swallowUntil=now+3000;tornado.source.swallowDamageDone=false;setMessage('Король жаб притянул героя языком и проглотил его на 3 секунды!');return false;}
           if (tornado.style === 'ice') { if (hitFirst) slowedUntil.current = now + 3000; else slowedUntil2.current = now + 3000; }
           damageHero(tornado.damage, tornado.style === 'frogTongue' ? `Язык жабы нанёс ${tornado.damage} HP урона!` : iceShot ? `Сосулька нанесла ${tornado.damage} HP урона!` : 'Песчаный торнадо настиг героя!', !hitFirst && hitSecond);
           const mummyBoss = !iceShot ? enemies.current.find((enemy) => level === 12 && enemy.kind === 'boss' && enemy.hp > 0) : undefined;

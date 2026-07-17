@@ -49,9 +49,10 @@ function isInRouteSafeLane(x: number, y: number, clearance = 34) {
 const WIDTH = 640;
 const HEIGHT = 400;
 const BOSS_HITBOX_RADIUS = 55;
-function enemyHitRadius(enemy: Enemy) { return enemy.kind === 'boss' ? BOSS_HITBOX_RADIUS : enemy.kind === 'goblin' || enemy.kind === 'mummy' || enemy.kind === 'iceGolem' ? 18 : 14; }
+function enemyHitRadius(enemy: Enemy) { return enemy.kind === 'boss' ? BOSS_HITBOX_RADIUS : enemy.kind === 'goblin' || enemy.kind === 'mummy' || enemy.kind === 'iceGolem' || enemy.kind === 'mudMonster' ? 18 : 14; }
 function bossBodyHits(point: Point, enemy: Enemy, extraRadius = 0) { const dx = point.x - enemy.x; return Math.abs(dx) <= 52 + extraRadius && point.y >= enemy.y - 92 - extraRadius && point.y <= enemy.y - 24 + extraRadius; }
 function pointHitsEnemy(point: Point, enemy: Enemy, extraRadius = 0) {
+  if (enemy.kind === 'mudPile') return false;
   const dx = point.x - enemy.x, y = point.y;
   if (enemy.kind === 'boss') {
     const limbPadding = 3.2;
@@ -64,6 +65,7 @@ function pointHitsEnemy(point: Point, enemy: Enemy, extraRadius = 0) {
   return Math.hypot(dx, enemy.y - y) <= enemyHitRadius(enemy) + extraRadius;
 }
 function meleeHitsEnemy(origin: Point, facing: Point, reach: number, enemy: Enemy) {
+  if (enemy.kind === 'mudPile') return false;
   if (enemy.kind !== 'boss') { const dx = enemy.x - origin.x, dy = enemy.y - origin.y, distance = Math.max(1, Math.hypot(dx, dy)); return distance <= reach + enemyHitRadius(enemy) && (dx * facing.x + dy * facing.y) / distance > .2; }
   const rectangles = [
     { x: enemy.x - 48.2, y: enemy.y - 178.2, w: 96.4, h: 93.4 },
@@ -335,6 +337,15 @@ function drawFrog(ctx: CanvasRenderingContext2D, e: Enemy, now: number, attackin
   ctx.restore();
 }
 
+function drawMudCreature(ctx: CanvasRenderingContext2D, e: Enemy, now: number, attacking: boolean) {
+  if (e.kind === 'mudPile') { ctx.fillStyle='rgba(26,18,11,.35)';ctx.fillRect(14,96,100,13);ctx.fillStyle='#3b2a20';ctx.fillRect(20,82,88,22);ctx.fillStyle='#60452f';ctx.fillRect(31,68,62,29);ctx.fillStyle='#80603d';ctx.fillRect(43,61,35,13);ctx.fillStyle='#a1814d';ctx.fillRect(37,76,17,6);ctx.fillRect(73,88,22,5);ctx.fillStyle='#29351d';ctx.fillRect(25,75,9,7);ctx.fillRect(89,67,8,8);return; }
+  const stomp=Math.sin(now/95+e.x*.03)*5;ctx.fillStyle='rgba(25,17,10,.34)';ctx.beginPath();ctx.ellipse(64,111,45,10,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle=e.flash>0?'#fff':'#60452f';ctx.fillRect(31,45,66,57);ctx.fillRect(40,31,48,35);ctx.fillStyle='#80603d';ctx.fillRect(39,51,49,15);ctx.fillRect(46,35,23,10);
+  ctx.fillStyle='#c7b05f';ctx.fillRect(45,52,11,9);ctx.fillRect(74,52,11,9);ctx.fillStyle='#211912';ctx.fillRect(50,55,5,6);ctx.fillRect(75,55,5,6);ctx.fillStyle='#34231d';ctx.fillRect(52,76,28,7);
+  ctx.fillStyle='#4a3427';ctx.fillRect(18,62+stomp,18,38);ctx.fillRect(94,62-stomp,18,38);ctx.fillRect(35,96+stomp,23,14);ctx.fillRect(73,96-stomp,23,14);ctx.fillStyle='#87934b';ctx.fillRect(23,70+stomp,9,8);ctx.fillRect(83,39,9,7);
+  if(attacking){ctx.fillStyle='#a27b48';ctx.fillRect(104,68,24,15);ctx.fillStyle='#d0af63';ctx.fillRect(116,71,10,7);}
+}
+
 function getPlantHitboxes(map: ReturnType<typeof getLevel>) {
   const hitboxes: { x: number; y: number; w: number; h: number }[] = [];
   const addPlant = (x: number, y: number) => hitboxes.push({ x: x + 4, y: y + 2, w: 56, h: 58 });
@@ -408,9 +419,9 @@ export function BestiaryMonster({ id, hidden = false }: { id: string; hidden?: b
 function createEnemies(map: ReturnType<typeof getLevel>, multiplier = 1, oneHitBoss = false): Enemy[] {
   const spawns = map.round ? map.enemies : multiplier === .5 ? map.enemies.filter((_, index) => index % 2 === 0) : multiplier === 2 ? map.enemies.flatMap((enemy) => [enemy, { ...enemy, x: enemy.x + 4, y: enemy.y + 4 }]) : map.enemies;
   return spawns.map((enemy) => {
-    const hp = enemy.kind === 'boss' ? oneHitBoss ? 1 : map.enemy.hp * 5 : enemy.kind === 'frog' ? 4 : enemy.kind === 'iceSpirit' ? 3 : enemy.kind === 'goblin' || enemy.kind === 'mummy' ? map.enemy.hp * 1.5 : enemy.kind === 'iceGolem' ? map.enemy.hp * .75 : map.enemy.hp;
+    const hp = enemy.kind === 'boss' ? oneHitBoss ? 1 : map.enemy.hp * 5 : enemy.kind === 'mudPile' ? 9999 : enemy.kind === 'mudMonster' ? 1 : enemy.kind === 'frog' ? 4 : enemy.kind === 'iceSpirit' ? 3 : enemy.kind === 'goblin' || enemy.kind === 'mummy' ? map.enemy.hp * 1.5 : enemy.kind === 'iceGolem' ? map.enemy.hp * .75 : map.enemy.hp;
     const speed = enemy.kind === 'boss' ? map.enemy.speed * .65 : enemy.kind === 'goblin' || enemy.kind === 'iceGolem' ? map.enemy.speed * 1.25 : enemy.kind === 'mummy' ? map.enemy.speed * .8 : map.enemy.speed;
-    return { ...enemy, ...map.enemy, color: enemy.kind === 'slime' ? map.enemy.color : enemy.kind === 'frog' ? '#58a94f' : enemy.kind === 'iceSpirit' ? '#71d5f2' : enemy.kind === 'mummy' ? '#d8c79a' : enemy.kind === 'scorpion' ? '#a95d2e' : enemy.kind === 'iceGolem' ? '#6bc8e8' : '#69ad68', hp, maxHp: hp, power: enemy.kind === 'boss' ? 2 : enemy.kind === 'iceSpirit' ? 1 : enemy.kind === 'mummy' ? Math.max(.5, map.enemy.power / 2) : enemy.kind === 'iceGolem' ? 1.3 : map.enemy.power, speed, flash: 0, attackUntil: 0, stunnedUntil: 0, leapStarted: 0, leapUntil: 0, leapTargetX: 0, leapTargetY: 0, nextLeapAt: 0, nextShotAt: 0, nextSummonAt: 0, nextContactAt: 0, playerWasInSummonRadius: false, revived: false, reviveFlashUntil: 0 };
+    return { ...enemy, ...map.enemy, color: enemy.kind === 'slime' ? map.enemy.color : enemy.kind === 'frog' ? '#58a94f' : enemy.kind === 'mudPile' || enemy.kind === 'mudMonster' ? '#60452f' : enemy.kind === 'iceSpirit' ? '#71d5f2' : enemy.kind === 'mummy' ? '#d8c79a' : enemy.kind === 'scorpion' ? '#a95d2e' : enemy.kind === 'iceGolem' ? '#6bc8e8' : '#69ad68', hp, maxHp: hp, power: enemy.kind === 'mudPile' || enemy.kind === 'mudMonster' ? 5 : enemy.kind === 'boss' ? 2 : enemy.kind === 'iceSpirit' ? 1 : enemy.kind === 'mummy' ? Math.max(.5, map.enemy.power / 2) : enemy.kind === 'iceGolem' ? 1.3 : map.enemy.power, speed, flash: 0, attackUntil: 0, stunnedUntil: 0, leapStarted: 0, leapUntil: 0, leapTargetX: 0, leapTargetY: 0, nextLeapAt: 0, nextShotAt: 0, nextSummonAt: 0, nextContactAt: 0, playerWasInSummonRadius: false, revived: false, reviveFlashUntil: 0 };
   });
 }
 
@@ -589,13 +600,14 @@ function drawScene(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLeve
       ctx.strokeStyle = 'rgba(255,220,170,.75)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-12, 0); ctx.lineTo(12, 0); ctx.moveTo(0, -12); ctx.lineTo(0, 12); ctx.stroke(); ctx.restore();
       return;
     }
-    if (!boss) { ctx.fillStyle = '#171918'; ctx.fillRect(e.x + 1, e.y - 14, 26, 4); ctx.fillStyle = '#54292d'; ctx.fillRect(e.x + 3, e.y - 12, 22, 2); ctx.fillStyle = '#67d06f'; ctx.fillRect(e.x + 3, e.y - 12, 22 * Math.max(0, e.hp / e.maxHp), 2); }
+    if (!boss && e.kind !== 'mudPile') { ctx.fillStyle = '#171918'; ctx.fillRect(e.x + 1, e.y - 14, 26, 4); ctx.fillStyle = '#54292d'; ctx.fillRect(e.x + 3, e.y - 12, 22, 2); ctx.fillStyle = '#67d06f'; ctx.fillRect(e.x + 3, e.y - 12, 22 * Math.max(0, e.hp / e.maxHp), 2); }
     ctx.save();
     if (boss) { ctx.translate(e.x - 122 + (hero.x - e.x) / distance * force, e.y - 213 + (hero.y - e.y) / distance * force); ctx.scale(1.9, 1.9); }
-    else { ctx.translate(e.x + 1 + (hero.x - e.x) / distance * force, e.y - 5 + (hero.y - e.y) / distance * force); ctx.scale(e.kind === 'goblin' || e.kind === 'mummy' || e.kind === 'iceGolem' || e.kind === 'iceSpirit' || e.kind === 'frog' ? .38 : e.kind === 'scorpion' ? .28 : .21, e.kind === 'goblin' || e.kind === 'mummy' || e.kind === 'iceGolem' || e.kind === 'iceSpirit' || e.kind === 'frog' ? .38 : e.kind === 'scorpion' ? .28 : .21); }
+    else { ctx.translate(e.x + 1 + (hero.x - e.x) / distance * force, e.y - 5 + (hero.y - e.y) / distance * force); ctx.scale(e.kind === 'goblin' || e.kind === 'mummy' || e.kind === 'iceGolem' || e.kind === 'iceSpirit' || e.kind === 'frog' || e.kind === 'mudPile' || e.kind === 'mudMonster' ? .38 : e.kind === 'scorpion' ? .28 : .21, e.kind === 'goblin' || e.kind === 'mummy' || e.kind === 'iceGolem' || e.kind === 'iceSpirit' || e.kind === 'frog' || e.kind === 'mudPile' || e.kind === 'mudMonster' ? .38 : e.kind === 'scorpion' ? .28 : .21); }
     if (e.kind === 'iceGolem') { drawIceGolem(ctx, e, now, attacking); ctx.restore(); if (e.stunnedUntil > now) { ctx.fillStyle = '#eaffff'; ctx.font = 'bold 14px monospace'; ctx.fillText('★ ★ ★', e.x - 7, e.y - 22); } return; }
     if (e.kind === 'iceSpirit') { drawIceSpirit(ctx, e, now, attacking); ctx.restore(); if (e.stunnedUntil > now) { ctx.fillStyle = '#eaffff'; ctx.font = 'bold 14px monospace'; ctx.fillText('★ ★ ★', e.x - 7, e.y - 22); } return; }
     if (e.kind === 'frog') { drawFrog(ctx, e, now, attacking); ctx.restore(); if (e.stunnedUntil > now) { ctx.fillStyle = '#d9ff88'; ctx.font = 'bold 14px monospace'; ctx.fillText('★ ★ ★', e.x - 7, e.y - 22); } return; }
+    if (e.kind === 'mudPile' || e.kind === 'mudMonster') { drawMudCreature(ctx, e, now, attacking); ctx.restore(); if (e.kind === 'mudMonster' && e.stunnedUntil > now) { ctx.fillStyle = '#d8c76b'; ctx.font = 'bold 14px monospace'; ctx.fillText('★ ★ ★', e.x - 7, e.y - 22); } return; }
     if (e.kind === 'scorpion') { drawScorpion(ctx, e, now, attacking); ctx.restore(); if (e.stunnedUntil > now) { ctx.fillStyle = '#ffe56b'; ctx.font = 'bold 14px monospace'; ctx.fillText('★ ★ ★', e.x - 7, e.y - 22); } return; }
     if (e.kind === 'mummy') { drawMummy(ctx, e, now, attacking); ctx.restore(); if (e.stunnedUntil > now) { ctx.fillStyle = '#ffe56b'; ctx.font = 'bold 14px monospace'; ctx.fillText('★ ★ ★', e.x - 7, e.y - 22); } return; }
     if (e.kind === 'goblin' || boss) { if (boss && level === 12) drawMummyBoss(ctx, e, now); else if (boss && level === 18) drawIceGolem(ctx, e, now, attacking); else drawGoblin(ctx, e, now, attacking || (boss && e.leapStarted > 0)); ctx.restore(); if (e.stunnedUntil > now) { ctx.fillStyle = level === 18 ? '#dffcff' : '#ffe56b'; ctx.font = `bold ${boss ? 22 : 14}px monospace`; ctx.fillText('★ ★ ★', e.x - (boss ? 42 : 7), e.y - (boss ? 235 : 22) + Math.sin(now / 90) * 3); } return; }
@@ -667,7 +679,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
   const startingLevel = stageInRegion === 4 || stageInRegion === 5 ? requestedLevel + (6 - stageInRegion) : requestedLevel;
   const savedMapIsRemoved = Boolean(initialSave && startingLevel !== initialSave.level);
   const loadedFirstMap = !savedMapIsRemoved && initialSave?.map ? initialSave.map : effectiveTutorial ? getTutorialLevel() : getLevel(startingLevel);
-  const firstMap = startingLevel >= 19 && startingLevel <= 24 ? { ...loadedFirstMap, enemies: loadedFirstMap.enemies.map((enemy) => enemy.kind === 'slime' ? { ...enemy, kind: 'frog' as const } : enemy) } : loadedFirstMap;
+  const firstMap = startingLevel >= 19 && startingLevel <= 24 ? { ...loadedFirstMap, enemies: loadedFirstMap.enemies.map((enemy) => enemy.kind === 'slime' ? { ...enemy, kind: 'frog' as const } : enemy.kind === 'goblin' ? { ...enemy, kind: 'mudPile' as const } : enemy) } : loadedFirstMap;
   const startingPoint = !savedMapIsRemoved && initialSave?.hero ? initialSave.hero : effectiveTutorial ? { x: 75, y: 320 } : firstMap.round ? { x: 35, y: 322 } : getRouteStart();
   const currentMap = useRef(firstMap);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -675,7 +687,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
   const facing = useRef<Point>({ x: 1, y: 0 });
   const hero2 = useRef<Point>(!savedMapIsRemoved && initialSave?.hero2 ? initialSave.hero2 : firstMap.round ? { x: 65, y: 322 } : { ...startingPoint, y: startingPoint.y + 32 });
   const facing2 = useRef<Point>({ x: 1, y: 0 });
-  const enemies = useRef<Enemy[]>(!savedMapIsRemoved && initialSave?.enemies ? initialSave.enemies.map((enemy) => startingLevel >= 19 && startingLevel <= 24 && enemy.kind === 'slime' ? { ...enemy, kind: 'frog', hp: 4, maxHp: 4, color: '#58a94f', nextShotAt: 0, nextLeapAt: 0 } : enemy) : createEnemies(firstMap, enemyMultiplier, oneHitBoss));
+  const enemies = useRef<Enemy[]>(!savedMapIsRemoved && initialSave?.enemies ? initialSave.enemies.map((enemy) => startingLevel >= 19 && startingLevel <= 24 && enemy.kind === 'slime' ? { ...enemy, kind: 'frog', hp: 4, maxHp: 4, color: '#58a94f', nextShotAt: 0, nextLeapAt: 0 } : startingLevel >= 19 && startingLevel <= 24 && enemy.kind === 'goblin' ? { ...enemy, kind: 'mudPile', hp: 9999, maxHp: 9999, power: 5, color: '#60452f' } : enemy) : createEnemies(firstMap, enemyMultiplier, oneHitBoss));
   const keys = useRef(new Set<string>());
   const mobileMove = useRef<Point>({ x: 0, y: 0 });
   const projectiles = useRef<Projectile[]>([]);
@@ -977,6 +989,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
         else setHealth((current) => { const next = Math.max(0, current - amount); if (current > 0 && next === 0) { if (players === 1 || health2 <= 0) { setDead(true); keys.current.clear(); setMessage('Тьма поглотила героя…'); } else showTeammateFallen(); } else if (hitMessage) setMessage(`${hitMessage} Получено ${amount} урона.`); return next; });
       };
       enemies.current.forEach((e) => {
+        if (e.kind === 'mudPile') { const nearFirst=health>0&&Math.hypot(p.x-e.x,p.y-e.y)<=96,nearSecond=players===2&&health2>0&&Math.hypot(p2.x-e.x,p2.y-e.y)<=96;if(!nearFirst&&!nearSecond)return;e.kind='mudMonster';e.hp=1;e.maxHp=1;e.power=5;e.flash=10;e.stunnedUntil=now+380;setMessage('Грязевая куча ожила — из болота поднялся монстр!'); }
         const sees = (target: Point) => { const from = { x: e.x + 14, y: e.y + 14 }, to = { x: target.x + 12, y: target.y + 14 }; return !solidHitboxes.some((wall) => segmentHitsRect(from, to, wall)) && !map.carts.some((cart) => segmentHitsRect(from, to, { x: cart.x - 5, y: cart.y, w: 50, h: 36 })); };
         e.flash--; const distance1 = health > 0 && sees(p) ? Math.hypot(p.x - e.x, p.y - e.y) : Infinity; const distance2 = players === 2 && health2 > 0 && sees(p2) ? Math.hypot(p2.x - e.x, p2.y - e.y) : Infinity; const targetsSecond = distance2 < distance1; const targetHero = targetsSecond ? p2 : p; const ex = targetHero.x - e.x, ey = targetHero.y - e.y, distance = Math.min(distance1, distance2);
         if (e.kind === 'boss' && now >= (e.nextContactAt ?? 0)) { const firstTouches = health > 0 && bossBodyHits({ x: p.x + 12, y: p.y + 14 }, e, 12); const secondTouches = players === 2 && health2 > 0 && bossBodyHits({ x: p2.x + 12, y: p2.y + 14 }, e, 12); if (firstTouches || secondTouches) { damageHero(.5, 'Касание туловища босса обжигает героя!', !firstTouches && secondTouches); e.nextContactAt = now + 700; } }

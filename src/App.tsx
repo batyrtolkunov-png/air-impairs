@@ -480,10 +480,11 @@ export default function App() {
     count: 1 | 2,
     save: GameSave | null = null,
     startTutorial = false,
+    startLevel: number | null = null,
   ) => {
     startMusic();
     setInitialSave(save);
-    setStartingLevelOverride(null);
+    setStartingLevelOverride(startLevel);
     setStartingCoins(0);
     setOneHitBoss(false);
     setTutorial(!save && startTutorial);
@@ -517,7 +518,7 @@ export default function App() {
       setPlayerClasses([choices[0], choices[1] ?? choices[0]]);
       const count = classPlayers;
       setClassPlayers(null);
-      beginGame(count, null, true);
+      beginGame(count, null, false, 19);
     } else setClassChoice(choices);
   };
   const chooseSaveSlot = (index: number) => {

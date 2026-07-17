@@ -983,7 +983,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
         if (e.stunnedUntil > now) return;
         if (e.kind === 'iceGolem' && distance <= 128 && now >= (e.nextShotAt ?? 0)) { const length = Math.max(1, distance); sandTornadoes.current.push({ x: e.x, y: e.y, vx: ex / length * 4.2, vy: ey / length * 4.2, damage: e.power, until: now + 3200, style: 'ice' }); e.nextShotAt = now + 1400; e.attackUntil = now + 320; }
         if (e.kind === 'frog' && distance <= 96) {
-          if (now >= (e.nextShotAt ?? 0)) { const length = Math.max(1, distance); sandTornadoes.current.push({ x: e.x + 14, y: e.y + 14, vx: 0, vy: 0, damage: e.power, startedAt: now, until: now + 760, style: 'frogTongue', source: e, tongueDx: ex / length, tongueDy: ey / length, tongueLength: Math.min(96, length + 12) }); e.nextShotAt = now + 1450; e.attackUntil = now + 760; }
+          if (now >= (e.nextShotAt ?? 0)) { const length = Math.max(1, distance); sandTornadoes.current.push({ x: e.x + 14, y: e.y + 14, vx: 0, vy: 0, damage: e.power, startedAt: now, until: now + 1250, style: 'frogTongue', source: e, tongueDx: ex / length, tongueDy: ey / length, tongueLength: Math.min(96, length + 12) }); e.nextShotAt = now + 2050; e.attackUntil = now + 1250; }
           return;
         }
         if (level === 12 && e.kind === 'boss') {

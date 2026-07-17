@@ -187,6 +187,14 @@ function drawIceSpire(ctx: CanvasRenderingContext2D, x: number, y: number, tint:
   ctx.fillStyle = '#5eadd5'; ctx.fillRect(x + 12, y + 52, 44, 5); ctx.fillStyle = '#ffffff'; ctx.fillRect(x + 32, y + 12, 4, 11); ctx.fillRect(x + 49, y + 28, 3, 8);
 }
 
+function drawWaterBarrier(ctx: CanvasRenderingContext2D, x: number, y: number, tint: string) {
+  ctx.fillStyle = 'rgba(5,18,30,.38)'; ctx.fillRect(x + 3, y + 50, 58, 11);
+  ctx.fillStyle = '#173f58'; ctx.fillRect(x + 3, y + 9, 58, 48); ctx.fillStyle = tint; ctx.fillRect(x + 7, y + 13, 50, 40);
+  ctx.fillStyle = '#2f7892'; ctx.fillRect(x + 11, y + 17, 19, 6); ctx.fillRect(x + 35, y + 30, 18, 6); ctx.fillRect(x + 15, y + 43, 25, 5);
+  ctx.fillStyle = '#75c5d5'; ctx.fillRect(x + 14, y + 18, 12, 3); ctx.fillRect(x + 39, y + 31, 10, 3); ctx.fillRect(x + 19, y + 44, 15, 2);
+  ctx.fillStyle = '#102f47'; ctx.fillRect(x + 4, y + 6, 56, 7); ctx.fillRect(x + 4, y + 53, 56, 6); ctx.fillStyle = '#4f91a2'; ctx.fillRect(x + 8, y + 8, 17, 3); ctx.fillRect(x + 37, y + 55, 19, 2);
+}
+
 function drawCart(ctx: CanvasRenderingContext2D, x: number, y: number, color: string) { ctx.fillStyle = 'rgba(0,0,0,.32)'; ctx.fillRect(x - 3, y + 29, 46, 8); ctx.fillStyle = '#272423'; ctx.beginPath(); ctx.arc(x + 8, y + 29, 7, 0, Math.PI * 2); ctx.arc(x + 32, y + 29, 7, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#7c4b2c'; ctx.fillRect(x, y + 6, 40, 21); ctx.fillStyle = color; ctx.fillRect(x + 4, y + 9, 32, 13); ctx.fillStyle = '#b4884f'; ctx.fillRect(x - 3, y + 2, 46, 7); ctx.fillStyle = '#d7b66d'; ctx.fillRect(x + 5, y + 4, 5, 4); ctx.fillRect(x + 30, y + 4, 5, 4); }
 
 function drawMerchant(ctx: CanvasRenderingContext2D, x: number, y: number) {
@@ -512,15 +520,15 @@ function drawScene(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLeve
   if (!map.round) {
     const iceRegion = level >= 13 && level <= 18, mudRegion = level >= 19 && level <= 24; ctx.fillStyle = iceRegion ? 'rgba(35,94,119,.38)' : 'rgba(4,10,7,.78)'; ctx.fillRect(32, 32, map.worldWidth - 64, map.worldHeight - 64); ctx.strokeStyle = iceRegion ? '#477f9a' : mudRegion ? '#3d2a20' : '#17271d'; ctx.lineWidth = 158; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.beginPath(); ROUTE_POINTS.forEach((point, index) => { if (index === 0) ctx.moveTo(point.x, point.y); else ctx.lineTo(point.x, point.y); }); ctx.stroke(); ctx.strokeStyle = mudRegion ? '#765037' : map.floor[1]; ctx.lineWidth = 136; ctx.stroke();
     if (mudRegion) ROUTE_POINTS.slice(1).forEach((end, index) => { const start=ROUTE_POINTS[index],dx=end.x-start.x,dy=end.y-start.y,length=Math.hypot(dx,dy),nx=-dy/length,ny=dx/length;for(let distance=18;distance<length;distance+=34){const offset=Math.sin(distance*.17+index*2.4)*45,x=start.x+dx*distance/length+nx*offset,y=start.y+dy*distance/length+ny*offset;ctx.fillStyle=(Math.floor(distance/34)+index)%3===0?'#9a6c46':'#5d3e2e';ctx.fillRect(Math.round(x-5),Math.round(y-3),10,6);if(Math.floor(distance/34)%4===0){ctx.fillStyle='#35271f';ctx.fillRect(Math.round(x+12),Math.round(y-10),5,8);ctx.fillRect(Math.round(x+20),Math.round(y+2),5,8);}} });
-    const desert = level >= 7 && level <= 12, ice = level >= 13 && level <= 18; const borderPlant = desert ? drawCactus : ice ? drawIceSpire : drawTree;
-    ROUTE_POINTS.slice(1).forEach((end, index) => { const start = ROUTE_POINTS[index]; const dx = end.x - start.x, dy = end.y - start.y, length = Math.hypot(dx, dy), nx = -dy / length, ny = dx / length; for (let distance = 20; distance < length; distance += 52) { const px = start.x + dx * distance / length, py = start.y + dy * distance / length; borderPlant(ctx, px + nx * 88 - 30, py + ny * 88 - 30, desert ? '#4f8d43' : ice ? '#79ccef' : '#315f3c'); borderPlant(ctx, px - nx * 88 - 30, py - ny * 88 - 30, desert ? '#397a3c' : ice ? '#559fc8' : '#284f35'); } });
+    const desert = level >= 7 && level <= 12, ice = level >= 13 && level <= 18, water = level >= 19 && level <= 24; const borderPlant = desert ? drawCactus : ice ? drawIceSpire : water ? drawWaterBarrier : drawTree;
+    ROUTE_POINTS.slice(1).forEach((end, index) => { const start = ROUTE_POINTS[index]; const dx = end.x - start.x, dy = end.y - start.y, length = Math.hypot(dx, dy), nx = -dy / length, ny = dx / length; for (let distance = 20; distance < length; distance += 52) { const px = start.x + dx * distance / length, py = start.y + dy * distance / length; borderPlant(ctx, px + nx * 88 - 30, py + ny * 88 - 30, desert ? '#4f8d43' : ice ? '#79ccef' : water ? '#235f79' : '#315f3c'); borderPlant(ctx, px - nx * 88 - 30, py - ny * 88 - 30, desert ? '#397a3c' : ice ? '#559fc8' : water ? '#1d506d' : '#284f35'); } });
   }
   map.decorations.forEach((decoration) => drawDecoration(ctx, decoration.x, decoration.y, decoration.kind, decoration.variant, level >= 7 && level <= 12, level >= 13 && level <= 18));
   map.walls.forEach((wall) => {
-    const desert = level >= 7 && level <= 12, ice = level >= 13 && level <= 18; const wallPlant = desert ? drawCactus : ice ? drawIceSpire : drawTree;
-    ctx.fillStyle = desert ? '#624526' : ice ? '#315f79' : '#11271c'; ctx.fillRect(wall.x, wall.y, wall.w, wall.h);
-    if (wall.w >= wall.h) for (let x = wall.x - 12; x < wall.x + wall.w; x += 48) wallPlant(ctx, x, wall.y + wall.h / 2 - 34, desert ? '#4b8b42' : ice ? '#69bde3' : map.floor[2]);
-    else for (let y = wall.y - 18; y < wall.y + wall.h; y += 48) wallPlant(ctx, wall.x + wall.w / 2 - 32, y, desert ? '#4b8b42' : ice ? '#69bde3' : map.floor[2]);
+    const desert = level >= 7 && level <= 12, ice = level >= 13 && level <= 18, water = level >= 19 && level <= 24; const wallPlant = desert ? drawCactus : ice ? drawIceSpire : water ? drawWaterBarrier : drawTree;
+    ctx.fillStyle = desert ? '#624526' : ice ? '#315f79' : water ? '#153c55' : '#11271c'; ctx.fillRect(wall.x, wall.y, wall.w, wall.h);
+    if (wall.w >= wall.h) for (let x = wall.x - 12; x < wall.x + wall.w; x += 48) wallPlant(ctx, x, wall.y + wall.h / 2 - 34, desert ? '#4b8b42' : ice ? '#69bde3' : water ? '#286a82' : map.floor[2]);
+    else for (let y = wall.y - 18; y < wall.y + wall.h; y += 48) wallPlant(ctx, wall.x + wall.w / 2 - 32, y, desert ? '#4b8b42' : ice ? '#69bde3' : water ? '#286a82' : map.floor[2]);
   });
   map.chests.forEach((chest, index) => { const open = openedChests.includes(index); const drop = chestDrops[index]; if (!drop) return;
     ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(chest.x + 2, chest.y + 34, 50, 9);

@@ -582,9 +582,9 @@ function drawScene(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLeve
     ctx.fillStyle = '#e9fbff'; ctx.font = 'bold 8px monospace'; ctx.fillText('ПОРТАЛ К ЛЕДЯНОМУ БОССУ · E', 87, portalY - 48);
   }
   if (level === 19) {
-    const portalY=getRouteStart().y,pulse=1+Math.sin(now/190)*.08;ctx.save();ctx.translate(52,portalY);ctx.scale(pulse,pulse);
-    ctx.fillStyle='rgba(85,108,45,.3)';ctx.beginPath();ctx.ellipse(0,38,31,9,0,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#253d24';ctx.lineWidth=11;ctx.beginPath();ctx.arc(0,0,31,-Math.PI/2,Math.PI*1.5);ctx.stroke();ctx.strokeStyle='#81934b';ctx.lineWidth=6;ctx.stroke();ctx.fillStyle='rgba(111,132,60,.65)';ctx.beginPath();ctx.arc(0,0,22,0,Math.PI*2);ctx.fill();ctx.fillStyle='#c0c96d';ctx.fillRect(-4,-26,8,7);ctx.fillRect(18,-5,7,8);ctx.fillRect(-24,8,8,7);ctx.restore();
-    ctx.fillStyle='#d8df8a';ctx.font='bold 8px monospace';ctx.fillText('ПОРТАЛ К БОЛОТНОМУ БОССУ · E',87,portalY-48);
+    const portalY = getRouteStart().y - 46; ctx.fillStyle = '#81934b'; ctx.fillRect(32, portalY, 12, 92);
+    ctx.fillStyle = '#c0c96d'; ctx.fillRect(44, portalY + 12, 5, 68);
+    ctx.fillStyle = '#d8df8a'; ctx.font = '8px monospace'; ctx.fillText('ПОРТАЛ К БОЛОТНОМУ БОССУ · E', 51, portalY - 9);
   }
   if (level > 0 && level % 6 === 0 && !enemies.some((enemy) => enemy.kind === 'boss')) {
     const pulse = 1 + Math.sin(now / 170) * .08; ctx.save(); ctx.translate(320, 336); ctx.scale(pulse, pulse);

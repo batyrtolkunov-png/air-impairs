@@ -14,7 +14,7 @@ type StaffPulse = { started: number; damage: number };
 type StaffUltimate = Point & { owner: 1 | 2; dx: number; dy: number; started: number; until: number; nextPulseAt: number; pulseIndex: number; kills: number; color: string; name: string; pulses: StaffPulse[] };
 type GlovesUltimate = Point & { owner: 1 | 2; dx: number; dy: number; started: number; until: number; nextHitAt: number; hitIndex: number; damage: number; color: string; name: string; titanTargetX: number; titanTargetY: number; landed: boolean };
 type MagicWave = Point & { dx: number; dy: number; color: string; started: number; until: number };
-type SandTornado = Point & { vx: number; vy: number; damage: number; until: number; style?: 'sand' | 'ice' | 'iceRing' | 'iceSpiritDrop' | 'iceLarge' | 'iceShard'; impactAt?: number; split?: boolean };
+type SandTornado = Point & { vx: number; vy: number; damage: number; until: number; style?: 'sand' | 'ice' | 'iceRing' | 'iceSpiritDrop' | 'iceLarge' | 'iceShard' | 'frogTongue'; impactAt?: number; split?: boolean };
 type Tomb = Point & { spawnedAt: number; sinksAt: number };
 type HeroSkin = 'default' | 'knight' | 'ninja' | 'dune' | 'king' | 'wizard' | 'gentleman';
 type PlayerClass = 'knight' | 'mage' | 'archer' | 'boxer';
@@ -271,6 +271,7 @@ function drawTomb(ctx: CanvasRenderingContext2D, tomb: Tomb, now: number) {
 }
 
 function drawSandTornado(ctx: CanvasRenderingContext2D, tornado: SandTornado, now: number) {
+  if (tornado.style === 'frogTongue') { const angle=Math.atan2(tornado.vy,tornado.vx);ctx.save();ctx.translate(tornado.x,tornado.y);ctx.rotate(angle);ctx.fillStyle='#8f4057';ctx.fillRect(-15,-3,30,7);ctx.fillStyle='#ef8da3';ctx.fillRect(-12,-2,27,4);ctx.fillStyle='#ffd1d8';ctx.fillRect(8,-2,7,2);ctx.restore();return; }
   if (tornado.style === 'iceSpiritDrop') { const warning=now<(tornado.impactAt??0);ctx.save();ctx.translate(tornado.x,tornado.y);if(warning){ctx.fillStyle='rgba(91,215,255,.2)';ctx.beginPath();ctx.arc(0,0,16,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#8fe8ff';ctx.lineWidth=3;ctx.stroke();}else{ctx.fillStyle='#61c9ee';ctx.beginPath();ctx.moveTo(0,-34);ctx.lineTo(12,5);ctx.lineTo(0,18);ctx.lineTo(-12,5);ctx.closePath();ctx.fill();ctx.fillStyle='#efffff';ctx.beginPath();ctx.moveTo(-2,-27);ctx.lineTo(4,5);ctx.lineTo(-1,10);ctx.closePath();ctx.fill();}ctx.restore();return;}
   if (tornado.style === 'iceRing' || tornado.style === 'iceLarge') { const large = tornado.style === 'iceLarge'; const warning = now < (tornado.impactAt ?? 0); ctx.save(); ctx.translate(tornado.x,tornado.y); if (warning) { ctx.globalAlpha=.75;ctx.strokeStyle=large?'#dffaff':'#67dfff';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,large?22:10,0,Math.PI*2);ctx.stroke();ctx.fillStyle='rgba(83,207,255,.15)';ctx.fill(); } else { ctx.fillStyle='#62c9ee';ctx.beginPath();ctx.moveTo(0,large?-48:-25);ctx.lineTo(large?17:9,large?13:7);ctx.lineTo(0,large?24:13);ctx.lineTo(large?-17:-9,large?13:7);ctx.closePath();ctx.fill();ctx.fillStyle='#ecffff';ctx.beginPath();ctx.moveTo(-3,large?-39:-20);ctx.lineTo(4,large?8:4);ctx.lineTo(-2,large?13:7);ctx.closePath();ctx.fill(); } ctx.restore();return; }
   if (tornado.style === 'iceShard') { ctx.save();ctx.translate(tornado.x,tornado.y);ctx.rotate(Math.atan2(tornado.vy,tornado.vx)+Math.PI/2);ctx.fillStyle='#6dd5f4';ctx.beginPath();ctx.moveTo(0,-10);ctx.lineTo(5,6);ctx.lineTo(0,10);ctx.lineTo(-5,6);ctx.closePath();ctx.fill();ctx.fillStyle='#efffff';ctx.fillRect(-1,-6,2,9);ctx.restore();return; }
@@ -295,6 +296,22 @@ function drawIceSpirit(ctx: CanvasRenderingContext2D, e: Enemy, now: number, att
   const float=Math.sin(now/170+e.x*.02)*5,step=Math.sin(now/105+e.x*.03)*3;ctx.fillStyle='rgba(32,103,142,.28)';ctx.beginPath();ctx.ellipse(64,111,39,8,0,0,Math.PI*2);ctx.fill();ctx.save();ctx.translate(0,float);
   ctx.strokeStyle='#397d9e';ctx.lineWidth=11;ctx.lineCap='square';ctx.beginPath();ctx.moveTo(37,67);ctx.lineTo(18,82+step);ctx.moveTo(91,67);ctx.lineTo(110,82-step);ctx.moveTo(51,94);ctx.lineTo(43,111+step);ctx.moveTo(77,94);ctx.lineTo(85,111-step);ctx.stroke();
   ctx.fillStyle=e.flash>0?'#fff':'#71d5f2';ctx.beginPath();ctx.arc(64,61,39,0,Math.PI*2);ctx.fill();ctx.fillStyle='#a9ecfa';ctx.beginPath();ctx.arc(53,49,22,0,Math.PI*2);ctx.fill();ctx.fillStyle='#eaffff';ctx.fillRect(43,58,13,10);ctx.fillRect(72,58,13,10);ctx.fillStyle='#24506b';ctx.fillRect(49,61,6,7);ctx.fillRect(73,61,6,7);ctx.fillStyle='#397d9e';ctx.fillRect(54,79,21,6);ctx.fillStyle='rgba(255,255,255,.55)';ctx.fillRect(42,40,12,7);if(attacking){ctx.fillStyle='#efffff';ctx.fillRect(104,75,14,12);ctx.fillStyle='rgba(101,220,255,.35)';ctx.fillRect(99,70,24,22);}ctx.restore();
+}
+
+function drawFrog(ctx: CanvasRenderingContext2D, e: Enemy, now: number, attacking: boolean) {
+  const hopping = e.leapUntil > now;
+  const hopProgress = hopping ? Math.max(0, Math.min(1, 1 - (e.leapUntil - now) / 360)) : 0;
+  const lift = hopping ? Math.sin(hopProgress * Math.PI) * 28 : Math.sin(now / 210 + e.x * .02) * 2;
+  ctx.fillStyle = 'rgba(20,48,20,.34)'; ctx.beginPath(); ctx.ellipse(64, 110, hopping ? 32 : 47, hopping ? 6 : 10, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.save(); ctx.translate(0, -lift);
+  ctx.fillStyle = '#315f2c'; ctx.fillRect(19, 82, 31, 22); ctx.fillRect(79, 82, 31, 22); ctx.fillRect(10, 98, 42, 11); ctx.fillRect(77, 98, 42, 11);
+  ctx.fillStyle = e.flash > 0 ? '#fff' : '#58a94f'; ctx.fillRect(31, 48, 67, 51); ctx.fillRect(39, 35, 51, 56);
+  ctx.fillStyle = '#8bd368'; ctx.fillRect(43, 43, 42, 15); ctx.fillRect(36, 66, 55, 22); ctx.fillStyle = '#2e762f'; ctx.fillRect(48, 73, 33, 7);
+  ctx.fillStyle = '#b5e87e'; ctx.fillRect(38, 28, 20, 24); ctx.fillRect(75, 28, 20, 24); ctx.fillStyle = '#f2f3c5'; ctx.fillRect(42, 31, 13, 13); ctx.fillRect(78, 31, 13, 13);
+  ctx.fillStyle = '#16221a'; ctx.fillRect(48, 34, 6, 9); ctx.fillRect(78, 34, 6, 9); ctx.fillStyle = '#d7ef87'; ctx.fillRect(51, 35, 2, 3); ctx.fillRect(79, 35, 2, 3);
+  ctx.fillStyle = '#3d8639'; ctx.fillRect(25, 70, 14, 27); ctx.fillRect(94, 70, 14, 27); ctx.fillStyle = '#71bd58'; ctx.fillRect(18, 89, 24, 10); ctx.fillRect(91, 89, 24, 10);
+  if (attacking) { ctx.fillStyle = '#e893a4'; ctx.fillRect(54, 79, 25, 7); ctx.fillStyle = '#ffd1d9'; ctx.fillRect(59, 80, 13, 2); }
+  ctx.restore();
 }
 
 function drawVisibleHitboxes(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLevel>, enemies: Enemy[], hero: Point, secondHero: Point | null) {
@@ -355,9 +372,9 @@ export function BestiaryMonster({ id, hidden = false }: { id: string; hidden?: b
 function createEnemies(map: ReturnType<typeof getLevel>, multiplier = 1, oneHitBoss = false): Enemy[] {
   const spawns = map.round ? map.enemies : multiplier === .5 ? map.enemies.filter((_, index) => index % 2 === 0) : multiplier === 2 ? map.enemies.flatMap((enemy) => [enemy, { ...enemy, x: enemy.x + 4, y: enemy.y + 4 }]) : map.enemies;
   return spawns.map((enemy) => {
-    const hp = enemy.kind === 'boss' ? oneHitBoss ? 1 : map.enemy.hp * 5 : enemy.kind === 'iceSpirit' ? 3 : enemy.kind === 'goblin' || enemy.kind === 'mummy' ? map.enemy.hp * 1.5 : enemy.kind === 'iceGolem' ? map.enemy.hp * .75 : map.enemy.hp;
+    const hp = enemy.kind === 'boss' ? oneHitBoss ? 1 : map.enemy.hp * 5 : enemy.kind === 'frog' ? 4 : enemy.kind === 'iceSpirit' ? 3 : enemy.kind === 'goblin' || enemy.kind === 'mummy' ? map.enemy.hp * 1.5 : enemy.kind === 'iceGolem' ? map.enemy.hp * .75 : map.enemy.hp;
     const speed = enemy.kind === 'boss' ? map.enemy.speed * .65 : enemy.kind === 'goblin' || enemy.kind === 'iceGolem' ? map.enemy.speed * 1.25 : enemy.kind === 'mummy' ? map.enemy.speed * .8 : map.enemy.speed;
-    return { ...enemy, ...map.enemy, color: enemy.kind === 'slime' ? map.enemy.color : enemy.kind === 'iceSpirit' ? '#71d5f2' : enemy.kind === 'mummy' ? '#d8c79a' : enemy.kind === 'scorpion' ? '#a95d2e' : enemy.kind === 'iceGolem' ? '#6bc8e8' : '#69ad68', hp, maxHp: hp, power: enemy.kind === 'boss' ? 2 : enemy.kind === 'iceSpirit' ? 1 : enemy.kind === 'mummy' ? Math.max(.5, map.enemy.power / 2) : enemy.kind === 'iceGolem' ? 1.3 : map.enemy.power, speed, flash: 0, attackUntil: 0, stunnedUntil: 0, leapStarted: 0, leapUntil: 0, leapTargetX: 0, leapTargetY: 0, nextLeapAt: 0, nextShotAt: 0, nextSummonAt: 0, nextContactAt: 0, playerWasInSummonRadius: false, revived: false, reviveFlashUntil: 0 };
+    return { ...enemy, ...map.enemy, color: enemy.kind === 'slime' ? map.enemy.color : enemy.kind === 'frog' ? '#58a94f' : enemy.kind === 'iceSpirit' ? '#71d5f2' : enemy.kind === 'mummy' ? '#d8c79a' : enemy.kind === 'scorpion' ? '#a95d2e' : enemy.kind === 'iceGolem' ? '#6bc8e8' : '#69ad68', hp, maxHp: hp, power: enemy.kind === 'boss' ? 2 : enemy.kind === 'iceSpirit' ? 1 : enemy.kind === 'mummy' ? Math.max(.5, map.enemy.power / 2) : enemy.kind === 'iceGolem' ? 1.3 : map.enemy.power, speed, flash: 0, attackUntil: 0, stunnedUntil: 0, leapStarted: 0, leapUntil: 0, leapTargetX: 0, leapTargetY: 0, nextLeapAt: 0, nextShotAt: 0, nextSummonAt: 0, nextContactAt: 0, playerWasInSummonRadius: false, revived: false, reviveFlashUntil: 0 };
   });
 }
 
@@ -538,9 +555,10 @@ function drawScene(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLeve
     if (!boss) { ctx.fillStyle = '#171918'; ctx.fillRect(e.x + 1, e.y - 14, 26, 4); ctx.fillStyle = '#54292d'; ctx.fillRect(e.x + 3, e.y - 12, 22, 2); ctx.fillStyle = '#67d06f'; ctx.fillRect(e.x + 3, e.y - 12, 22 * Math.max(0, e.hp / e.maxHp), 2); }
     ctx.save();
     if (boss) { ctx.translate(e.x - 122 + (hero.x - e.x) / distance * force, e.y - 213 + (hero.y - e.y) / distance * force); ctx.scale(1.9, 1.9); }
-    else { ctx.translate(e.x + 1 + (hero.x - e.x) / distance * force, e.y - 5 + (hero.y - e.y) / distance * force); ctx.scale(e.kind === 'goblin' || e.kind === 'mummy' || e.kind === 'iceGolem' || e.kind === 'iceSpirit' ? .38 : e.kind === 'scorpion' ? .28 : .21, e.kind === 'goblin' || e.kind === 'mummy' || e.kind === 'iceGolem' || e.kind === 'iceSpirit' ? .38 : e.kind === 'scorpion' ? .28 : .21); }
+    else { ctx.translate(e.x + 1 + (hero.x - e.x) / distance * force, e.y - 5 + (hero.y - e.y) / distance * force); ctx.scale(e.kind === 'goblin' || e.kind === 'mummy' || e.kind === 'iceGolem' || e.kind === 'iceSpirit' || e.kind === 'frog' ? .38 : e.kind === 'scorpion' ? .28 : .21, e.kind === 'goblin' || e.kind === 'mummy' || e.kind === 'iceGolem' || e.kind === 'iceSpirit' || e.kind === 'frog' ? .38 : e.kind === 'scorpion' ? .28 : .21); }
     if (e.kind === 'iceGolem') { drawIceGolem(ctx, e, now, attacking); ctx.restore(); if (e.stunnedUntil > now) { ctx.fillStyle = '#eaffff'; ctx.font = 'bold 14px monospace'; ctx.fillText('★ ★ ★', e.x - 7, e.y - 22); } return; }
     if (e.kind === 'iceSpirit') { drawIceSpirit(ctx, e, now, attacking); ctx.restore(); if (e.stunnedUntil > now) { ctx.fillStyle = '#eaffff'; ctx.font = 'bold 14px monospace'; ctx.fillText('★ ★ ★', e.x - 7, e.y - 22); } return; }
+    if (e.kind === 'frog') { drawFrog(ctx, e, now, attacking); ctx.restore(); if (e.stunnedUntil > now) { ctx.fillStyle = '#d9ff88'; ctx.font = 'bold 14px monospace'; ctx.fillText('★ ★ ★', e.x - 7, e.y - 22); } return; }
     if (e.kind === 'scorpion') { drawScorpion(ctx, e, now, attacking); ctx.restore(); if (e.stunnedUntil > now) { ctx.fillStyle = '#ffe56b'; ctx.font = 'bold 14px monospace'; ctx.fillText('★ ★ ★', e.x - 7, e.y - 22); } return; }
     if (e.kind === 'mummy') { drawMummy(ctx, e, now, attacking); ctx.restore(); if (e.stunnedUntil > now) { ctx.fillStyle = '#ffe56b'; ctx.font = 'bold 14px monospace'; ctx.fillText('★ ★ ★', e.x - 7, e.y - 22); } return; }
     if (e.kind === 'goblin' || boss) { if (boss && level === 12) drawMummyBoss(ctx, e, now); else if (boss && level === 18) drawIceGolem(ctx, e, now, attacking); else drawGoblin(ctx, e, now, attacking || (boss && e.leapStarted > 0)); ctx.restore(); if (e.stunnedUntil > now) { ctx.fillStyle = level === 18 ? '#dffcff' : '#ffe56b'; ctx.font = `bold ${boss ? 22 : 14}px monospace`; ctx.fillText('★ ★ ★', e.x - (boss ? 42 : 7), e.y - (boss ? 235 : 22) + Math.sin(now / 90) * 3); } return; }
@@ -925,6 +943,10 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
         if (e.kind === 'boss' && now >= (e.nextContactAt ?? 0)) { const firstTouches = health > 0 && bossBodyHits({ x: p.x + 12, y: p.y + 14 }, e, 12); const secondTouches = players === 2 && health2 > 0 && bossBodyHits({ x: p2.x + 12, y: p2.y + 14 }, e, 12); if (firstTouches || secondTouches) { damageHero(.5, 'Касание туловища босса обжигает героя!', !firstTouches && secondTouches); e.nextContactAt = now + 700; } }
         if (e.stunnedUntil > now) return;
         if (e.kind === 'iceGolem' && distance <= 128 && now >= (e.nextShotAt ?? 0)) { const length = Math.max(1, distance); sandTornadoes.current.push({ x: e.x, y: e.y, vx: ex / length * 4.2, vy: ey / length * 4.2, damage: e.power, until: now + 3200, style: 'ice' }); e.nextShotAt = now + 1400; e.attackUntil = now + 320; }
+        if (e.kind === 'frog' && distance <= 96) {
+          if (now >= (e.nextShotAt ?? 0)) { const length = Math.max(1, distance); sandTornadoes.current.push({ x: e.x + 14, y: e.y + 14, vx: ex / length * 6.2, vy: ey / length * 6.2, damage: e.power, until: now + 850, style: 'frogTongue' }); e.nextShotAt = now + 1300; e.attackUntil = now + 330; }
+          return;
+        }
         if (level === 12 && e.kind === 'boss') {
           const haste = e.revived ? 1.5 : 1;
           if (distance < 272) e.playerWasInSummonRadius = true;
@@ -968,7 +990,8 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
         }
         const contactDistance = e.kind === 'boss' ? 65 : 14;
         if (distance > contactDistance) {
-          const enemySpeed = e.speed * dt; const dx = ex / distance; const dy = ey / distance;
+          if (e.kind === 'frog' && now >= e.nextLeapAt) { e.leapStarted = now; e.leapUntil = now + 360; e.nextLeapAt = now + 690; }
+          const enemySpeed = e.speed * dt * (e.kind === 'frog' ? (now < e.leapUntil ? 2.35 : 0) : 1); const dx = ex / distance; const dy = ey / distance;
           const wallGap = 6;
           const canMoveTo = (x: number, y: number) => {
             const outsideArena = map.round && Math.hypot(x + 14 - 320, y + 14 - 336) > 306;
@@ -982,7 +1005,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
           if (next) { e.x = next.x; e.y = next.y; }
         }
         const attackInterval = e.kind === 'boss' ? 1600 : 700;
-        if (e.kind !== 'iceGolem' && distance < (e.kind === 'boss' ? 94 : 16) && Math.floor(now / attackInterval) !== Math.floor((now - 17) / attackInterval)) {
+        if (e.kind !== 'iceGolem' && e.kind !== 'frog' && distance < (e.kind === 'boss' ? 94 : 16) && Math.floor(now / attackInterval) !== Math.floor((now - 17) / attackInterval)) {
           e.attackUntil = now + 220;
           damageHero(e.power, undefined, targetsSecond);
           if (e.kind === 'scorpion' && Math.random() < .07) {
@@ -1001,13 +1024,13 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
           tornado.split = false;
           for (let index = 0; index < 5; index++) { const angle = index / 5 * Math.PI * 2; newIceShards.push({ x: tornado.x, y: tornado.y, vx: Math.cos(angle) * 4.4, vy: Math.sin(angle) * 4.4, damage: 1, until: now + 1200, style: 'iceShard' }); }
         }
-        const radius = tornado.style === 'iceLarge' ? 25 : tornado.style === 'iceSpiritDrop' ? 16 : tornado.style === 'iceRing' ? 12 : tornado.style === 'iceShard' ? 13 : 22;
+        const radius = tornado.style === 'iceLarge' ? 25 : tornado.style === 'iceSpiritDrop' ? 16 : tornado.style === 'iceRing' ? 12 : tornado.style === 'iceShard' ? 13 : tornado.style === 'frogTongue' ? 8 : 22;
         const hitFirst = !waitingToFall && health > 0 && Math.hypot(p.x + 12 - tornado.x, p.y + 14 - tornado.y) < radius;
         const hitSecond = !waitingToFall && players === 2 && health2 > 0 && Math.hypot(p2.x + 12 - tornado.x, p2.y + 14 - tornado.y) < radius;
         if (hitFirst || hitSecond) {
           const iceShot = tornado.style?.startsWith('ice');
           if (tornado.style === 'ice') { if (hitFirst) slowedUntil.current = now + 3000; else slowedUntil2.current = now + 3000; }
-          damageHero(tornado.damage, iceShot ? `Сосулька нанесла ${tornado.damage} HP урона!` : 'Песчаный торнадо настиг героя!', !hitFirst && hitSecond);
+          damageHero(tornado.damage, tornado.style === 'frogTongue' ? `Язык жабы нанёс ${tornado.damage} HP урона!` : iceShot ? `Сосулька нанесла ${tornado.damage} HP урона!` : 'Песчаный торнадо настиг героя!', !hitFirst && hitSecond);
           const mummyBoss = !iceShot ? enemies.current.find((enemy) => level === 12 && enemy.kind === 'boss' && enemy.hp > 0) : undefined;
           if (mummyBoss) { const healed = Math.min(5, mummyBoss.maxHp - mummyBoss.hp); mummyBoss.hp += healed; if (healed > 0) setMessage(`Торнадо высосал силу героя — Владыка гробниц восстановил ${healed} HP!`); }
           return false;
@@ -1026,7 +1049,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
       defeated.filter((enemy) => enemy.kind === 'iceSpirit').forEach((spirit) => sandTornadoes.current.push({ x: spirit.x + 14, y: spirit.y + 14, vx: 0, vy: 0, damage: .5, impactAt: now + 500, until: now + 1150, style: 'iceSpiritDrop' }));
       enemies.current = enemies.current.filter((e) => e.hp > 0);
       if (firstDeathMummies.length) setMessage(firstDeathMummies.length === 1 ? 'Мумия восстала из песка!' : 'Павшие мумии снова восстали из песка!');
-      if (defeated.length) { const bossFallen = defeated.some((e) => e.kind === 'boss'); const reward = defeated.reduce((sum, e) => sum + (e.kind === 'boss' ? 100 : e.kind === 'goblin' || e.kind === 'mummy' || e.kind === 'iceGolem' ? 10 : 5), 0); setCoins((c) => c + reward); setMessage(bossFallen ? 'Хранитель окончательно повержен! В центре арены открылся портал победы.' : defeated.some((e) => e.kind === 'iceSpirit') ? 'Ледяной дух исчез — через полсекунды сюда упадёт сосулька!' : defeated.some((e) => e.kind === 'mummy') ? 'Мумия окончательно повержена и оставила 10 осколков.' : defeated.some((e) => e.kind === 'iceGolem') ? 'Ледяной голем раскололся и оставил 10 осколков.' : defeated.some((e) => e.kind === 'goblin') ? 'Гоблин повержен и оставил 10 осколков.' : 'Слизень оставил несколько осколков.'); if (bossFallen) keys.current.clear(); }
+      if (defeated.length) { const bossFallen = defeated.some((e) => e.kind === 'boss'); const reward = defeated.reduce((sum, e) => sum + (e.kind === 'boss' ? 100 : e.kind === 'goblin' || e.kind === 'mummy' || e.kind === 'iceGolem' ? 10 : 5), 0); setCoins((c) => c + reward); setMessage(bossFallen ? 'Хранитель окончательно повержен! В центре арены открылся портал победы.' : defeated.some((e) => e.kind === 'frog') ? 'Жаба повержена и оставила несколько осколков.' : defeated.some((e) => e.kind === 'iceSpirit') ? 'Ледяной дух исчез — через полсекунды сюда упадёт сосулька!' : defeated.some((e) => e.kind === 'mummy') ? 'Мумия окончательно повержена и оставила 10 осколков.' : defeated.some((e) => e.kind === 'iceGolem') ? 'Ледяной голем раскололся и оставил 10 осколков.' : defeated.some((e) => e.kind === 'goblin') ? 'Гоблин повержен и оставил 10 осколков.' : 'Слизень оставил несколько осколков.'); if (bossFallen) keys.current.clear(); }
       if (level === 0) {
         const progressX = Math.max(p.x, players === 2 ? p2.x : p.x);
         const steps = [{ x: 330, text: 'Обойди телегу и пройди через пролом. Можно двигаться по диагонали.' }, { x: 590, text: 'Подойди к сундуку и нажми E. Второй игрок использует Ю.' }, { x: 900, text: 'Враг! SPACE — атака первого игрока, Ж — атака второго.' }, { x: 1190, text: 'Используй ульту: Q у первого игрока, Б у второго.' }, { x: 1500, text: 'Рюкзак: I у первого, Э у второго. У ворот нажми E или Ю.' }];

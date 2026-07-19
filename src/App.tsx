@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { BestiaryMonster, DungeonGame, type GameSave } from "./components/DungeonGame";
 import { setGameVolume, setMusicPaused, startMusic } from "./game/audio";
 import { supabase } from "./lib/supabase";
@@ -201,6 +202,16 @@ export default function App() {
   const [mobilePortrait, setMobilePortrait] = useState(false);
   const [fullscreenHint, setFullscreenHint] = useState("");
   const [modeOpen, setModeOpen] = useState(false);
+  const [playTypeOpen, setPlayTypeOpen] = useState(false);
+  const [networkLobbyOpen, setNetworkLobbyOpen] = useState(false);
+  const [joinCodeOpen, setJoinCodeOpen] = useState(false);
+  const [roomCode, setRoomCode] = useState("");
+  const [joinCode, setJoinCode] = useState("");
+  const [roomMessage, setRoomMessage] = useState("");
+  const [networkRole, setNetworkRole] = useState<"host" | "guest" | null>(null);
+  const [remotePosition, setRemotePosition] = useState<{ x: number; y: number } | null>(null);
+  const roomChannel = useRef<RealtimeChannel | null>(null);
+  const lastRoomCode = useRef("");
   const [players, setPlayers] = useState<1 | 2>(1);
   const [gameStarted, setGameStarted] = useState(false);
   const [gameId, setGameId] = useState(0);
@@ -451,9 +462,22 @@ export default function App() {
       } catch {
         /* Orientation lock is not available in every mobile browser. */
       }
-      beginCutscene(1);
-    } else setModeOpen(true);
+    }
+    setPlayTypeOpen(true);
   };
+  const closeRoomChannel = () => { if (roomChannel.current) void supabase.removeChannel(roomChannel.current); roomChannel.current = null; };
+  const openLocalGame = () => { setPlayTypeOpen(false); setNetworkLobbyOpen(false); setNetworkRole(null); setRoomCode(""); closeRoomChannel(); if (mobileControls) beginCutscene(1); else setModeOpen(true); };
+  const connectRoom = (code: string, role: "host" | "guest") => {
+    closeRoomChannel(); setRoomMessage(role === "host" ? "КОМНАТА СОЗДАНА · ОЖИДАНИЕ ДРУГА" : "ПОДКЛЮЧЕНИЕ К КОМНАТЕ..."); setRemotePosition(null);
+    const channel = supabase.channel(`ashen-room-${code}`, { config: { broadcast: { self: false } } }); roomChannel.current = channel;
+    channel.on("broadcast", { event: "position" }, ({ payload }) => { if (payload?.role !== role) setRemotePosition({ x: Number(payload.x), y: Number(payload.y) }); });
+    if (role === "host") channel.on("broadcast", { event: "join-request" }, () => { void channel.send({ type: "broadcast", event: "join-approved", payload: { code } }); setRoomMessage("ДРУГ ПОДКЛЮЧИЛСЯ"); });
+    else channel.on("broadcast", { event: "join-approved" }, ({ payload }) => { if (payload?.code !== code) return; setRoomMessage("КОМНАТА НАЙДЕНА"); setRoomCode(code); setNetworkRole("guest"); setJoinCodeOpen(false); setNetworkLobbyOpen(false); setPlayTypeOpen(false); beginGame(2, null, true, 0); });
+    channel.subscribe((status) => { if (status !== "SUBSCRIBED") return; if (role === "host") { setRoomCode(code); setNetworkRole("host"); setNetworkLobbyOpen(false); setPlayTypeOpen(false); beginGame(2, null, true, 0); } else void channel.send({ type: "broadcast", event: "join-request", payload: { code } }); });
+  };
+  const createNetworkRoom = () => { let code="";do code=String(Math.floor(10000+Math.random()*90000));while(code===lastRoomCode.current);lastRoomCode.current=code;connectRoom(code,"host"); };
+  const joinNetworkRoom = () => { const code=joinCode.replace(/\D/g,"").slice(0,5);if(code.length!==5){setRoomMessage("ВВЕДИ ПЯТИЗНАЧНЫЙ КОД");return;}connectRoom(code,"guest"); };
+  const sendNetworkPosition = (position: { x: number; y: number }) => { const channel=roomChannel.current;if(!channel||!networkRole)return;void channel.send({ type:"broadcast",event:"position",payload:{...position,role:networkRole} }); };
   const enterMobileFullscreen = async () => {
     try {
       if (!document.fullscreenElement)
@@ -709,8 +733,12 @@ export default function App() {
           onShopOpenChange={setMerchantShopOpen}
           mobileControls={mobileControls}
           equippedSkin={equippedBoutiqueSkin}
+          networkRole={networkRole}
+          remotePosition={remotePosition}
+          onNetworkPosition={sendNetworkPosition}
         />
       )}
+      {gameStarted && roomCode && <div className="network-room-code"><small>КОД КОМНАТЫ</small><strong>{roomCode}</strong></div>}
       {gameStarted && mobileControls && mobilePortrait && (
         <div className="rotate-phone-overlay">
           <div className="pixel-phone-rotate">
@@ -1233,7 +1261,7 @@ export default function App() {
           )}
           <div className="menu-mist mist-one" />
           <div className="menu-mist mist-two" />
-          {!settingsOpen && !registrationOpen && !deviceOpen && !modeOpen ? (
+          {!settingsOpen && !registrationOpen && !deviceOpen && !modeOpen && !playTypeOpen && !networkLobbyOpen && !joinCodeOpen ? (
             <>
               <button
                 className="calendar-menu-button"
@@ -1327,6 +1355,16 @@ export default function App() {
                 ← НАЗАД
               </button>
             </div>
+          ) : playTypeOpen ? (
+            <div className="settings-panel mode-panel network-choice-panel">
+              <h2>КАК ИГРАТЬ?</h2><p>Выбери локальную игру или подключение друга по сети.</p>
+              <div className="mode-options"><button onClick={openLocalGame}><strong>ЛОКАЛЬНО</strong><small>Один экран или общая клавиатура</small></button><button onClick={() => { setPlayTypeOpen(false); setNetworkLobbyOpen(true); }}><strong>ПО СЕТИ</strong><small>Играть с другом по коду комнаты</small></button></div>
+              <button className="settings-back" onClick={() => { setPlayTypeOpen(false); setDeviceOpen(true); }}>← НАЗАД</button>
+            </div>
+          ) : joinCodeOpen ? (
+            <div className="settings-panel network-join-panel"><h2>ВОЙТИ ПО КОДУ</h2><p>Введи пятизначный код, который видит создатель комнаты.</p><input className="room-code-input" inputMode="numeric" maxLength={5} value={joinCode} onChange={(event) => setJoinCode(event.target.value.replace(/\D/g, "").slice(0,5))} placeholder="00000" /><button className="registration-submit" onClick={joinNetworkRoom}>ПОДКЛЮЧИТЬСЯ</button>{roomMessage && <p className="room-message">{roomMessage}</p>}<button className="settings-back" onClick={() => { closeRoomChannel(); setJoinCodeOpen(false); setNetworkLobbyOpen(true); }}>← НАЗАД</button></div>
+          ) : networkLobbyOpen ? (
+            <div className="settings-panel mode-panel network-choice-panel"><h2>СЕТЕВАЯ ИГРА</h2><p>Создай новую комнату или войди в комнату друга.</p><div className="mode-options"><button onClick={createNetworkRoom}><strong>СОЗДАТЬ КОМНАТУ</strong><small>Получить новый пятизначный код</small></button><button onClick={() => { setNetworkLobbyOpen(false); setJoinCodeOpen(true); setRoomMessage(""); }}><strong>ВОЙТИ ПО КОДУ</strong><small>Подключиться к существующей комнате</small></button></div>{roomMessage && <p className="room-message">{roomMessage}</p>}<button className="settings-back" onClick={() => { closeRoomChannel(); setNetworkLobbyOpen(false); setPlayTypeOpen(true); }}>← НАЗАД</button></div>
           ) : settingsOpen ? (
             <div className="settings-panel">
               <h2>{t.settingsTitle}</h2>
@@ -1507,13 +1545,13 @@ export default function App() {
               </div>
               <button
                 className="settings-back"
-                onClick={() => setModeOpen(false)}
+                onClick={() => { setModeOpen(false); setPlayTypeOpen(true); }}
               >
                 ← НАЗАД
               </button>
             </div>
           )}
-          {!settingsOpen && !registrationOpen && !deviceOpen && !modeOpen && (
+          {!settingsOpen && !registrationOpen && !deviceOpen && !modeOpen && !playTypeOpen && !networkLobbyOpen && !joinCodeOpen && (
             <nav
               className="main-bottom-tabs"
               aria-label="Разделы главного меню"

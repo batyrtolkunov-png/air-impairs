@@ -473,7 +473,8 @@ export default function App() {
     channel.on("broadcast", { event: "position" }, ({ payload }) => { if (payload?.role !== role) setRemotePosition({ x: Number(payload.x), y: Number(payload.y) }); });
     if (role === "host") channel.on("broadcast", { event: "join-request" }, () => { void channel.send({ type: "broadcast", event: "join-approved", payload: { code } }); setRoomMessage("ДРУГ ПОДКЛЮЧИЛСЯ"); });
     else channel.on("broadcast", { event: "join-approved" }, ({ payload }) => { if (payload?.code !== code) return; setRoomMessage("КОМНАТА НАЙДЕНА"); setRoomCode(code); setNetworkRole("guest"); setJoinCodeOpen(false); setNetworkLobbyOpen(false); setPlayTypeOpen(false); beginClassChoice(1); });
-    channel.subscribe((status) => { if (status !== "SUBSCRIBED") return; if (role === "host") { setRoomCode(code); setNetworkRole("host"); setNetworkLobbyOpen(false); setPlayTypeOpen(false); beginClassChoice(1); } else void channel.send({ type: "broadcast", event: "join-request", payload: { code } }); });
+    if (role === "host") { setRoomCode(code); setNetworkRole("host"); setNetworkLobbyOpen(false); setPlayTypeOpen(false); beginClassChoice(1); }
+    channel.subscribe((status) => { if (status !== "SUBSCRIBED") return; if (role === "host") setRoomMessage("КОМНАТА В СЕТИ · ОЖИДАНИЕ ДРУГА"); else void channel.send({ type: "broadcast", event: "join-request", payload: { code } }); });
   };
   const createNetworkRoom = () => { let code="";do code=String(Math.floor(10000+Math.random()*90000));while(code===lastRoomCode.current);lastRoomCode.current=code;connectRoom(code,"host"); };
   const joinNetworkRoom = () => { const code=joinCode.replace(/\D/g,"").slice(0,5);if(code.length!==5){setRoomMessage("ВВЕДИ ПЯТИЗНАЧНЫЙ КОД");return;}connectRoom(code,"guest"); };

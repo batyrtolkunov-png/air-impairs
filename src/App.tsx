@@ -472,8 +472,8 @@ export default function App() {
     const channel = supabase.channel(`ashen-room-${code}`, { config: { broadcast: { self: false } } }); roomChannel.current = channel;
     channel.on("broadcast", { event: "position" }, ({ payload }) => { if (payload?.role !== role) setRemotePosition({ x: Number(payload.x), y: Number(payload.y) }); });
     if (role === "host") channel.on("broadcast", { event: "join-request" }, () => { void channel.send({ type: "broadcast", event: "join-approved", payload: { code } }); setRoomMessage("ДРУГ ПОДКЛЮЧИЛСЯ"); });
-    else channel.on("broadcast", { event: "join-approved" }, ({ payload }) => { if (payload?.code !== code) return; setRoomMessage("КОМНАТА НАЙДЕНА"); setRoomCode(code); setNetworkRole("guest"); setJoinCodeOpen(false); setNetworkLobbyOpen(false); setPlayTypeOpen(false); beginGame(2, null, true, 0); });
-    channel.subscribe((status) => { if (status !== "SUBSCRIBED") return; if (role === "host") { setRoomCode(code); setNetworkRole("host"); setNetworkLobbyOpen(false); setPlayTypeOpen(false); beginGame(2, null, true, 0); } else void channel.send({ type: "broadcast", event: "join-request", payload: { code } }); });
+    else channel.on("broadcast", { event: "join-approved" }, ({ payload }) => { if (payload?.code !== code) return; setRoomMessage("КОМНАТА НАЙДЕНА"); setRoomCode(code); setNetworkRole("guest"); setJoinCodeOpen(false); setNetworkLobbyOpen(false); setPlayTypeOpen(false); beginClassChoice(1); });
+    channel.subscribe((status) => { if (status !== "SUBSCRIBED") return; if (role === "host") { setRoomCode(code); setNetworkRole("host"); setNetworkLobbyOpen(false); setPlayTypeOpen(false); beginClassChoice(1); } else void channel.send({ type: "broadcast", event: "join-request", payload: { code } }); });
   };
   const createNetworkRoom = () => { let code="";do code=String(Math.floor(10000+Math.random()*90000));while(code===lastRoomCode.current);lastRoomCode.current=code;connectRoom(code,"host"); };
   const joinNetworkRoom = () => { const code=joinCode.replace(/\D/g,"").slice(0,5);if(code.length!==5){setRoomMessage("ВВЕДИ ПЯТИЗНАЧНЫЙ КОД");return;}connectRoom(code,"guest"); };
@@ -539,10 +539,13 @@ export default function App() {
     if (!classPlayers) return;
     const choices = [...classChoice, chosen];
     if (choices.length >= classPlayers) {
-      setPlayerClasses([choices[0], choices[1] ?? choices[0]]);
+      if (networkRole === "host") setPlayerClasses([choices[0], playerClasses[1]]);
+      else if (networkRole === "guest") setPlayerClasses([playerClasses[0], choices[0]]);
+      else setPlayerClasses([choices[0], choices[1] ?? choices[0]]);
       const count = classPlayers;
       setClassPlayers(null);
-      beginGame(count, null, false, 19);
+      if (networkRole) beginGame(2, null, true, 0);
+      else beginGame(count, null, false, 19);
     } else setClassChoice(choices);
   };
   const chooseSaveSlot = (index: number) => {
@@ -738,7 +741,7 @@ export default function App() {
           onNetworkPosition={sendNetworkPosition}
         />
       )}
-      {gameStarted && roomCode && <div className="network-room-code"><small>КОД КОМНАТЫ</small><strong>{roomCode}</strong></div>}
+      {roomCode && <div className="network-room-code"><small>КОД КОМНАТЫ</small><strong>{roomCode}</strong></div>}
       {gameStarted && mobileControls && mobilePortrait && (
         <div className="rotate-phone-overlay">
           <div className="pixel-phone-rotate">

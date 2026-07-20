@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { getLevel, getRandomLoot, getRouteExit, getRouteStart, getTutorialLevel, isInsideFourWayRoute, rerollLevel, ROUTE_POINTS, type EnemyKind, type LootDrop, type Point, type Weapon } from '../game/levels';
 import { playFootstep, playHurt, setMusicDanger } from '../game/audio';
+import { CANONICAL_CONTROL_CODES, DEFAULT_KEY_BINDINGS, type KeyBindings } from '../game/controls';
 
 export type GameSave = { level: number; players: 1 | 2; health: number; health2: number; coins: number; medkits?: number; medkits2?: number; inventory: Weapon[]; inventory2: Weapon[]; inventoryCapacity: number; inventoryCapacity2: number; weapon: Weapon | null; weapon2: Weapon | null; armor: Weapon | null; armor2?: Weapon | null; armorHealth: number; armorHealth2?: number; map: ReturnType<typeof getLevel>; hero: Point; hero2: Point; enemies: Enemy[]; openedChests: number[]; chestDrops: LootDrop[]; loot: Point | null; droppedItem: Weapon | null; explored?: Point[]; savedAt: number };
 
@@ -687,7 +688,7 @@ function drawScene(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLeve
   ctx.restore(); }
 }
 
-export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins = 0, oneHitBoss = false, startingLevel: requestedStartingLevel, profileName, players = 1, playerClass = 'knight', playerClass2 = 'knight', initialSave, tutorial = false, merchantMode = false, mobileControls = false, equippedSkin = 'default', travelToLevel, saveRequest = 0, onSaveSnapshot, onVictory, onShopOpenChange, networkRole = null, remotePosition = null, onNetworkPosition, remoteGameState = null, onNetworkGameState }: { paused?: boolean; enemyMultiplier?: number; startingCoins?: number; oneHitBoss?: boolean; startingLevel?: number | null; profileName: string; players?: 1 | 2; playerClass?: PlayerClass; playerClass2?: PlayerClass; initialSave?: GameSave | null; tutorial?: boolean; merchantMode?: boolean; mobileControls?: boolean; equippedSkin?: string; travelToLevel?: number | null; saveRequest?: number; onSaveSnapshot?: (save: GameSave) => void; onVictory?: (level: number) => void; onShopOpenChange?: (open: boolean) => void; networkRole?: 'host' | 'guest' | null; remotePosition?: (Point & { fx?: number; fy?: number; moving?: boolean }) | null; onNetworkPosition?: (position: Point & { fx?: number; fy?: number; moving?: boolean }) => void; remoteGameState?: NetworkGameState | null; onNetworkGameState?: (state: NetworkGameState) => void }) {
+export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins = 0, oneHitBoss = false, startingLevel: requestedStartingLevel, profileName, players = 1, playerClass = 'knight', playerClass2 = 'knight', initialSave, tutorial = false, merchantMode = false, mobileControls = false, equippedSkin = 'default', travelToLevel, saveRequest = 0, onSaveSnapshot, onVictory, onShopOpenChange, networkRole = null, remotePosition = null, onNetworkPosition, remoteGameState = null, onNetworkGameState, keyBindings = DEFAULT_KEY_BINDINGS }: { paused?: boolean; enemyMultiplier?: number; startingCoins?: number; oneHitBoss?: boolean; startingLevel?: number | null; profileName: string; players?: 1 | 2; playerClass?: PlayerClass; playerClass2?: PlayerClass; initialSave?: GameSave | null; tutorial?: boolean; merchantMode?: boolean; mobileControls?: boolean; equippedSkin?: string; travelToLevel?: number | null; saveRequest?: number; onSaveSnapshot?: (save: GameSave) => void; onVictory?: (level: number) => void; onShopOpenChange?: (open: boolean) => void; networkRole?: 'host' | 'guest' | null; remotePosition?: (Point & { fx?: number; fy?: number; moving?: boolean }) | null; onNetworkPosition?: (position: Point & { fx?: number; fy?: number; moving?: boolean }) => void; remoteGameState?: NetworkGameState | null; onNetworkGameState?: (state: NetworkGameState) => void; keyBindings?: KeyBindings }) {
   const effectiveTutorial = tutorial;
   const requestedLevel = initialSave?.level ?? (effectiveTutorial ? 0 : requestedStartingLevel ?? 1);
   const stageInRegion = requestedLevel > 0 ? ((requestedLevel - 1) % 6) + 1 : 0;
@@ -801,6 +802,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
 
   useEffect(() => {
     const down = (event: KeyboardEvent) => {
+      if(event.isTrusted){const action=(Object.keys(keyBindings) as Array<keyof KeyBindings>).find((id)=>keyBindings[id]===event.code);const mapped=action?CANONICAL_CONTROL_CODES[action]:event.code;if(mapped!==event.code){event.preventDefault();window.dispatchEvent(new KeyboardEvent('keydown',{code:mapped,repeat:event.repeat,bubbles:true}));return;}}
       keys.current.add(event.code);
       if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyH', 'KeyL', 'KeyQ', 'KeyI', 'KeyE', 'Period', 'Quote', 'Comma', 'Semicolon', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(event.code)) event.preventDefault();
       if (false && event.code === 'KeyY' && !event.repeat) {
@@ -868,10 +870,10 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
         if (current?.type === 'staff') { const origin = { x: hero2.current.x + 13, y: hero2.current.y + 18 }; waves.current.push({ ...origin, dx: facing2.current.x, dy: facing2.current.y, color: current.color, started: now, until: now + 360 }); enemies.current.forEach((enemy) => { const ex = enemy.x - origin.x, ey = enemy.y - origin.y; const forward = ex * facing2.current.x + ey * facing2.current.y; const side = Math.abs(ex * -facing2.current.y + ey * facing2.current.x); if (forward > 0 && forward < 190 && side < 50) { enemy.hp -= current.damage; enemy.flash = 12; } }); }
       }
     };
-    const up = (event: KeyboardEvent) => keys.current.delete(event.code);
+    const up = (event: KeyboardEvent) => {if(event.isTrusted){const action=(Object.keys(keyBindings) as Array<keyof KeyBindings>).find((id)=>keyBindings[id]===event.code);const mapped=action?CANONICAL_CONTROL_CODES[action]:event.code;if(mapped!==event.code){window.dispatchEvent(new KeyboardEvent('keyup',{code:mapped,bubbles:true}));return;}}keys.current.delete(event.code);};
     window.addEventListener('keydown', down); window.addEventListener('keyup', up);
     return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
-  }, [health, health2, inventoryOwner, medkits, medkits2, players]);
+  }, [health, health2, inventoryOwner, keyBindings, medkits, medkits2, players]);
 
   useEffect(() => { weaponRef.current = weapon; }, [weapon]);
   useEffect(() => { if (['dune','king','wizard','gentleman'].includes(equippedSkin)) setSkin(equippedSkin as HeroSkin); }, [equippedSkin]);

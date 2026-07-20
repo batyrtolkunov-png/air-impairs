@@ -3,6 +3,9 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { BestiaryMonster, DungeonGame, type GameSave, type NetworkGameState } from "./components/DungeonGame";
 import { setGameVolume, setMusicPaused, startMusic } from "./game/audio";
 import { supabase } from "./lib/supabase";
+import { CONTROL_GROUPS, DEFAULT_KEY_BINDINGS, readableKey, type ControlAction, type KeyBindings } from "./game/controls";
+
+function getStoredKeyBindings(): KeyBindings { try { return { ...DEFAULT_KEY_BINDINGS, ...JSON.parse(localStorage.getItem('ashen-key-bindings') || '{}') }; } catch { return { ...DEFAULT_KEY_BINDINGS }; } }
 
 type Language = "ru" | "en" | "es";
 type Difficulty = "easy" | "normal" | "hard";
@@ -196,6 +199,9 @@ export default function App() {
   const [initialSave, setInitialSave] = useState<GameSave | null>(null);
   const pendingSaveSlot = useRef(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [controlsOpen, setControlsOpen] = useState(false);
+  const [listeningControl, setListeningControl] = useState<ControlAction | null>(null);
+  const [keyBindings, setKeyBindings] = useState<KeyBindings>(getStoredKeyBindings);
   const [registrationOpen, setRegistrationOpen] = useState(false);
   const [deviceOpen, setDeviceOpen] = useState(false);
   const [mobileControls, setMobileControls] = useState(false);
@@ -315,6 +321,7 @@ export default function App() {
   const enemyMultiplier =
     difficulty === "easy" ? 0.5 : difficulty === "hard" ? 2 : 1;
 
+  useEffect(() => { if(!listeningControl)return;const capture=(event:KeyboardEvent)=>{event.preventDefault();event.stopPropagation();if(event.code==='Escape'){setListeningControl(null);return;}setKeyBindings((current)=>{const next={...current};const duplicate=(Object.keys(next) as ControlAction[]).find((id)=>id!==listeningControl&&next[id]===event.code);if(duplicate)next[duplicate]=current[listeningControl];next[listeningControl]=event.code;localStorage.setItem('ashen-key-bindings',JSON.stringify(next));return next;});setListeningControl(null);};window.addEventListener('keydown',capture,true);return()=>window.removeEventListener('keydown',capture,true);},[listeningControl]);
   useEffect(() => {
     setGameVolume(volume / 100);
   }, [volume]);
@@ -760,6 +767,7 @@ export default function App() {
           onNetworkPosition={sendNetworkPosition}
           remoteGameState={remoteGameState}
           onNetworkGameState={sendNetworkGameState}
+          keyBindings={keyBindings}
         />
       )}
       {roomCode && <div className="network-room-code"><small>КОД КОМНАТЫ</small><strong>{roomCode}</strong></div>}
@@ -1390,6 +1398,8 @@ export default function App() {
             <div className="settings-panel network-join-panel"><h2>ВОЙТИ ПО КОДУ</h2><p>Введи пятизначный код, который видит создатель комнаты.</p><input className="room-code-input" inputMode="numeric" maxLength={5} value={joinCode} onChange={(event) => setJoinCode(event.target.value.replace(/\D/g, "").slice(0,5))} placeholder="00000" /><button className="registration-submit" onClick={joinNetworkRoom}>ПОДКЛЮЧИТЬСЯ</button>{roomMessage && <p className="room-message">{roomMessage}</p>}<button className="settings-back" onClick={() => { closeRoomChannel(); setJoinCodeOpen(false); setNetworkLobbyOpen(true); }}>← НАЗАД</button></div>
           ) : networkLobbyOpen ? (
             <div className="settings-panel mode-panel network-choice-panel"><h2>СЕТЕВАЯ ИГРА</h2><p>Создай новую комнату или войди в комнату друга.</p><div className="mode-options"><button onClick={createNetworkRoom}><strong>СОЗДАТЬ КОМНАТУ</strong><small>Получить новый пятизначный код</small></button><button onClick={() => { setNetworkLobbyOpen(false); setJoinCodeOpen(true); setRoomMessage(""); }}><strong>ВОЙТИ ПО КОДУ</strong><small>Подключиться к существующей комнате</small></button></div>{roomMessage && <p className="room-message">{roomMessage}</p>}<button className="settings-back" onClick={() => { closeRoomChannel(); setNetworkLobbyOpen(false); setPlayTypeOpen(true); }}>← НАЗАД</button></div>
+          ) : controlsOpen ? (
+            <div className="settings-panel controls-panel"><h2>УПРАВЛЕНИЕ</h2><p>Нажми на действие, затем нажми любую клавишу.</p><div className="controls-groups">{CONTROL_GROUPS.map((group)=><section key={group.title}><h3>{group.title}</h3>{group.actions.map((action)=><button key={action.id} className={listeningControl===action.id?'listening':''} onClick={()=>setListeningControl(action.id)}><span>{action.label}</span><b>{listeningControl===action.id?'НАЖМИ КЛАВИШУ…':readableKey(keyBindings[action.id])}</b></button>)}</section>)}</div><div className="controls-footer"><button onClick={()=>{setKeyBindings({...DEFAULT_KEY_BINDINGS});localStorage.setItem('ashen-key-bindings',JSON.stringify(DEFAULT_KEY_BINDINGS));}}>СБРОСИТЬ</button><button className="settings-back" onClick={()=>{setListeningControl(null);setControlsOpen(false);}}>← НАЗАД</button></div></div>
           ) : settingsOpen ? (
             <div className="settings-panel">
               <h2>{t.settingsTitle}</h2>
@@ -1452,6 +1462,7 @@ export default function App() {
                   ))}
                 </div>
               </div>
+              <button className="controls-open-button" onClick={() => setControlsOpen(true)}>⌨ УПРАВЛЕНИЕ</button>
               <button
                 className="settings-back"
                 onClick={() => setSettingsOpen(false)}

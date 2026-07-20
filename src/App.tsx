@@ -211,6 +211,8 @@ export default function App() {
   const [networkRole, setNetworkRole] = useState<"host" | "guest" | null>(null);
   const [remotePosition, setRemotePosition] = useState<{ x: number; y: number } | null>(null);
   const roomChannel = useRef<RealtimeChannel | null>(null);
+  const roomJoinRetry = useRef<number | null>(null);
+  const roomJoinApproved = useRef(false);
   const lastRoomCode = useRef("");
   const [players, setPlayers] = useState<1 | 2>(1);
   const [gameStarted, setGameStarted] = useState(false);
@@ -465,16 +467,16 @@ export default function App() {
     }
     setPlayTypeOpen(true);
   };
-  const closeRoomChannel = () => { if (roomChannel.current) void supabase.removeChannel(roomChannel.current); roomChannel.current = null; };
+  const closeRoomChannel = () => { if (roomJoinRetry.current !== null) window.clearInterval(roomJoinRetry.current); roomJoinRetry.current = null; if (roomChannel.current) void supabase.removeChannel(roomChannel.current); roomChannel.current = null; };
   const openLocalGame = () => { setPlayTypeOpen(false); setNetworkLobbyOpen(false); setNetworkRole(null); setRoomCode(""); closeRoomChannel(); if (mobileControls) beginCutscene(1); else setModeOpen(true); };
   const connectRoom = (code: string, role: "host" | "guest") => {
-    closeRoomChannel(); setRoomMessage(role === "host" ? "КОМНАТА СОЗДАНА · ОЖИДАНИЕ ДРУГА" : "ПОДКЛЮЧЕНИЕ К КОМНАТЕ..."); setRemotePosition(null);
+    closeRoomChannel(); roomJoinApproved.current = false; setRoomMessage(role === "host" ? "КОМНАТА СОЗДАНА · ОЖИДАНИЕ ДРУГА" : "ПОДКЛЮЧЕНИЕ К КОМНАТЕ..."); setRemotePosition(null);
     const channel = supabase.channel(`ashen-room-${code}`, { config: { broadcast: { self: false } } }); roomChannel.current = channel;
     channel.on("broadcast", { event: "position" }, ({ payload }) => { if (payload?.role !== role) setRemotePosition({ x: Number(payload.x), y: Number(payload.y) }); });
     if (role === "host") channel.on("broadcast", { event: "join-request" }, () => { void channel.send({ type: "broadcast", event: "join-approved", payload: { code } }); setRoomMessage("ДРУГ ПОДКЛЮЧИЛСЯ"); });
-    else channel.on("broadcast", { event: "join-approved" }, ({ payload }) => { if (payload?.code !== code) return; setRoomMessage("КОМНАТА НАЙДЕНА"); setRoomCode(code); setNetworkRole("guest"); setJoinCodeOpen(false); setNetworkLobbyOpen(false); setPlayTypeOpen(false); beginClassChoice(1); });
+    else channel.on("broadcast", { event: "join-approved" }, ({ payload }) => { if (payload?.code !== code || roomJoinApproved.current) return; roomJoinApproved.current = true; if (roomJoinRetry.current !== null) window.clearInterval(roomJoinRetry.current); roomJoinRetry.current = null; setRoomMessage("КОМНАТА НАЙДЕНА"); setRoomCode(code); setNetworkRole("guest"); setJoinCodeOpen(false); setNetworkLobbyOpen(false); setPlayTypeOpen(false); beginClassChoice(1); });
     if (role === "host") { setRoomCode(code); setNetworkRole("host"); setNetworkLobbyOpen(false); setPlayTypeOpen(false); beginClassChoice(1); }
-    channel.subscribe((status) => { if (status !== "SUBSCRIBED") return; if (role === "host") setRoomMessage("КОМНАТА В СЕТИ · ОЖИДАНИЕ ДРУГА"); else void channel.send({ type: "broadcast", event: "join-request", payload: { code } }); });
+    channel.subscribe((status) => { if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") { setRoomMessage("НЕ УДАЛОСЬ ПОДКЛЮЧИТЬСЯ К СЕТИ · ПОПРОБУЙ ЕЩЁ РАЗ"); return; } if (status !== "SUBSCRIBED") return; if (role === "host") setRoomMessage("КОМНАТА В СЕТИ · ОЖИДАНИЕ ДРУГА"); else { const requestJoin=()=>void channel.send({ type: "broadcast", event: "join-request", payload: { code } });requestJoin();if(roomJoinRetry.current!==null)window.clearInterval(roomJoinRetry.current);roomJoinRetry.current=window.setInterval(requestJoin,750); } });
   };
   const createNetworkRoom = () => { let code="";do code=String(Math.floor(10000+Math.random()*90000));while(code===lastRoomCode.current);lastRoomCode.current=code;connectRoom(code,"host"); };
   const joinNetworkRoom = () => { const code=joinCode.replace(/\D/g,"").slice(0,5);if(code.length!==5){setRoomMessage("ВВЕДИ ПЯТИЗНАЧНЫЙ КОД");return;}connectRoom(code,"guest"); };

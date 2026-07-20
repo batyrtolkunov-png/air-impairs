@@ -553,9 +553,11 @@ function drawScene(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLeve
     else for (let y = wall.y - 18; y < wall.y + wall.h; y += 48) wallPlant(ctx, wall.x + wall.w / 2 - 32, y, desert ? '#4b8b42' : ice ? '#69bde3' : water ? '#455f35' : map.floor[2]);
   });
   map.chests.forEach((chest, index) => { const open = openedChests.includes(index); const drop = chestDrops[index]; if (!drop) return;
-    ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(chest.x + 2, chest.y + 34, 50, 9);
-    ctx.fillStyle = open ? '#68462b' : drop.rarity.color; ctx.fillRect(chest.x, chest.y + 11, 50, 28); ctx.fillStyle = '#3b281e'; ctx.fillRect(chest.x + 4, chest.y + 28, 42, 7);
-    ctx.fillStyle = open ? '#3d2c22' : drop.rarity.color; ctx.fillRect(chest.x + 3, chest.y, 44, 15); ctx.fillStyle = '#f4cf62'; ctx.fillRect(chest.x + 21, chest.y + 15, 9, 13); pixel(ctx, chest.x + 6, chest.y + 18, '#7b4d27', 7); pixel(ctx, chest.x + 37, chest.y + 18, '#7b4d27', 7);
+    const x=chest.x,y=chest.y,rarity=open?'#79502e':drop.rarity.color;
+    ctx.fillStyle='rgba(0,0,0,.42)';ctx.fillRect(x-3,y+38,58,9);ctx.fillRect(x+3,y+45,46,3);
+    if(open){ctx.fillStyle='#241812';ctx.fillRect(x+1,y-8,50,22);ctx.fillStyle='#4b3020';ctx.fillRect(x+5,y-4,42,14);ctx.fillStyle='#b58a3d';ctx.fillRect(x+5,y-4,42,4);ctx.fillRect(x+22,y-8,8,19);ctx.fillStyle='#17100d';ctx.fillRect(x+9,y+5,34,5);}
+    else{ctx.fillStyle='#211611';ctx.fillRect(x-2,y+3,56,18);ctx.fillRect(x+2,y-2,48,5);ctx.fillStyle=rarity;ctx.fillRect(x+2,y+6,48,13);ctx.fillRect(x+6,y+1,40,5);ctx.fillStyle='#6b3e22';ctx.fillRect(x+6,y+10,40,6);ctx.fillStyle='rgba(255,255,255,.22)';ctx.fillRect(x+8,y+3,25,3);ctx.fillStyle='#c49a45';ctx.fillRect(x+3,y+17,46,4);ctx.fillRect(x+22,y+1,8,18);}
+    ctx.fillStyle='#211611';ctx.fillRect(x-3,y+19,58,23);ctx.fillStyle='#6a3d22';ctx.fillRect(x+1,y+22,50,17);ctx.fillStyle=rarity;ctx.fillRect(x+6,y+23,40,12);ctx.fillStyle='#8d5730';ctx.fillRect(x+7,y+24,38,4);ctx.fillStyle='#c49a45';ctx.fillRect(x+1,y+19,50,5);ctx.fillRect(x+3,y+35,46,5);ctx.fillRect(x+8,y+20,5,19);ctx.fillRect(x+39,y+20,5,19);ctx.fillStyle='#f6d36b';ctx.fillRect(x+21,y+20,11,14);ctx.fillStyle='#533819';ctx.fillRect(x+25,y+26,3,6);ctx.fillStyle='#17100d';ctx.fillRect(x+1,y+40,10,4);ctx.fillRect(x+41,y+40,10,4);
     if (!open) { ctx.fillStyle = '#101513'; ctx.fillRect(chest.x - 18, chest.y - 17, 86, 12); ctx.fillStyle = drop.rarity.color; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center'; ctx.fillText(`${drop.rarity.name.toUpperCase()} ${drop.rarity.chance}%`, chest.x + 25, chest.y - 8); ctx.textAlign = 'start'; }
   });
   map.carts.forEach((cart) => drawCart(ctx, cart.x, cart.y, map.floor[2]));

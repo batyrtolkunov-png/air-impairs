@@ -213,6 +213,7 @@ export default function App() {
   const [remotePosition, setRemotePosition] = useState<{ x: number; y: number } | null>(null);
   const roomChannel = useRef<RealtimeChannel | null>(null);
   const roomJoinRetry = useRef<number | null>(null);
+  const roomPollTimer = useRef<number | null>(null);
   const roomJoinApproved = useRef(false);
   const roomRequestId = useRef("");
   const lastRoomCode = useRef("");
@@ -469,7 +470,7 @@ export default function App() {
     }
     setPlayTypeOpen(true);
   };
-  const closeRoomChannel = () => { if (roomJoinRetry.current !== null) window.clearInterval(roomJoinRetry.current); roomJoinRetry.current = null; setPendingRoomPlayer(null); if (roomChannel.current) void supabase.removeChannel(roomChannel.current); roomChannel.current = null; };
+  const closeRoomChannel = () => { if (roomJoinRetry.current !== null) window.clearInterval(roomJoinRetry.current); if (roomPollTimer.current !== null) window.clearInterval(roomPollTimer.current); roomJoinRetry.current = null; roomPollTimer.current = null; setPendingRoomPlayer(null); if (roomChannel.current) void supabase.removeChannel(roomChannel.current); roomChannel.current = null; };
   const openLocalGame = () => { setPlayTypeOpen(false); setNetworkLobbyOpen(false); setNetworkRole(null); setRoomCode(""); closeRoomChannel(); if (mobileControls) beginCutscene(1); else setModeOpen(true); };
   const connectRoom = (code: string, role: "host" | "guest") => {
     closeRoomChannel(); roomJoinApproved.current = false; roomRequestId.current = role === "guest" ? `${Date.now()}-${Math.random().toString(36).slice(2,8)}` : ""; setRoomMessage(role === "host" ? "КОМНАТА СОЗДАНА · ОЖИДАНИЕ ДРУГА" : "ПОДКЛЮЧЕНИЕ К КОМНАТЕ..."); setRemotePosition(null);
@@ -479,10 +480,19 @@ export default function App() {
     else channel.on("broadcast", { event: "join-approved" }, ({ payload }) => { if (payload?.code !== code || payload?.requestId !== roomRequestId.current || roomJoinApproved.current) return; roomJoinApproved.current = true; if (roomJoinRetry.current !== null) window.clearInterval(roomJoinRetry.current); roomJoinRetry.current = null; setRoomMessage("КОМНАТА НАЙДЕНА"); setRoomCode(code); setNetworkRole("guest"); setJoinCodeOpen(false); setNetworkLobbyOpen(false); setPlayTypeOpen(false); beginClassChoice(1); });
     if (role === "host") { setRoomCode(code); setNetworkRole("host"); setNetworkLobbyOpen(false); setPlayTypeOpen(false); beginClassChoice(1); }
     channel.subscribe((status) => { if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") { setRoomMessage("НЕ УДАЛОСЬ ПОДКЛЮЧИТЬСЯ К СЕТИ · ПОПРОБУЙ ЕЩЁ РАЗ"); return; } if (status !== "SUBSCRIBED") return; if (role === "host") setRoomMessage("КОМНАТА В СЕТИ · ОЖИДАНИЕ ДРУГА"); else { const requestJoin=()=>void channel.send({ type: "broadcast", event: "join-request", payload: { code, requestId: roomRequestId.current, name: guest ? "Инкогнито" : activePlayerName || playerName || "Игрок" } });requestJoin();if(roomJoinRetry.current!==null)window.clearInterval(roomJoinRetry.current);roomJoinRetry.current=window.setInterval(requestJoin,750); } });
+    const playerLabel = guest ? "Инкогнито" : activePlayerName || playerName || "Игрок";
+    if (role === "host") {
+      void supabase.from("game_rooms").upsert({ code, request_id: null, player_name: null, approved_request_id: null, updated_at: new Date().toISOString() });
+      roomPollTimer.current = window.setInterval(async () => { const { data } = await supabase.from("game_rooms").select("request_id,player_name").eq("code", code).maybeSingle(); if (data?.request_id) { setPendingRoomPlayer({ name: String(data.player_name || "Инкогнито").slice(0,24), requestId: String(data.request_id) }); setRoomMessage("НОВЫЙ ЗАПРОС НА ВХОД"); } }, 600);
+    } else {
+      const requestId = roomRequestId.current;
+      const pollRoom = async () => { const { data } = await supabase.from("game_rooms").select("approved_request_id").eq("code", code).maybeSingle(); if (!data) { setRoomMessage("КОМНАТА НЕ НАЙДЕНА · ПРОВЕРЬ КОД"); return; } if (data.approved_request_id === requestId && !roomJoinApproved.current) { roomJoinApproved.current = true; if (roomJoinRetry.current !== null) window.clearInterval(roomJoinRetry.current); if (roomPollTimer.current !== null) window.clearInterval(roomPollTimer.current); roomJoinRetry.current = null; roomPollTimer.current = null; setRoomMessage("КОМНАТА НАЙДЕНА"); setRoomCode(code); setNetworkRole("guest"); setJoinCodeOpen(false); setNetworkLobbyOpen(false); setPlayTypeOpen(false); beginClassChoice(1); return; } await supabase.from("game_rooms").update({ request_id: requestId, player_name: playerLabel, updated_at: new Date().toISOString() }).eq("code", code); setRoomMessage("ОЖИДАНИЕ ПОДТВЕРЖДЕНИЯ ХОЗЯИНА"); };
+      void pollRoom(); roomPollTimer.current = window.setInterval(() => void pollRoom(), 600);
+    }
   };
   const createNetworkRoom = () => { let code="";do code=String(Math.floor(10000+Math.random()*90000));while(code===lastRoomCode.current);lastRoomCode.current=code;connectRoom(code,"host"); };
   const joinNetworkRoom = () => { const code=joinCode.replace(/\D/g,"").slice(0,5);if(code.length!==5){setRoomMessage("ВВЕДИ ПЯТИЗНАЧНЫЙ КОД");return;}connectRoom(code,"guest"); };
-  const approveRoomPlayer = () => { const channel=roomChannel.current,pending=pendingRoomPlayer;if(!channel||!pending)return;void channel.send({ type:"broadcast",event:"join-approved",payload:{ code:roomCode,requestId:pending.requestId } });setRoomMessage(`${pending.name} ПОДКЛЮЧЁН`);setPendingRoomPlayer(null); };
+  const approveRoomPlayer = () => { const channel=roomChannel.current,pending=pendingRoomPlayer;if(!pending)return;if(channel)void channel.send({ type:"broadcast",event:"join-approved",payload:{ code:roomCode,requestId:pending.requestId } });void supabase.from("game_rooms").update({ approved_request_id: pending.requestId, request_id: null, updated_at: new Date().toISOString() }).eq("code",roomCode);setRoomMessage(`${pending.name} ПОДКЛЮЧЁН`);setPendingRoomPlayer(null); };
   const sendNetworkPosition = (position: { x: number; y: number }) => { const channel=roomChannel.current;if(!channel||!networkRole)return;void channel.send({ type:"broadcast",event:"position",payload:{...position,role:networkRole} }); };
   const enterMobileFullscreen = async () => {
     try {

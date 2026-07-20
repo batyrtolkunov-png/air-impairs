@@ -559,7 +559,7 @@ function drawScene(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLeve
     if(open){ctx.fillStyle='#241812';ctx.fillRect(x+1,y-8,50,22);ctx.fillStyle='#4b3020';ctx.fillRect(x+5,y-4,42,14);ctx.fillStyle='#b58a3d';ctx.fillRect(x+5,y-4,42,4);ctx.fillRect(x+22,y-8,8,19);ctx.fillStyle='#17100d';ctx.fillRect(x+9,y+5,34,5);}
     else{ctx.fillStyle='#211611';ctx.fillRect(x-2,y+3,56,18);ctx.fillRect(x+2,y-2,48,5);ctx.fillStyle=rarity;ctx.fillRect(x+2,y+6,48,13);ctx.fillRect(x+6,y+1,40,5);ctx.fillStyle='#6b3e22';ctx.fillRect(x+6,y+10,40,6);ctx.fillStyle='rgba(255,255,255,.22)';ctx.fillRect(x+8,y+3,25,3);ctx.fillStyle='#c49a45';ctx.fillRect(x+3,y+17,46,4);ctx.fillRect(x+22,y+1,8,18);}
     ctx.fillStyle='#211611';ctx.fillRect(x-3,y+19,58,23);ctx.fillStyle='#6a3d22';ctx.fillRect(x+1,y+22,50,17);ctx.fillStyle=rarity;ctx.fillRect(x+6,y+23,40,12);ctx.fillStyle='#8d5730';ctx.fillRect(x+7,y+24,38,4);ctx.fillStyle='#c49a45';ctx.fillRect(x+1,y+19,50,5);ctx.fillRect(x+3,y+35,46,5);ctx.fillRect(x+8,y+20,5,19);ctx.fillRect(x+39,y+20,5,19);ctx.fillStyle='#f6d36b';ctx.fillRect(x+21,y+20,11,14);ctx.fillStyle='#533819';ctx.fillRect(x+25,y+26,3,6);ctx.fillStyle='#17100d';ctx.fillRect(x+1,y+40,10,4);ctx.fillRect(x+41,y+40,10,4);
-    if (!open) { ctx.fillStyle = '#101513'; ctx.fillRect(chest.x - 18, chest.y - 17, 86, 12); ctx.fillStyle = drop.rarity.color; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center'; ctx.fillText(`${drop.rarity.name.toUpperCase()} ${drop.rarity.chance}%`, chest.x + 25, chest.y - 8); ctx.textAlign = 'start'; }
+    if (!open) { ctx.fillStyle = '#0b120e'; ctx.fillRect(chest.x - 48, chest.y - 29, 148, 23); ctx.strokeStyle='#caa957';ctx.lineWidth=2;ctx.strokeRect(chest.x-47,chest.y-28,146,21);ctx.fillStyle = '#fff0b0'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center'; ctx.fillText('E · ОТКРЫТЬ СУНДУК', chest.x + 26, chest.y - 14);ctx.fillStyle=drop.rarity.color;ctx.font='bold 8px monospace';ctx.fillText(drop.rarity.name.toUpperCase(),chest.x+26,chest.y-5); ctx.textAlign = 'start'; }
   });
   map.carts.forEach((cart) => drawCart(ctx, cart.x, cart.y, map.floor[2]));
   if ((level === 6 || level === 12 || level === 18) && !enemies.some((enemy) => enemy.kind === 'boss')) drawMerchant(ctx, MERCHANT.x, MERCHANT.y);
@@ -567,7 +567,7 @@ function drawScene(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLeve
   if (!map.round) {
     const routeExit = level === 0 ? { x: map.worldWidth - 70, y: 336 } : getRouteExit(); const exitX = routeExit.x; const exitY = routeExit.y - 46;
     ctx.fillStyle = '#d5a84a'; ctx.fillRect(exitX, exitY, 12, 92);
-    ctx.fillStyle = '#f3e7c3'; ctx.font = '8px monospace'; ctx.fillText(level === 0 ? 'ВОРОТА · E' : 'ВЫХОД', exitX - 48, exitY - 9);
+    ctx.fillStyle='#0b120e';ctx.fillRect(exitX-72,exitY-30,172,20);ctx.strokeStyle='#d5a84a';ctx.lineWidth=2;ctx.strokeRect(exitX-71,exitY-29,170,18);ctx.fillStyle = '#fff0b0'; ctx.font = 'bold 11px monospace'; ctx.fillText(level === 0 ? 'E · ОТКРЫТЬ ДВЕРЬ' : 'E · ПЕРЕЙТИ ДАЛЬШЕ', exitX - 64, exitY - 16);
   }
   if (level === 1) {
     const portalY = getRouteStart().y - 46; ctx.fillStyle = '#5cf2ff'; ctx.fillRect(32, portalY, 12, 92);

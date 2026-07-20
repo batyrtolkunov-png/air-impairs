@@ -144,7 +144,7 @@ export function getLevel(number: number): LevelConfig {
     }
   }
   const loot = { ...theme.loot };
-  const coastalSand = number === 19 || number === 20;
+  const coastalSand = number === 25 || number === 26;
   return { ...theme, name: coastalSand ? `Дикий берег · ${baseTheme.name}` : theme.name, worldWidth, worldHeight, round, floor: coastalSand ? ['#d9ad57','#e7c36c','#f2d787'] : [...theme.floor], loot, enemy: { ...theme.enemy }, walls, chests, carts, enemies, decorations };
 }
 

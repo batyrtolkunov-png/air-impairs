@@ -437,6 +437,7 @@ function drawLoot(ctx: CanvasRenderingContext2D, p: Point, item: Weapon) {
   if (item.type === 'armor') { ctx.rotate(.55); ctx.fillStyle = '#292735'; ctx.fillRect(-27, -28, 54, 61); ctx.fillStyle = item.color; ctx.fillRect(-23, -25, 46, 55); ctx.fillRect(-36, -20, 14, 28); ctx.fillRect(22, -20, 14, 28); ctx.fillStyle = '#e8dfff'; ctx.fillRect(-14, -17, 28, 6); ctx.fillRect(-3, -10, 6, 33); ctx.fillStyle = '#fff'; ctx.fillRect(-11, -14, 8, 4); }
   if (item.type === 'gloves') { ctx.rotate(.55); drawPixelGlovesIcon(ctx, 0, 0, item.color); }
   ctx.restore();
+  ctx.fillStyle='#07100b';ctx.fillRect(p.x-59,p.y-28,154,24);ctx.strokeStyle='#e1bd60';ctx.lineWidth=2;ctx.strokeRect(p.x-58,p.y-27,152,22);ctx.fillStyle='#fff4c7';ctx.font='bold 15px monospace';ctx.textAlign='center';ctx.fillText('E · ПОДОБРАТЬ',p.x+18,p.y-10);ctx.textAlign='start';
 }
 
 function drawBentLimb(ctx: CanvasRenderingContext2D, x: number, y: number, angle: number, bend: number, color: string, boot?: string) {
@@ -1152,7 +1153,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
       const secondInteracts = players === 2 && keys.current.has('Period'); const interactionHero = secondInteracts ? p2 : p;
       const nearChest = map.chests.findIndex((chest, index) => !openedChests.includes(index) && Math.hypot(chest.x + 24 - interactionHero.x, chest.y + 20 - interactionHero.y) < 75);
       if ((keys.current.has('KeyE') || secondInteracts) && nearChest >= 0 && !loot) { const chest = map.chests[nearChest]; const ownerClass = secondInteracts ? playerClass2 : playerClass; let drop = level === 0 ? getTutorialClassLoot(ownerClass) : chestDrops[nearChest]; if (level === 0) setChestDrops((drops) => drops.map((current, index) => index === nearChest ? drop : current)); itemPicker.current = secondInteracts ? 2 : 1; if (!secondInteracts) keys.current.delete('KeyE'); setOpenedChests((current) => [...current, nearChest]); setDroppedItem(drop.item); setLoot({ x: chest.x + 8, y: chest.y + 48 }); if (level > 0 && level < 6 && Math.random() < .1) ambushAt.current = performance.now(); setMessage(`${drop.rarity.name} сундук: выпал предмет «${drop.item.name}»!`); }
-      const playerOnePicks = loot && droppedItem && Math.hypot(loot.x - p.x, loot.y - p.y) < 42; const playerTwoPicks = loot && droppedItem && players === 2 && keys.current.has('Period') && Math.hypot(loot.x - p2.x, loot.y - p2.y) < 52;
+      const playerOnePicks = loot && droppedItem && keys.current.has('KeyE') && Math.hypot(loot.x - p.x, loot.y - p.y) < 52; const playerTwoPicks = loot && droppedItem && players === 2 && keys.current.has('Period') && Math.hypot(loot.x - p2.x, loot.y - p2.y) < 52;
       if (playerOnePicks || playerTwoPicks) { itemPicker.current = playerTwoPicks || itemPicker.current === 2 && !playerOnePicks ? 2 : 1; keys.current.clear(); setChoiceItem(droppedItem); }
       const nearFirstLevelPortal = level === 1 && p.x < 100 && Math.abs(p.y + 14 - getRouteStart().y) < 75; const secondNearFirstPortal = players === 2 && level === 1 && p2.x < 100 && Math.abs(p2.y + 14 - getRouteStart().y) < 75;
       if (keys.current.has('KeyE') && nearFirstLevelPortal || keys.current.has('Period') && secondNearFirstPortal) {

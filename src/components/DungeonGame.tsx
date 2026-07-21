@@ -53,7 +53,7 @@ const WIDTH = 640;
 const HEIGHT = 400;
 const ONE_GAME_SWORD: Weapon = { name: 'Клинок испытателя', type: 'sword', damage: 20, color: '#f6d66b' };
 const ONE_GAME_ARMOR: Weapon = { name: 'Броня испытателя', type: 'armor', damage: 0, defense: 20, durability: 20, color: '#76c9e8' };
-const ONE_GAME_LOADOUT_KEY = 'air-impairs-one-game-loadout-2026-07-21';
+const ONE_GAME_LOADOUT_KEY = 'air-impairs-one-game-loadout-2026-07-21-v2';
 const BOSS_HITBOX_RADIUS = 55;
 function enemyHitRadius(enemy: Enemy) { return enemy.kind === 'boss' ? BOSS_HITBOX_RADIUS : enemy.kind === 'goblin' || enemy.kind === 'monkey' || enemy.kind === 'nativeSpear' || enemy.kind === 'nativeClub' || enemy.kind === 'knightGuard' || enemy.kind === 'knightSword' || enemy.kind === 'knightHalberd' || enemy.kind === 'mummy' || enemy.kind === 'iceGolem' || enemy.kind === 'mudMonster' ? 18 : 14; }
 function bossBodyHits(point: Point, enemy: Enemy, extraRadius = 0) { const dx = point.x - enemy.x; return Math.abs(dx) <= 52 + extraRadius && point.y >= enemy.y - 92 - extraRadius && point.y <= enemy.y - 24 + extraRadius; }

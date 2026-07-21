@@ -622,9 +622,27 @@ function drawScene(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLeve
   if (loot && droppedItem) drawLoot(ctx, loot, droppedItem);
   if (!map.round) {
     const routeExit = level === 0 ? { x: map.worldWidth - 70, y: 336 } : getRouteExit(); const exitX = routeExit.x; const exitY = routeExit.y - 46;
-    if(level===26){ctx.fillStyle='#27342d';ctx.fillRect(exitX-8,exitY-26,62,118);ctx.fillStyle='#566557';ctx.fillRect(exitX-5,exitY-20,22,112);ctx.fillRect(exitX+34,exitY-20,22,112);ctx.fillStyle='#788674';for(let y=exitY-17;y<exitY+82;y+=18){ctx.fillRect(exitX-2,y,16,8);ctx.fillRect(exitX+37,y+7,16,8);}ctx.fillStyle='#171d19';ctx.fillRect(exitX+16,exitY+12,19,80);ctx.fillStyle='#a68b58';ctx.fillRect(exitX+23,exitY+15,4,74);if(castleGuardVisible){[-4,48].forEach((offset)=>{ctx.save();ctx.translate(exitX-74,exitY+offset);ctx.scale(.38,.38);drawKnightGuard(ctx,{x:0,y:0,kind:'knightGuard',hp:1,maxHp:1,flash:0,attackUntil:0,stunnedUntil:0,color:'#aebdca',power:7,speed:0,leapStarted:0,leapUntil:0,leapTargetX:0,leapTargetY:0,nextLeapAt:0},now,false);ctx.restore();});}}
-    ctx.fillStyle = '#d5a84a'; ctx.fillRect(exitX, exitY, 12, 92);
-    ctx.fillStyle='#07100b';ctx.fillRect(exitX-88,exitY-39,216,29);ctx.strokeStyle='#e1bd60';ctx.lineWidth=3;ctx.strokeRect(exitX-86,exitY-37,212,25);ctx.fillStyle = '#fff4c7'; ctx.font = 'bold 16px monospace'; ctx.fillText(level === 0 ? 'E · ОТКРЫТЬ ДВЕРЬ' : 'E · ПЕРЕЙТИ ДАЛЬШЕ', exitX - 78, exitY - 18);
+    if(level===26){
+      const castleTop=exitY-74;
+      ctx.fillStyle='#202923';ctx.fillRect(exitX-34,castleTop+16,116,190);
+      ctx.fillStyle='#59675d';ctx.fillRect(exitX-28,castleTop+22,104,178);
+      ctx.fillStyle='#748077';for(let row=0;row<9;row++)for(let column=0;column<4;column++)ctx.fillRect(exitX-24+column*25+(row%2)*8,castleTop+29+row*18,16,7);
+      ctx.fillStyle='#303b34';ctx.fillRect(exitX-50,castleTop,36,206);ctx.fillRect(exitX+62,castleTop,36,206);
+      ctx.fillStyle='#65746a';ctx.fillRect(exitX-45,castleTop+8,26,192);ctx.fillRect(exitX+67,castleTop+8,26,192);
+      ctx.fillStyle='#89958a';[-50,-38,-26,-14,62,74,86].forEach((offset)=>ctx.fillRect(exitX+offset,castleTop-12,12,24));
+      ctx.fillStyle='#222a25';for(let y=castleTop+22;y<castleTop+190;y+=23){ctx.fillRect(exitX-42,y,20,7);ctx.fillRect(exitX+70,y+9,20,7);}
+      ctx.fillStyle='#151b17';ctx.beginPath();ctx.arc(exitX+24,castleTop+91,35,Math.PI,0);ctx.fill();ctx.fillRect(exitX-11,castleTop+90,70,110);
+      ctx.fillStyle='#5b3827';ctx.fillRect(exitX-7,castleTop+93,29,107);ctx.fillRect(exitX+26,castleTop+93,29,107);
+      ctx.fillStyle='#81543a';for(let y=castleTop+100;y<castleTop+194;y+=18){ctx.fillRect(exitX-5,y,25,5);ctx.fillRect(exitX+28,y+8,25,5);}
+      ctx.fillStyle='#b18a49';ctx.fillRect(exitX+21,castleTop+93,5,107);ctx.fillRect(exitX-7,castleTop+142,62,6);ctx.fillStyle='#e7c76a';ctx.fillRect(exitX+15,castleTop+137,7,10);ctx.fillRect(exitX+29,castleTop+137,7,10);
+      ctx.fillStyle='#792f3e';ctx.fillRect(exitX-20,castleTop+40,18,46);ctx.fillRect(exitX+50,castleTop+40,18,46);ctx.fillStyle='#d3ad4e';ctx.fillRect(exitX-16,castleTop+47,10,8);ctx.fillRect(exitX+54,castleTop+47,10,8);ctx.fillRect(exitX-13,castleTop+57,4,21);ctx.fillRect(exitX+57,castleTop+57,4,21);
+      [-5,55].forEach((offset)=>{const flicker=Math.sin(now/80+offset)*3;ctx.fillStyle='rgba(255,166,52,.22)';ctx.beginPath();ctx.arc(exitX+offset,castleTop+105,18+flicker,0,Math.PI*2);ctx.fill();ctx.fillStyle='#5b3523';ctx.fillRect(exitX+offset-2,castleTop+108,5,18);ctx.fillStyle='#ff9e35';ctx.fillRect(exitX+offset-5,castleTop+98-flicker,11,13);ctx.fillStyle='#ffe078';ctx.fillRect(exitX+offset-2,castleTop+100-flicker,5,8);});
+      if(castleGuardVisible){[-8,64].forEach((offset)=>{ctx.save();ctx.translate(exitX-80,exitY+offset);ctx.scale(.38,.38);drawKnightGuard(ctx,{x:0,y:0,kind:'knightGuard',hp:1,maxHp:1,flash:0,attackUntil:0,stunnedUntil:0,color:'#aebdca',power:7,speed:0,leapStarted:0,leapUntil:0,leapTargetX:0,leapTargetY:0,nextLeapAt:0},now,false);ctx.restore();});}
+      ctx.fillStyle='#07100b';ctx.fillRect(exitX-136,castleTop-48,246,31);ctx.strokeStyle='#e1bd60';ctx.lineWidth=3;ctx.strokeRect(exitX-134,castleTop-46,242,27);ctx.fillStyle='#fff4c7';ctx.font='bold 14px monospace';ctx.fillText(castleGuardVisible?'E · ГОВОРИТЬ СО СТРАЖЕЙ':'E · ВОЙТИ В ЗАМОК',exitX-124,castleTop-27);
+    }else{
+      ctx.fillStyle = '#d5a84a'; ctx.fillRect(exitX, exitY, 12, 92);
+      ctx.fillStyle='#07100b';ctx.fillRect(exitX-88,exitY-39,216,29);ctx.strokeStyle='#e1bd60';ctx.lineWidth=3;ctx.strokeRect(exitX-86,exitY-37,212,25);ctx.fillStyle = '#fff4c7'; ctx.font = 'bold 16px monospace'; ctx.fillText(level === 0 ? 'E · ОТКРЫТЬ ДВЕРЬ' : 'E · ПЕРЕЙТИ ДАЛЬШЕ', exitX - 78, exitY - 18);
+    }
   }
   if (level === 1) {
     const portalY = getRouteStart().y - 46; ctx.fillStyle = '#5cf2ff'; ctx.fillRect(32, portalY, 12, 92);

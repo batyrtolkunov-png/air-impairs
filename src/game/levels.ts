@@ -125,7 +125,7 @@ export function getLevel(number: number): LevelConfig {
   const enemies: EnemySpawn[] = round
     ? [{ x: 320, y: 260, kind: 'boss' }]
     : Array.from({ length: Math.floor((1 + localNumber) * 20 * (regionIndex === 2 ? .4 : 1)) }, (_, index) => ({
-      ...safePoint(), kind: index % 4 === 3 ? (regionIndex === 1 ? 'mummy' as const : regionIndex === 2 ? 'iceGolem' as const : regionIndex === 3 ? 'mudPile' as const : regionIndex === 4 ? (number === 27 ? (Math.floor(index / 4) % 2 === 0 ? 'nativeSpear' as const : 'nativeClub' as const) : 'monkey' as const) : 'goblin' as const) : (regionIndex === 1 ? 'scorpion' as const : regionIndex === 2 ? 'iceSpirit' as const : regionIndex === 3 ? 'frog' as const : regionIndex === 4 ? 'snake' as const : 'slime' as const),
+      ...safePoint(), kind: index % 4 === 3 ? (regionIndex === 1 ? 'mummy' as const : regionIndex === 2 ? 'iceGolem' as const : regionIndex === 3 ? 'mudPile' as const : regionIndex === 4 ? (number === 26 || number === 27 ? (Math.floor(index / 4) % 2 === 0 ? 'nativeSpear' as const : 'nativeClub' as const) : 'monkey' as const) : 'goblin' as const) : (regionIndex === 1 ? 'scorpion' as const : regionIndex === 2 ? 'iceSpirit' as const : regionIndex === 3 ? 'frog' as const : regionIndex === 4 ? 'snake' as const : 'slime' as const),
     }));
   const decorations: Decoration[] = [];
   const decorationCount = round ? 32 : 105;

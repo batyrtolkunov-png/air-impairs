@@ -16,7 +16,7 @@ type StaffPulse = { started: number; damage: number };
 type StaffUltimate = Point & { owner: 1 | 2; dx: number; dy: number; started: number; until: number; nextPulseAt: number; pulseIndex: number; kills: number; color: string; name: string; pulses: StaffPulse[] };
 type GlovesUltimate = Point & { owner: 1 | 2; dx: number; dy: number; started: number; until: number; nextHitAt: number; hitIndex: number; damage: number; color: string; name: string; titanTargetX: number; titanTargetY: number; landed: boolean };
 type MagicWave = Point & { dx: number; dy: number; color: string; started: number; until: number };
-type SandTornado = Point & { vx: number; vy: number; damage: number; until: number; style?: 'sand' | 'ice' | 'iceRing' | 'iceSpiritDrop' | 'iceLarge' | 'iceShard' | 'frogTongue' | 'snake' | 'blood'; impactAt?: number; split?: boolean; source?: Enemy; startedAt?: number; tongueDx?: number; tongueDy?: number; tongueLength?: number; hitPlayer1?: boolean; hitPlayer2?: boolean };
+type SandTornado = Point & { vx: number; vy: number; damage: number; until: number; style?: 'sand' | 'ice' | 'iceRing' | 'iceSpiritDrop' | 'iceLarge' | 'iceShard' | 'frogTongue' | 'snake' | 'spear' | 'blood'; impactAt?: number; split?: boolean; source?: Enemy; startedAt?: number; tongueDx?: number; tongueDy?: number; tongueLength?: number; hitPlayer1?: boolean; hitPlayer2?: boolean };
 type Tomb = Point & { spawnedAt: number; sinksAt: number };
 type HeroSkin = 'default' | 'knight' | 'ninja' | 'dune' | 'king' | 'wizard' | 'gentleman';
 type PlayerClass = 'knight' | 'mage' | 'archer' | 'boxer';
@@ -338,6 +338,7 @@ function drawTomb(ctx: CanvasRenderingContext2D, tomb: Tomb, now: number) {
 
 function drawSandTornado(ctx: CanvasRenderingContext2D, tornado: SandTornado, now: number) {
   if(tornado.style==='snake'){ctx.save();ctx.translate(tornado.x,tornado.y);ctx.rotate(Math.atan2(tornado.vy,tornado.vx));ctx.strokeStyle='#236b35';ctx.lineWidth=9;ctx.beginPath();ctx.moveTo(-15,0);ctx.quadraticCurveTo(-7,-8,1,0);ctx.quadraticCurveTo(8,8,15,0);ctx.stroke();ctx.fillStyle='#55bd55';ctx.fillRect(11,-5,10,10);ctx.fillStyle='#ffe36b';ctx.fillRect(17,-2,2,2);ctx.fillStyle='#e65353';ctx.fillRect(21,-1,7,2);ctx.restore();return;}
+  if(tornado.style==='spear'){ctx.save();ctx.translate(tornado.x,tornado.y);ctx.rotate(Math.atan2(tornado.vy,tornado.vx));ctx.fillStyle='#6b4328';ctx.fillRect(-24,-3,42,6);ctx.fillStyle='#d7e1d5';ctx.beginPath();ctx.moveTo(29,0);ctx.lineTo(14,-9);ctx.lineTo(14,9);ctx.closePath();ctx.fill();ctx.fillStyle='#fff';ctx.fillRect(16,-4,7,3);ctx.restore();return;}
   if(tornado.style==='blood'){ctx.fillStyle='#7e1522';ctx.fillRect(tornado.x-3,tornado.y-4,7,9);ctx.fillStyle='#e33b48';ctx.fillRect(tornado.x-1,tornado.y-3,3,4);return;}
   if (tornado.style === 'frogTongue') {
     const started=tornado.startedAt??now,total=Math.max(1,tornado.until-started),progress=Math.max(0,Math.min(1,(now-started)/total));
@@ -1117,6 +1118,10 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
           return;
         }
         if (e.kind === 'iceGolem' && distance <= 128 && now >= (e.nextShotAt ?? 0)) { const length = Math.max(1, distance); sandTornadoes.current.push({ x: e.x, y: e.y, vx: ex / length * 4.2, vy: ey / length * 4.2, damage: e.power, until: now + 3200, style: 'ice' }); e.nextShotAt = now + 1400; e.attackUntil = now + 320; }
+        if (e.kind === 'nativeSpear' && distance <= 96) {
+          if (now >= (e.nextShotAt ?? 0)) { const length = Math.max(1, distance); sandTornadoes.current.push({ x: e.x + 20, y: e.y + 12, vx: ex / length * 5.2, vy: ey / length * 5.2, damage: 3, until: now + 1300, style: 'spear' }); e.nextShotAt = now + 1550; e.attackUntil = now + 420; }
+          return;
+        }
         if (e.kind === 'frog' && distance <= 96) {
           if (now >= (e.nextShotAt ?? 0)) { const length = Math.max(1, distance); sandTornadoes.current.push({ x: e.x + 14, y: e.y + 14, vx: 0, vy: 0, damage: e.power, startedAt: now, until: now + 1250, style: 'frogTongue', source: e, tongueDx: ex / length, tongueDy: ey / length, tongueLength: Math.min(96, length + 12) }); e.nextShotAt = now + 2050; e.attackUntil = now + 1250; }
           return;
@@ -1177,7 +1182,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
         if (e.kind === 'boss' && e.hp < e.maxHp / 2 && distance >= 192 && now >= e.nextLeapAt) {
           e.leapStarted = now; e.leapUntil = now + 1450; e.leapTargetX = targetHero.x; e.leapTargetY = targetHero.y; e.attackUntil = now + 380; setMessage('Босс прыгнул! Уходи из красного круга!'); return;
         }
-        const contactDistance = e.kind === 'boss' ? 65 : e.kind === 'nativeSpear' ? 58 : e.kind === 'nativeClub' ? 18 : 14;
+        const contactDistance = e.kind === 'boss' ? 65 : e.kind === 'nativeSpear' ? 82 : e.kind === 'nativeClub' ? 18 : 14;
         if (distance > contactDistance) {
           if (e.kind === 'frog' && now >= e.nextLeapAt) { e.leapStarted = now; e.leapUntil = now + 360; e.nextLeapAt = now + 690; }
           const enemySpeed = e.speed * dt * (e.kind === 'frog' ? (now < e.leapUntil ? 2.35 : 0) : 1); const dx = ex / distance; const dy = ey / distance;
@@ -1195,7 +1200,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
           if (next) { e.x = next.x; e.y = next.y; }
         }
         const attackInterval = e.kind === 'boss' ? 1600 : 700;
-        if (e.kind !== 'iceGolem' && e.kind !== 'frog' && distance < (e.kind === 'boss' ? 94 : e.kind === 'nativeSpear' ? 68 : e.kind === 'nativeClub' ? 22 : 16) && Math.floor(now / attackInterval) !== Math.floor((now - 17) / attackInterval)) {
+        if (e.kind !== 'iceGolem' && e.kind !== 'frog' && e.kind !== 'nativeSpear' && distance < (e.kind === 'boss' ? 94 : e.kind === 'nativeClub' ? 22 : 16) && Math.floor(now / attackInterval) !== Math.floor((now - 17) / attackInterval)) {
           e.attackUntil = now + 220;
           damageHero(e.power, undefined, targetsSecond);
           if (e.kind === 'scorpion' && Math.random() < .07) {

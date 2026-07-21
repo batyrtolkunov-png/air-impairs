@@ -1219,7 +1219,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
           if((e.bossAttack as string)==='finalBoss'){
             if(!e.revived&&e.maxHp<250){e.maxHp=250;e.hp=250;}
             const elapsed=now-(e.reviveFlashUntil??now);if(elapsed<3200){const fall=Math.max(0,Math.min(1,(elapsed-2450)/750));keys.current.clear();mobileMove.current={x:0,y:0};p.x=225;p.y=350+fall*180;if(players===2){p2.x=190;p2.y=350+fall*180;}e.x=408;e.y=270+fall*180;return;}
-            if(!e.revived){e.revived=true;p.x=210;p.y=430;if(players===2){p2.x=175;p2.y=430;}e.x=410;e.y=210;e.nextShotAt=now+1600;e.nextSummonAt=now+1000;setMessage('Вы провалились в ад. Финальная битва начинается!');}
+            if(!e.revived){e.revived=true;p.x=210;p.y=430;if(players===2){p2.x=175;p2.y=430;}e.x=320;e.y=336;e.nextShotAt=now+1600;e.nextSummonAt=now+1000;setMessage('Вы провалились в ад. Главный босс появился в центре арены!');}
             if(now>=(e.nextSummonAt??0)){const d=Math.max(1,distance);sandTornadoes.current.push({x:e.x,y:e.y-12,vx:ex/d*6,vy:ey/d*6,damage:1,until:now+2800,style:'bossShard'});e.nextSummonAt=now+1000;}
             if(e.finalAttack&&now>=e.attackUntil){e.finalAttack=undefined;e.nextShotAt=now+1800;}
             if(!e.finalAttack&&now>=(e.nextShotAt??0)){

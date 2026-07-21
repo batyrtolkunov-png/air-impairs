@@ -1220,7 +1220,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
         const hitFirst = !waitingToFall && health > 0 && !tornado.hitPlayer1 && Math.hypot(p.x + 12 - tornado.x, p.y + 14 - tornado.y) < radius;
         const hitSecond = !waitingToFall && players === 2 && health2 > 0 && !tornado.hitPlayer2 && Math.hypot(p2.x + 12 - tornado.x, p2.y + 14 - tornado.y) < radius;
         if (hitFirst || hitSecond) {
-          if(tornado.style==='snake'){const second=!hitFirst&&hitSecond,poisonEnd=now+3000;if(second){poisonedUntil2.current=poisonEnd;nextPoisonTick2.current=now+500;}else{poisonedUntil.current=poisonEnd;nextPoisonTick.current=now+500;}setMessage(`Змея укусила игрока ${second?2:1}! Герой истекает кровью 3 секунды.`);return false;}
+          if(tornado.style==='snake'){const second=!hitFirst&&hitSecond;if(Math.random()<.45){const poisonEnd=now+3000;if(second){poisonedUntil2.current=poisonEnd;nextPoisonTick2.current=now+500;}else{poisonedUntil.current=poisonEnd;nextPoisonTick.current=now+500;}setMessage(`Змея укусила игрока ${second?2:1}! Герой истекает кровью 3 секунды.`);}else setMessage(`Змея укусила игрока ${second?2:1}, но кровотечения удалось избежать.`);return false;}
           const iceShot = tornado.style?.startsWith('ice');
           if(tornado.style==='frogTongue'&&level===24&&tornado.source?.kind==='boss'){tornado.source.swallowedPlayer=hitFirst?1:2;tornado.source.swallowUntil=now+3000;tornado.source.swallowDamageDone=false;setMessage('Король жаб притянул героя языком и проглотил его на 3 секунды!');return false;}
           if (tornado.style === 'ice') { if (hitFirst) slowedUntil.current = now + 3000; else slowedUntil2.current = now + 3000; }

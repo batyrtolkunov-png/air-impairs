@@ -16,7 +16,7 @@ type StaffPulse = { started: number; damage: number };
 type StaffUltimate = Point & { owner: 1 | 2; dx: number; dy: number; started: number; until: number; nextPulseAt: number; pulseIndex: number; kills: number; color: string; name: string; pulses: StaffPulse[] };
 type GlovesUltimate = Point & { owner: 1 | 2; dx: number; dy: number; started: number; until: number; nextHitAt: number; hitIndex: number; damage: number; color: string; name: string; titanTargetX: number; titanTargetY: number; landed: boolean };
 type MagicWave = Point & { dx: number; dy: number; color: string; started: number; until: number };
-type SandTornado = Point & { vx: number; vy: number; damage: number; until: number; style?: 'sand' | 'ice' | 'iceRing' | 'iceSpiritDrop' | 'iceLarge' | 'iceShard' | 'frogTongue'; impactAt?: number; split?: boolean; source?: Enemy; startedAt?: number; tongueDx?: number; tongueDy?: number; tongueLength?: number; hitPlayer1?: boolean; hitPlayer2?: boolean };
+type SandTornado = Point & { vx: number; vy: number; damage: number; until: number; style?: 'sand' | 'ice' | 'iceRing' | 'iceSpiritDrop' | 'iceLarge' | 'iceShard' | 'frogTongue' | 'snake' | 'blood'; impactAt?: number; split?: boolean; source?: Enemy; startedAt?: number; tongueDx?: number; tongueDy?: number; tongueLength?: number; hitPlayer1?: boolean; hitPlayer2?: boolean };
 type Tomb = Point & { spawnedAt: number; sinksAt: number };
 type HeroSkin = 'default' | 'knight' | 'ninja' | 'dune' | 'king' | 'wizard' | 'gentleman';
 type PlayerClass = 'knight' | 'mage' | 'archer' | 'boxer';
@@ -123,6 +123,8 @@ function drawDecoration(ctx: CanvasRenderingContext2D, x: number, y: number, kin
     ctx.strokeStyle = ice ? (variant % 2 ? '#65c9ed' : '#a9efff') : desert ? (variant % 2 ? '#c99a32' : '#e0b84c') : (variant % 2 ? '#4f8448' : '#5d984e'); ctx.lineWidth = 3; ctx.lineCap = 'square';
     [-8, -3, 2, 7].forEach((offset, index) => { ctx.beginPath(); ctx.moveTo(offset, 9); ctx.lineTo(offset + (index % 2 ? 5 : -4), -4 - (index % 3) * 3); ctx.stroke(); });
     ctx.fillStyle = ice ? '#f5feff' : desert ? '#f2d36b' : '#8fbd62'; ctx.fillRect(-1, -8, 3, 4); if (ice) { ctx.fillRect(-12, -4, 3, 3); ctx.fillRect(10, -7, 3, 3); }
+  } else if (jungle && kind === 'rock') {
+    const size=9+variant*2;ctx.fillStyle='rgba(0,0,0,.3)';ctx.fillRect(-size,6,size*2+5,6);if(variant>=2){ctx.strokeStyle='#2f9b45';ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(-4,1);ctx.quadraticCurveTo(4,-14,13,-3);ctx.stroke();ctx.fillStyle='#65d567';ctx.fillRect(10,-7,7,6);ctx.fillStyle='#152819';ctx.fillRect(14,-5,2,2);}ctx.fillStyle='#46534d';ctx.beginPath();ctx.moveTo(-size,7);ctx.lineTo(-size+3,-4);ctx.lineTo(3,-9);ctx.lineTo(size,-2);ctx.lineTo(size+2,7);ctx.closePath();ctx.fill();ctx.fillStyle='#718078';ctx.fillRect(-size+4,-3,size,4);
   } else if (kind === 'rock') {
     const size = 9 + variant * 2; ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.fillRect(-size, 6, size * 2 + 5, 6);
     ctx.fillStyle = '#46534d'; ctx.beginPath(); ctx.moveTo(-size, 7); ctx.lineTo(-size + 3, -4); ctx.lineTo(3, -9); ctx.lineTo(size, -2); ctx.lineTo(size + 2, 7); ctx.closePath(); ctx.fill();
@@ -295,6 +297,8 @@ function drawTomb(ctx: CanvasRenderingContext2D, tomb: Tomb, now: number) {
 }
 
 function drawSandTornado(ctx: CanvasRenderingContext2D, tornado: SandTornado, now: number) {
+  if(tornado.style==='snake'){ctx.save();ctx.translate(tornado.x,tornado.y);ctx.rotate(Math.atan2(tornado.vy,tornado.vx));ctx.strokeStyle='#236b35';ctx.lineWidth=9;ctx.beginPath();ctx.moveTo(-15,0);ctx.quadraticCurveTo(-7,-8,1,0);ctx.quadraticCurveTo(8,8,15,0);ctx.stroke();ctx.fillStyle='#55bd55';ctx.fillRect(11,-5,10,10);ctx.fillStyle='#ffe36b';ctx.fillRect(17,-2,2,2);ctx.fillStyle='#e65353';ctx.fillRect(21,-1,7,2);ctx.restore();return;}
+  if(tornado.style==='blood'){ctx.fillStyle='#7e1522';ctx.fillRect(tornado.x-3,tornado.y-4,7,9);ctx.fillStyle='#e33b48';ctx.fillRect(tornado.x-1,tornado.y-3,3,4);return;}
   if (tornado.style === 'frogTongue') {
     const started=tornado.startedAt??now,total=Math.max(1,tornado.until-started),progress=Math.max(0,Math.min(1,(now-started)/total));
     const reach=progress<.45?progress/.45:progress<.65?1:(1-progress)/.35; const length=(tornado.tongueLength??96)*Math.max(0,reach);
@@ -723,6 +727,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
   const glovesUltimates = useRef<GlovesUltimate[]>([]);
   const waves = useRef<MagicWave[]>([]);
   const sandTornadoes = useRef<SandTornado[]>([]);
+  const activatedSnakeRocks = useRef(new Set<number>());
   const tombs = useRef<Tomb[]>([]);
   const weaponRef = useRef<Weapon | null>(null);
   const weapon2Ref = useRef<Weapon | null>(null);
@@ -897,7 +902,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
     enemies.current = createEnemies(map, enemyMultiplier); keys.current.clear(); projectiles.current = []; superFists.current = []; swordUltimates.current = []; bowUltimates.current = []; staffUltimates.current = []; glovesUltimates.current = []; waves.current = [];
     setLevel(travelToLevel); setOpenedChests([]); setChestDrops(map.chests.map(() => getRandomLoot(travelToLevel))); setLoot(null); setDroppedItem(null); setChoiceItem(null); setVictory(false); victoryReported.current = false; setDead(false); setMessage(`Новая область: ${map.name}. Найди путь к её хранителю.`);
   }, [travelToLevel]);
-  useEffect(() => { ambushAt.current = -1; }, [level]);
+  useEffect(() => { ambushAt.current = -1; activatedSnakeRocks.current.clear(); }, [level]);
   useEffect(() => { if (exploredLevel.current !== level) { exploredLevel.current = level; explored.current = [{ ...hero.current }, ...(players === 2 ? [{ ...hero2.current }] : [])]; } }, [level, players]);
 
   const acceptItem = () => {
@@ -1020,6 +1025,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
         } else if (second) setHealth2((current) => { const next = Math.max(0, current - amount); if (current > 0 && next === 0) { if (health <= 0) { setDead(true); keys.current.clear(); } else showTeammateFallen(); } if (hitMessage) setMessage(`${hitMessage} Второй игрок получил ${amount} урона.`); return next; });
         else setHealth((current) => { const next = Math.max(0, current - amount); if (current > 0 && next === 0) { if (players === 1 || health2 <= 0) { setDead(true); keys.current.clear(); setMessage('Тьма поглотила героя…'); } else showTeammateFallen(); } else if (hitMessage) setMessage(`${hitMessage} Получено ${amount} урона.`); return next; });
       };
+      if(level===25||level===26)map.decorations.forEach((rock,index)=>{if(rock.kind!=='rock'||rock.variant<2||activatedSnakeRocks.current.has(index))return;const d1=health>0?Math.hypot(p.x+12-rock.x,p.y+14-rock.y):Infinity,d2=players===2&&health2>0?Math.hypot(p2.x+12-rock.x,p2.y+14-rock.y):Infinity;if(Math.min(d1,d2)>48)return;activatedSnakeRocks.current.add(index);const target=d2<d1?p2:p,count=1+(index+rock.variant)%3;for(let snake=0;snake<count;snake++){const sx=rock.x+(snake-1)*7,sy=rock.y-5+snake*4,spread=(snake-(count-1)/2)*.16,base=Math.atan2(target.y+14-sy,target.x+12-sx)+spread;sandTornadoes.current.push({x:sx,y:sy,vx:Math.cos(base)*5.2,vy:Math.sin(base)*5.2,damage:0,until:now+2600,style:'snake'});}setMessage(`Из-за камня вылетело змей: ${count}!`);});
       enemies.current.forEach((e) => {
         if(e.kind==='frog'&&(e.thrownUntil??0)>0){const started=e.thrownStarted??now,until=e.thrownUntil??now,progress=Math.max(0,Math.min(1,(now-started)/Math.max(1,until-started))),sx=e.thrownStartX??e.x,sy=e.thrownStartY??e.y,tx=e.thrownTargetX??e.x,ty=e.thrownTargetY??e.y;e.x=sx+(tx-sx)*progress;e.y=sy+(ty-sy)*progress-Math.sin(progress*Math.PI)*105;if(now<until)return;e.x=tx;e.y=ty;e.thrownUntil=0;e.thrownStarted=undefined;e.attackUntil=now+300;const hitFirst=health>0&&Math.hypot(p.x-e.x,p.y-e.y)<32,hitSecond=players===2&&health2>0&&Math.hypot(p2.x-e.x,p2.y-e.y)<32;if(hitFirst||hitSecond)damageHero(1,'Маленькая жаба приземлилась на героя и нанесла 1 HP!',!hitFirst&&hitSecond);else setMessage('Маленькая жаба приземлилась мимо и теперь преследует героя!');}
         if (e.kind === 'mudPile') { const nearFirst=health>0&&Math.hypot(p.x-e.x,p.y-e.y)<=96,nearSecond=players===2&&health2>0&&Math.hypot(p2.x-e.x,p2.y-e.y)<=96;if(!nearFirst&&!nearSecond)return;e.kind='mudMonster';e.hp=1;e.maxHp=1;e.power=5;e.speed=Math.max(1.05,map.enemy.speed);e.flash=10;e.stunnedUntil=now+380;setMessage('Грязевая куча ожила — из болота поднялся монстр!'); }
@@ -1116,6 +1122,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
       const newIceShards: SandTornado[] = [];
       sandTornadoes.current = sandTornadoes.current.filter((tornado) => {
         tornado.x += tornado.vx * dt; tornado.y += tornado.vy * dt;
+        if(tornado.style==='blood')return now<tornado.until;
         if (tornado.style === 'frogTongue') { const started=tornado.startedAt??now,total=Math.max(1,tornado.until-started),progress=Math.max(0,Math.min(1,(now-started)/total));const reach=progress<.45?progress/.45:progress<.65?1:(1-progress)/.35;const source=tornado.source;if(source){tornado.x=source.x+(source.kind==='boss'?0:14)+(tornado.tongueDx??1)*(tornado.tongueLength??96)*Math.max(0,reach);tornado.y=source.y+(source.kind==='boss'?-55:14)+(tornado.tongueDy??0)*(tornado.tongueLength??96)*Math.max(0,reach);}}
         const waitingToFall = Boolean(tornado.impactAt && now < tornado.impactAt);
         if (!waitingToFall && tornado.style === 'iceLarge' && tornado.split) {
@@ -1126,6 +1133,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
         const hitFirst = !waitingToFall && health > 0 && !tornado.hitPlayer1 && Math.hypot(p.x + 12 - tornado.x, p.y + 14 - tornado.y) < radius;
         const hitSecond = !waitingToFall && players === 2 && health2 > 0 && !tornado.hitPlayer2 && Math.hypot(p2.x + 12 - tornado.x, p2.y + 14 - tornado.y) < radius;
         if (hitFirst || hitSecond) {
+          if(tornado.style==='snake'){const second=!hitFirst&&hitSecond,poisonEnd=now+3000;if(second){poisonedUntil2.current=poisonEnd;nextPoisonTick2.current=now+500;}else{poisonedUntil.current=poisonEnd;nextPoisonTick.current=now+500;}setMessage(`Змея укусила игрока ${second?2:1}! Герой истекает кровью 3 секунды.`);return false;}
           const iceShot = tornado.style?.startsWith('ice');
           if(tornado.style==='frogTongue'&&level===24&&tornado.source?.kind==='boss'){tornado.source.swallowedPlayer=hitFirst?1:2;tornado.source.swallowUntil=now+3000;tornado.source.swallowDamageDone=false;setMessage('Король жаб притянул героя языком и проглотил его на 3 секунды!');return false;}
           if (tornado.style === 'ice') { if (hitFirst) slowedUntil.current = now + 3000; else slowedUntil2.current = now + 3000; }
@@ -1139,8 +1147,8 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
       });
       sandTornadoes.current.push(...newIceShards);
       tombs.current = tombs.current.filter((tomb) => now < tomb.sinksAt + 550);
-      if (health > 0 && now < poisonedUntil.current && now >= nextPoisonTick.current) { nextPoisonTick.current += 1000; damageHero(.5, 'Яд скорпиона обжигает кровь!'); }
-      if (players === 2 && health2 > 0 && now < poisonedUntil2.current && now >= nextPoisonTick2.current) { nextPoisonTick2.current += 1000; damageHero(.5, 'Яд скорпиона обжигает кровь!', true); }
+      if (health > 0 && now < poisonedUntil.current && now >= nextPoisonTick.current) { nextPoisonTick.current += 1000; damageHero(.5, 'Яд заставляет героя истекать кровью!');for(let i=0;i<5;i++)sandTornadoes.current.push({x:p.x+7+i*3,y:p.y+15,vx:(i-2)*.35,vy:1+i*.18,damage:0,until:now+650,style:'blood'}); }
+      if (players === 2 && health2 > 0 && now < poisonedUntil2.current && now >= nextPoisonTick2.current) { nextPoisonTick2.current += 1000; damageHero(.5, 'Яд заставляет героя истекать кровью!', true);for(let i=0;i<5;i++)sandTornadoes.current.push({x:p2.x+7+i*3,y:p2.y+15,vx:(i-2)*.35,vy:1+i*.18,damage:0,until:now+650,style:'blood'}); }
       const firstDeathMummies = enemies.current.filter((e) => e.kind === 'mummy' && e.hp <= 0 && !e.revived);
       firstDeathMummies.forEach((mummy) => { mummy.revived = true; mummy.hp = mummy.maxHp / 2; mummy.flash = 0; mummy.stunnedUntil = now + 900; mummy.reviveFlashUntil = now + 900; });
       const revivingDesertBoss = enemies.current.find((e) => level === 12 && e.kind === 'boss' && e.hp <= 0 && !e.revived);

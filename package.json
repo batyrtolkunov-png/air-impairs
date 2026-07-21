@@ -13,7 +13,7 @@
     "db:push": "supabase db push",
     "keep-awake:setup": "node scripts/setup-keep-awake.mjs",
     "ai:secret": "supabase secrets set",
-    "ai:deploy": "supabase functions deploy ai"
+    "ai:deploy": "supabase functions deploy ai --no-verify-jwt"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",

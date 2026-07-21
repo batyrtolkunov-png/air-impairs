@@ -781,6 +781,7 @@ function drawScene(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLeve
 
 export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins = 0, oneHitBoss = false, startingLevel: requestedStartingLevel, profileName, players = 1, playerClass = 'knight', playerClass2 = 'knight', initialSave, tutorial = false, merchantMode = false, mobileControls = false, equippedSkin = 'default', travelToLevel, saveRequest = 0, onSaveSnapshot, onVictory, onShopOpenChange, networkRole = null, remotePosition = null, onNetworkPosition, remoteGameState = null, onNetworkGameState, keyBindings = DEFAULT_KEY_BINDINGS }: { paused?: boolean; enemyMultiplier?: number; startingCoins?: number; oneHitBoss?: boolean; startingLevel?: number | null; profileName: string; players?: 1 | 2; playerClass?: PlayerClass; playerClass2?: PlayerClass; initialSave?: GameSave | null; tutorial?: boolean; merchantMode?: boolean; mobileControls?: boolean; equippedSkin?: string; travelToLevel?: number | null; saveRequest?: number; onSaveSnapshot?: (save: GameSave) => void; onVictory?: (level: number) => void; onShopOpenChange?: (open: boolean) => void; networkRole?: 'host' | 'guest' | null; remotePosition?: (Point & { fx?: number; fy?: number; moving?: boolean }) | null; onNetworkPosition?: (position: Point & { fx?: number; fy?: number; moving?: boolean }) => void; remoteGameState?: NetworkGameState | null; onNetworkGameState?: (state: NetworkGameState) => void; keyBindings?: KeyBindings }) {
   const oneGameLoadout = useRef(!initialSave && typeof window !== 'undefined' && sessionStorage.getItem(ONE_GAME_LOADOUT_KEY) !== 'used').current;
+  const permanentStarterSword = !initialSave;
   const effectiveTutorial = tutorial;
   const requestedLevel = initialSave?.level ?? (effectiveTutorial ? 0 : requestedStartingLevel ?? 1);
   const stageInRegion = requestedLevel > 0 ? ((requestedLevel - 1) % 6) + 1 : 0;
@@ -843,7 +844,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
   const [coins, setCoins] = useState(initialSave?.coins ?? startingCoins);
   const [medkits, setMedkits] = useState(initialSave?.medkits ?? 0);
   const [medkits2, setMedkits2] = useState(initialSave?.medkits2 ?? 0);
-  const [inventory, setInventory] = useState<Weapon[]>(initialSave?.inventory ?? (oneGameLoadout ? [ONE_GAME_SWORD, ONE_GAME_ARMOR] : []));
+  const [inventory, setInventory] = useState<Weapon[]>(initialSave?.inventory ?? (oneGameLoadout ? [ONE_GAME_SWORD, ONE_GAME_ARMOR] : permanentStarterSword ? [ONE_GAME_SWORD] : []));
   const [inventory2, setInventory2] = useState<Weapon[]>(initialSave?.inventory2 ?? []);
   const [inventoryCapacity, setInventoryCapacity] = useState(initialSave?.inventoryCapacity ?? 10);
   const [inventoryCapacity2, setInventoryCapacity2] = useState(initialSave?.inventoryCapacity2 ?? 10);
@@ -854,7 +855,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
   const [droppedItem, setDroppedItem] = useState<Weapon | null>(initialSave?.droppedItem ?? null);
   const [choiceItem, setChoiceItem] = useState<Weapon | null>(null);
   const [chestDrops, setChestDrops] = useState<LootDrop[]>(() => initialSave?.chestDrops ?? firstMap.chests.map(() => startingLevel === 0 ? getTutorialClassLoot(playerClass) : getRandomLoot(startingLevel)));
-  const [weapon, setWeapon] = useState<Weapon | null>(initialSave?.weapon ?? (oneGameLoadout ? ONE_GAME_SWORD : null));
+  const [weapon, setWeapon] = useState<Weapon | null>(initialSave?.weapon ?? (permanentStarterSword ? ONE_GAME_SWORD : null));
   const [weapon2, setWeapon2] = useState<Weapon | null>(initialSave?.weapon2 ?? null);
   const [armor, setArmor] = useState<Weapon | null>(initialSave?.armor ?? (oneGameLoadout ? ONE_GAME_ARMOR : null));
   const [armor2, setArmor2] = useState<Weapon | null>(initialSave?.armor2 ?? null);

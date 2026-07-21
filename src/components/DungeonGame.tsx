@@ -272,14 +272,15 @@ function drawGoblin(ctx: CanvasRenderingContext2D, e: Enemy, now: number, attack
 }
 
 function drawJungleSnake(ctx: CanvasRenderingContext2D, e: Enemy, now: number, attacking: boolean) {
-  const wave = Math.sin(now / 105 + e.x * .04) * 8;
+  const jumping = e.leapStarted > 0, wave = Math.sin(now / 105 + e.x * .04) * (jumping ? 14 : 8);
   ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(64,108,48,9,0,0,Math.PI*2); ctx.fill();
   ctx.strokeStyle = e.flash > 0 ? '#fff' : '#2d7d3d'; ctx.lineWidth = 25; ctx.lineCap = 'square'; ctx.beginPath(); ctx.moveTo(19,99); ctx.bezierCurveTo(42,84+wave,57,110-wave,79,91); ctx.stroke();
   ctx.strokeStyle = '#65c858'; ctx.lineWidth = 14; ctx.beginPath(); ctx.moveTo(20,96); ctx.bezierCurveTo(42,81+wave,57,107-wave,80,88); ctx.stroke();
+  ctx.save(); if (jumping) { ctx.translate(91,75); ctx.rotate(-.24); ctx.translate(-91,-75); }
   ctx.fillStyle = e.flash > 0 ? '#fff' : '#49a94f'; ctx.fillRect(73,55,38,38); ctx.fillRect(66,65,48,25);
   ctx.fillStyle='#d9ed83';ctx.fillRect(81,64,8,8);ctx.fillRect(100,64,8,8);ctx.fillStyle='#162418';ctx.fillRect(84,64,3,8);ctx.fillRect(103,64,3,8);
   ctx.fillStyle='#f06c76';ctx.fillRect(109,80,attacking?20:10,4); if(attacking){ctx.fillRect(126,77,3,4);ctx.fillRect(126,83,3,4);}
-  ctx.fillStyle='#b6d84d';ctx.fillRect(38,85+wave,8,8);ctx.fillRect(57,93-wave,7,7);
+  ctx.restore(); ctx.fillStyle='#b6d84d';ctx.fillRect(38,85+wave,8,8);ctx.fillRect(57,93-wave,7,7);
 }
 
 function drawMonkey(ctx: CanvasRenderingContext2D, e: Enemy, now: number, attacking: boolean) {
@@ -1070,9 +1071,19 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
           e.attackUntil = now + 100;
           if (now < e.leapUntil) return;
           e.x = e.leapTargetX; e.y = e.leapTargetY; e.leapStarted = 0; e.leapUntil = 0; e.thrownStartX = undefined; e.thrownStartY = undefined; e.nextLeapAt = now + 2600;
-          const hitsFirst = health > 0 && Math.hypot(p.x - e.x, p.y - e.y) <= 30;
-          const hitsSecond = players === 2 && health2 > 0 && Math.hypot(p2.x - e.x, p2.y - e.y) <= 30;
-          if (hitsFirst || hitsSecond) damageHero(3.5, 'Обезьяна приземлилась на героя и нанесла 3,5 HP!', !hitsFirst && hitsSecond);
+          return;
+        }
+        if (e.kind === 'snake' && e.leapStarted > 0) {
+          const progress = Math.max(0, Math.min(1, (now - e.leapStarted) / Math.max(1, e.leapUntil - e.leapStarted)));
+          const startX = e.thrownStartX ?? e.x, startY = e.thrownStartY ?? e.y;
+          e.x = startX + (e.leapTargetX - startX) * progress;
+          e.y = startY + (e.leapTargetY - startY) * progress - Math.sin(progress * Math.PI) * 25;
+          e.attackUntil = now + 90;
+          if (now < e.leapUntil) return;
+          e.x = e.leapTargetX; e.y = e.leapTargetY; e.leapStarted = 0; e.leapUntil = 0; e.thrownStartX = undefined; e.thrownStartY = undefined; e.nextLeapAt = now + 1800;
+          const hitsFirst = health > 0 && Math.hypot(p.x - e.x, p.y - e.y) <= 25;
+          const hitsSecond = players === 2 && health2 > 0 && Math.hypot(p2.x - e.x, p2.y - e.y) <= 25;
+          if (hitsFirst || hitsSecond) damageHero(e.power, 'Змея прыгнула и укусила героя!', !hitsFirst && hitsSecond);
           return;
         }
         if (e.kind === 'iceGolem' && distance <= 128 && now >= (e.nextShotAt ?? 0)) { const length = Math.max(1, distance); sandTornadoes.current.push({ x: e.x, y: e.y, vx: ex / length * 4.2, vy: ey / length * 4.2, damage: e.power, until: now + 3200, style: 'ice' }); e.nextShotAt = now + 1400; e.attackUntil = now + 320; }
@@ -1127,6 +1138,10 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
         if (!Number.isFinite(distance)) return;
         if (e.kind === 'monkey' && distance > 40 && distance <= 112 && now >= e.nextLeapAt) {
           e.leapStarted = now; e.leapUntil = now + 620; e.leapTargetX = targetHero.x; e.leapTargetY = targetHero.y; e.thrownStartX = e.x; e.thrownStartY = e.y; e.attackUntil = now + 620;
+          return;
+        }
+        if (e.kind === 'snake' && distance > 28 && distance <= 80 && now >= e.nextLeapAt) {
+          e.leapStarted = now; e.leapUntil = now + 390; e.leapTargetX = targetHero.x; e.leapTargetY = targetHero.y; e.thrownStartX = e.x; e.thrownStartY = e.y; e.attackUntil = now + 390;
           return;
         }
         if (e.kind === 'boss' && e.hp < e.maxHp / 2 && distance >= 192 && now >= e.nextLeapAt) {

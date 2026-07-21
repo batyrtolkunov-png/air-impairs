@@ -867,6 +867,8 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
 
   useEffect(() => {
     const down = (event: KeyboardEvent) => {
+      const target = event.target;
+      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || target instanceof HTMLElement && target.isContentEditable) return;
       if(event.isTrusted){const action=(Object.keys(keyBindings) as Array<keyof KeyBindings>).find((id)=>keyBindings[id]===event.code);const mapped=action?CANONICAL_CONTROL_CODES[action]:event.code;if(mapped!==event.code){event.preventDefault();window.dispatchEvent(new KeyboardEvent('keydown',{code:mapped,repeat:event.repeat,bubbles:true}));return;}}
       keys.current.add(event.code);
       if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyH', 'KeyL', 'KeyQ', 'KeyI', 'KeyE', 'Period', 'Quote', 'Comma', 'Semicolon', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(event.code)) event.preventDefault();
@@ -935,7 +937,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
         if (current?.type === 'staff') { const origin = { x: hero2.current.x + 13, y: hero2.current.y + 18 }; waves.current.push({ ...origin, dx: facing2.current.x, dy: facing2.current.y, color: current.color, started: now, until: now + 360 }); enemies.current.forEach((enemy) => { const ex = enemy.x - origin.x, ey = enemy.y - origin.y; const forward = ex * facing2.current.x + ey * facing2.current.y; const side = Math.abs(ex * -facing2.current.y + ey * facing2.current.x); if (forward > 0 && forward < 190 && side < 50) { enemy.hp -= current.damage; enemy.flash = 12; } }); }
       }
     };
-    const up = (event: KeyboardEvent) => {if(event.isTrusted){const action=(Object.keys(keyBindings) as Array<keyof KeyBindings>).find((id)=>keyBindings[id]===event.code);const mapped=action?CANONICAL_CONTROL_CODES[action]:event.code;if(mapped!==event.code){window.dispatchEvent(new KeyboardEvent('keyup',{code:mapped,bubbles:true}));return;}}keys.current.delete(event.code);};
+    const up = (event: KeyboardEvent) => {const target=event.target;if(target instanceof HTMLInputElement||target instanceof HTMLTextAreaElement||target instanceof HTMLSelectElement||target instanceof HTMLElement&&target.isContentEditable)return;if(event.isTrusted){const action=(Object.keys(keyBindings) as Array<keyof KeyBindings>).find((id)=>keyBindings[id]===event.code);const mapped=action?CANONICAL_CONTROL_CODES[action]:event.code;if(mapped!==event.code){window.dispatchEvent(new KeyboardEvent('keyup',{code:mapped,bubbles:true}));return;}}keys.current.delete(event.code);};
     window.addEventListener('keydown', down); window.addEventListener('keyup', up);
     return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
   }, [health, health2, inventoryOwner, keyBindings, medkits, medkits2, players]);

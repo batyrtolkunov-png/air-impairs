@@ -1197,8 +1197,9 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
         }
         if(level===30&&e.kind==='boss'){
           if(e.bossAttack==='idleSword')return;
-          if(distance<=320&&now>=(e.nextShotAt??0)){e.nextShotAt=now+2800;e.attackUntil=now+1000;e.bossAttack='spin';const hitFirst=health>0&&Math.hypot(p.x+12-e.x,p.y+14-e.y)<=320,hitSecond=players===2&&health2>0&&Math.hypot(p2.x+12-e.x,p2.y+14-e.y)<=320;if(hitFirst||hitSecond)damageHero(7,'Хранитель замка раскрутил огромный топор и нанёс 7 HP урона!',!hitFirst&&hitSecond);setMessage('Хранитель вращает топор длиной десять клеток — уходи к самому краю арены!');}
-          if(e.hp<=e.maxHp/2&&now>=(e.nextSummonAt??0)){e.nextSummonAt=now+4600;e.attackUntil=now+850;e.bossAttack='slam';for(let index=0;index<7;index++){const angle=index/7*Math.PI*2;sandTornadoes.current.push({x:e.x,y:e.y,vx:Math.cos(angle)*5.2,vy:Math.sin(angle)*5.2,damage:7,until:now+1600,style:'groundRift'});}setMessage('Хранитель подпрыгнул и ударил топором в пол — расходятся семь разрушительных трещин!');}
+          if(distance<=320&&e.attackUntil<=now&&now>=(e.nextShotAt??0)){e.nextShotAt=now+7000;e.nextSummonAt=Math.max(e.nextSummonAt??0,now+7000);e.attackUntil=now+1000;e.bossAttack='spin';const hitFirst=health>0&&Math.hypot(p.x+12-e.x,p.y+14-e.y)<=320,hitSecond=players===2&&health2>0&&Math.hypot(p2.x+12-e.x,p2.y+14-e.y)<=320;if(hitFirst||hitSecond)damageHero(7,'Хранитель замка раскрутил огромный топор и нанёс 7 HP урона!',!hitFirst&&hitSecond);setMessage('Хранитель вращает топор длиной десять клеток — следующая атака через семь секунд!');}
+          if(e.hp<=e.maxHp/2&&e.attackUntil<=now&&now>=(e.nextSummonAt??0)){e.nextSummonAt=now+7000;e.nextShotAt=Math.max(e.nextShotAt??0,now+7000);e.attackUntil=now+850;e.bossAttack='slam';for(let index=0;index<7;index++){const angle=index/7*Math.PI*2;sandTornadoes.current.push({x:e.x,y:e.y,vx:Math.cos(angle)*5.2,vy:Math.sin(angle)*5.2,damage:7,until:now+1600,style:'groundRift'});}setMessage('Хранитель подпрыгнул и ударил топором в пол — следующая атака через семь секунд!');}
+          if(e.attackUntil<=now&&distance>46){const step=e.speed*dt,moveX=e.x+ex/distance*step,moveY=e.y+ey/distance*step;if(Math.hypot(moveX-320,moveY-336)<275){e.x=moveX;e.y=moveY;}}
           return;
         }
         if (level === 24 && e.kind === 'boss') {

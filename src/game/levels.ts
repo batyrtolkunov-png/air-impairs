@@ -3,7 +3,7 @@ export type Wall = { x: number; y: number; w: number; h: number };
 export type Weapon = { name: string; type: 'sword' | 'bow' | 'staff' | 'gloves' | 'armor'; damage: number; defense?: number; durability?: number; color: string };
 export type Rarity = { name: string; color: string; bonus: number; tier: number; chance: number };
 export type LootDrop = { item: Weapon; rarity: Rarity };
-export type EnemyKind = 'slime' | 'goblin' | 'snake' | 'monkey' | 'nativeSpear' | 'nativeClub' | 'knightGuard' | 'mummy' | 'scorpion' | 'iceGolem' | 'iceSpirit' | 'frog' | 'mudPile' | 'mudMonster' | 'boss';
+export type EnemyKind = 'slime' | 'goblin' | 'snake' | 'monkey' | 'nativeSpear' | 'nativeClub' | 'knightGuard' | 'knightSword' | 'knightHalberd' | 'mummy' | 'scorpion' | 'iceGolem' | 'iceSpirit' | 'frog' | 'mudPile' | 'mudMonster' | 'boss';
 export type EnemySpawn = Point & { kind: EnemyKind };
 export type Decoration = Point & { kind: 'rock' | 'grass' | 'log'; variant: number };
 export type EnemyStyle = { color: string; hp: number; power: number; speed: number };
@@ -125,7 +125,7 @@ export function getLevel(number: number): LevelConfig {
   const enemies: EnemySpawn[] = round
     ? [{ x: 320, y: 260, kind: 'boss' }]
     : Array.from({ length: Math.floor((1 + localNumber) * 20 * (regionIndex === 2 ? .4 : 1)) }, (_, index) => ({
-      ...safePoint(), kind: index % 4 === 3 ? (regionIndex === 1 ? 'mummy' as const : regionIndex === 2 ? 'iceGolem' as const : regionIndex === 3 ? 'mudPile' as const : regionIndex === 4 ? (number === 26 || number === 27 ? (Math.floor(index / 4) % 2 === 0 ? 'nativeSpear' as const : 'nativeClub' as const) : 'monkey' as const) : 'goblin' as const) : (regionIndex === 1 ? 'scorpion' as const : regionIndex === 2 ? 'iceSpirit' as const : regionIndex === 3 ? 'frog' as const : regionIndex === 4 ? 'snake' as const : 'slime' as const),
+      ...safePoint(), kind: number === 27 ? (index % 2 === 0 ? 'knightSword' as const : 'knightHalberd' as const) : index % 4 === 3 ? (regionIndex === 1 ? 'mummy' as const : regionIndex === 2 ? 'iceGolem' as const : regionIndex === 3 ? 'mudPile' as const : regionIndex === 4 ? (number === 26 ? (Math.floor(index / 4) % 2 === 0 ? 'nativeSpear' as const : 'nativeClub' as const) : 'monkey' as const) : 'goblin' as const) : (regionIndex === 1 ? 'scorpion' as const : regionIndex === 2 ? 'iceSpirit' as const : regionIndex === 3 ? 'frog' as const : regionIndex === 4 ? 'snake' as const : 'slime' as const),
     }));
   const decorations: Decoration[] = [];
   const decorationCount = round ? 32 : 105;
@@ -145,7 +145,8 @@ export function getLevel(number: number): LevelConfig {
   }
   const loot = { ...theme.loot };
   const coastalSand = number === 25 || number === 26;
-  return { ...theme, name: coastalSand ? `Дикие джунгли · ${baseTheme.name}` : theme.name, worldWidth, worldHeight, round, floor: coastalSand ? ['#153b28','#194a30','#28633b'] : [...theme.floor], loot, enemy: { ...theme.enemy }, walls, chests, carts, enemies, decorations };
+  const castleInterior = number === 27;
+  return { ...theme, name: castleInterior ? `Замок джунглей · ${baseTheme.name}` : coastalSand ? `Дикие джунгли · ${baseTheme.name}` : theme.name, worldWidth, worldHeight, round, floor: castleInterior ? ['#4a4d52','#60646a','#34373c'] : coastalSand ? ['#153b28','#194a30','#28633b'] : [...theme.floor], loot, enemy: { ...theme.enemy }, walls, chests, carts: castleInterior ? [] : carts, enemies, decorations: castleInterior ? [] : decorations };
 }
 
 const randomLoot: Array<Weapon & { tier: number }> = [

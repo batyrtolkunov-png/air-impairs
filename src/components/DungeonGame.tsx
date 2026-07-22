@@ -818,6 +818,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
   const facing = useRef<Point>({ x: 1, y: 0 });
   const hero2 = useRef<Point>(!savedMapIsRemoved && initialSave?.hero2 ? initialSave.hero2 : firstMap.round ? { x: 65, y: 322 } : { ...startingPoint, y: startingPoint.y + 32 });
   const remoteMovingUntil = useRef(0);
+  const remotePositionTarget = useRef<Point | null>(null);
   const nextNetworkStateAt = useRef(0);
   const nextNetworkMapAt = useRef(0);
   const facing2 = useRef<Point>({ x: 1, y: 0 });
@@ -851,6 +852,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
   const nextPoisonTick = useRef(0);
   const nextPoisonTick2 = useRef(0);
   const itemPicker = useRef<1 | 2>(1);
+  const pendingGuestChest = useRef<{index:number;loot:Point;item:Weapon}|null>(null);
   const handledSaveRequest = useRef(saveRequest);
   const nextFootstepAt = useRef(0);
   const nextNetworkSendAt = useRef(0);
@@ -891,8 +893,9 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
   const [shopOpen, setShopOpen] = useState(false);
   const [castleGuardDialogueOpen, setCastleGuardDialogueOpen] = useState(false);
   const [castleGuardOutcome, setCastleGuardOutcome] = useState<'locked'|'peace'|'farewell'|'fight'>('locked');
-  useEffect(() => { if (!remotePosition || !networkRole) return; const remote = networkRole === 'host' ? hero2.current : hero.current; const moved = Math.hypot(remote.x - remotePosition.x, remote.y - remotePosition.y) > .4; remote.x = remotePosition.x; remote.y = remotePosition.y; if (remotePosition.fx !== undefined && remotePosition.fy !== undefined) { const direction = networkRole === 'host' ? facing2 : facing; direction.current = { x: remotePosition.fx, y: remotePosition.fy }; } if (moved || remotePosition.moving) remoteMovingUntil.current = performance.now() + 180; }, [networkRole, remotePosition]);
+  useEffect(() => { if (!remotePosition || !networkRole) return; const remote = networkRole === 'host' ? hero2.current : hero.current; const moved = Math.hypot(remote.x - remotePosition.x, remote.y - remotePosition.y) > .4; remotePositionTarget.current={x:remotePosition.x,y:remotePosition.y};if (remotePosition.fx !== undefined && remotePosition.fy !== undefined) { const direction = networkRole === 'host' ? facing2 : facing; direction.current = { x: remotePosition.fx, y: remotePosition.fy }; } if (moved || remotePosition.moving) remoteMovingUntil.current = performance.now() + 220; }, [networkRole, remotePosition]);
   useEffect(() => { if (!networkRole || !remoteGameState || remoteGameState.sender === networkRole) return; if (networkRole === 'guest') { if (remoteGameState.map) currentMap.current = remoteGameState.map; if (remoteGameState.level !== level) { setLevel(remoteGameState.level); checkpointLevel.current = remoteGameState.level; setChoiceItem(null); } enemies.current = remoteGameState.enemies.map((enemy) => ({ ...enemy })); setOpenedChests(remoteGameState.openedChests); setChestDrops(remoteGameState.chestDrops); setLoot(remoteGameState.loot); setDroppedItem(remoteGameState.droppedItem); } else { if (remoteGameState.level !== level) { if (!remoteGameState.map) return; currentMap.current = remoteGameState.map; setLevel(remoteGameState.level); checkpointLevel.current = remoteGameState.level; enemies.current = remoteGameState.enemies.map((enemy) => ({ ...enemy })); setOpenedChests(remoteGameState.openedChests); setChestDrops(remoteGameState.chestDrops); setLoot(remoteGameState.loot); setDroppedItem(remoteGameState.droppedItem); return; } const unmatched = new Set(remoteGameState.enemies.map((_, index) => index)); enemies.current.forEach((enemy) => { let match=-1,best=100; unmatched.forEach((index)=>{const candidate=remoteGameState.enemies[index];if(candidate.kind!==enemy.kind)return;const distance=Math.hypot(candidate.x-enemy.x,candidate.y-enemy.y);if(distance<best){best=distance;match=index;}});if(match>=0){const guestEnemy=remoteGameState.enemies[match];unmatched.delete(match);if(guestEnemy.hp<enemy.hp)enemy.hp=guestEnemy.hp;}else if(remoteGameState.enemies.length<enemies.current.length)enemy.hp=0; }); const combined = Array.from(new Set([...openedChests, ...remoteGameState.openedChests])); if (combined.length !== openedChests.length) setOpenedChests(combined); const guestKnowsAllOpened=openedChests.every((index)=>remoteGameState.openedChests.includes(index)); if (guestKnowsAllOpened && loot && !remoteGameState.loot) { setLoot(null); setDroppedItem(null); setChoiceItem(null); } } }, [level, networkRole, openedChests, remoteGameState]);
+  useEffect(()=>{const pending=pendingGuestChest.current;if(networkRole!=='guest'||!remoteGameState||!pending)return;setOpenedChests((current)=>current.includes(pending.index)?current:[...current,pending.index]);setLoot(pending.loot);setDroppedItem(pending.item);},[networkRole,remoteGameState]);
   const [shopOwner, setShopOwner] = useState<1 | 2>(1);
   const [pendingPurchase, setPendingPurchase] = useState<string | null>(null);
   const [skin, setSkin] = useState<HeroSkin>((['dune','king','wizard','gentleman'].includes(equippedSkin) ? equippedSkin : 'default') as HeroSkin);
@@ -1019,6 +1022,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
 
   const acceptItem = () => {
     if (!choiceItem) return;
+    pendingGuestChest.current=null;
     const secondPicker = itemPicker.current === 2; const targetInventory = secondPicker ? inventory2 : inventory; const targetCapacity = secondPicker ? inventoryCapacity2 : inventoryCapacity;
     if (targetInventory.length >= targetCapacity) { setMessage(`Рюкзак ${secondPicker ? 'второго' : 'первого'} игрока заполнен: ${targetCapacity}/${targetCapacity}.`); return; }
     if (secondPicker) setInventory2((current) => [...current, choiceItem]); else setInventory((current) => [...current, choiceItem]);
@@ -1037,12 +1041,13 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
 
   const upgradeInventory = () => { const capacity = inventoryOwner === 2 ? inventoryCapacity2 : inventoryCapacity; const nextCapacity = capacity === 10 ? 20 : 30; const cost = capacity === 10 ? 100 : 250; if (capacity >= 30) return; if (coins < cost) { setMessage(`Для улучшения рюкзака нужно ${cost} осколков.`); return; } setCoins((current) => current - cost); if (inventoryOwner === 2) setInventoryCapacity2(nextCapacity); else setInventoryCapacity(nextCapacity); setMessage(`Рюкзак ${inventoryOwner === 2 ? 'второго' : 'первого'} игрока улучшен до ${nextCapacity} мест!`); };
 
-  const rejectItem = () => { if (choiceItem) setMessage(`${choiceItem.name} брошен и остался лежать на земле.`); keys.current.clear(); setChoiceItem(null); };
+  const rejectItem = () => { pendingGuestChest.current=null;if (choiceItem) setMessage(`${choiceItem.name} брошен и остался лежать на земле.`); keys.current.clear(); setChoiceItem(null); };
 
   useEffect(() => {
     const ctx = canvasRef.current?.getContext('2d'); if (!ctx) return;
     ctx.imageSmoothingEnabled = false; let frame = 0; let last = performance.now();
     const loop = (now: number) => {
+      if(networkRole&&remotePositionTarget.current){const remote=networkRole==='host'?hero2.current:hero.current,target=remotePositionTarget.current,gap=Math.hypot(target.x-remote.x,target.y-remote.y);if(gap>180){remote.x=target.x;remote.y=target.y;}else{remote.x+=(target.x-remote.x)*.32;remote.y+=(target.y-remote.y)*.32;}}
       if(finaleStage>=0){frame=requestAnimationFrame(loop);return;}
       const map = currentMap.current; const plantHitboxes = getPlantHitboxes(map); const solidHitboxes = [...map.walls, ...plantHitboxes]; const dt = Math.min((now - last) / 16.67, 2); last = now; const p = hero.current; const baseSpeed = 2.25 * dt; const speed = now < slowedUntil.current ? baseSpeed / 1.5 : baseSpeed; const speed2 = now < slowedUntil2.current ? baseSpeed / 1.5 : baseSpeed;
       [p, ...(players === 2 ? [hero2.current] : [])].forEach((viewer) => { if (!explored.current.some((point) => Math.hypot(point.x - viewer.x, point.y - viewer.y) < 54)) explored.current.push({ x: viewer.x, y: viewer.y }); });
@@ -1078,7 +1083,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
         moveSliding(p2, dx2, dy2);
       }
       if(networkRole&&onNetworkPosition&&now>=nextNetworkSendAt.current){nextNetworkSendAt.current=now+50;const local=networkRole==='guest'?p2:p;const localFacing=networkRole==='guest'?facing2.current:facing.current;const localMoving=networkRole==='guest'?Boolean(dx2||dy2):Boolean(dx||dy);onNetworkPosition({x:local.x,y:local.y,fx:localFacing.x,fy:localFacing.y,moving:localMoving});}
-      if(networkRole&&onNetworkGameState&&now>=nextNetworkStateAt.current){nextNetworkStateAt.current=now+120;const includeMap=now>=nextNetworkMapAt.current;if(includeMap)nextNetworkMapAt.current=now+2000;onNetworkGameState({sender:networkRole,level,map:includeMap?map:undefined,enemies:enemies.current.map((enemy)=>({...enemy})),openedChests:[...openedChests],chestDrops,loot,droppedItem,sentAt:Date.now()});}
+      if(networkRole&&onNetworkGameState&&now>=nextNetworkStateAt.current){nextNetworkStateAt.current=now+(networkRole==='host'?140:280);const includeMap=networkRole==='host'&&now>=nextNetworkMapAt.current;if(includeMap)nextNetworkMapAt.current=now+3000;onNetworkGameState({sender:networkRole,level,map:includeMap?map:undefined,enemies:enemies.current.map((enemy)=>({...enemy})),openedChests:[...openedChests],chestDrops,loot,droppedItem,sentAt:Date.now()});}
       if (merchantMode && (level === 6 || level === 12 || level === 18)) { const nearMerchant1 = Math.hypot(p.x - MERCHANT.x, p.y - MERCHANT.y) < 85, nearMerchant2 = players === 2 && Math.hypot(p2.x - MERCHANT.x, p2.y - MERCHANT.y) < 85; if (keys.current.has('KeyE') && nearMerchant1 || keys.current.has('Period') && nearMerchant2) { setShopOwner(keys.current.has('Period') && nearMerchant2 ? 2 : 1); keys.current.clear(); setShopOpen(true); } }
       const attacking = now < attackUntil.current;
       if (attacking) enemies.current.forEach((e) => {
@@ -1359,10 +1364,11 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
         const steps = [{ x: 330, text: 'Обойди телегу и пройди через пролом. Можно двигаться по диагонали.' }, { x: 590, text: 'Подойди к сундуку и нажми E. Второй игрок использует Ю.' }, { x: 900, text: 'Враг! SPACE — атака первого игрока, Ж — атака второго.' }, { x: 1190, text: 'Используй ульту: Q у первого игрока, Б у второго.' }, { x: 1500, text: 'Рюкзак: I у первого, Э у второго. У ворот нажми E или Ю.' }];
         if (tutorialStep.current < steps.length && progressX >= steps[tutorialStep.current].x) { const guideTips=['Обойди телегу. У закрытой двери подойди ближе и нажми E.','Подойди к сундуку и нажми E. На телефоне нажми кнопку с рукой.','Враг рядом! Бей кнопкой SPACE, а второй игрок — кнопкой Ж.','Используй сильную ульту: нажми Q. Второй игрок нажимает Б.','Открой рюкзак кнопкой I. У выходной двери снова нажми E.'];setTutorialGuide(guideTips[tutorialStep.current]);setMessage(steps[tutorialStep.current].text); tutorialStep.current++; }
       }
-      const secondInteracts = players === 2 && keys.current.has('Period'); const interactionHero = secondInteracts ? p2 : p;
+      const secondInteracts = players === 2 && (keys.current.has('Period') || networkRole==='guest'&&keys.current.has('KeyE')); const interactionHero = secondInteracts ? p2 : p;
       const nearChest = map.chests.findIndex((chest, index) => !openedChests.includes(index) && Math.hypot(chest.x + 24 - interactionHero.x, chest.y + 20 - interactionHero.y) < 75);
+      if(networkRole==='guest'&&secondInteracts&&nearChest>=0&&!loot){const chest=map.chests[nearChest],drop=level===0?getTutorialClassLoot(playerClass2):chestDrops[nearChest];pendingGuestChest.current={index:nearChest,loot:{x:chest.x+8,y:chest.y+48},item:drop.item};}
       if ((keys.current.has('KeyE') || secondInteracts) && nearChest >= 0 && !loot) { const chest = map.chests[nearChest]; const ownerClass = secondInteracts ? playerClass2 : playerClass; let drop = level === 0 ? getTutorialClassLoot(ownerClass) : chestDrops[nearChest]; if (level === 0) setChestDrops((drops) => drops.map((current, index) => index === nearChest ? drop : current)); itemPicker.current = secondInteracts ? 2 : 1; if (!secondInteracts) keys.current.delete('KeyE'); setOpenedChests((current) => [...current, nearChest]); setDroppedItem(drop.item); setLoot({ x: chest.x + 8, y: chest.y + 48 }); if (level > 0 && level < 6 && Math.random() < .1) ambushAt.current = performance.now(); setMessage(`${drop.rarity.name} сундук: выпал предмет «${drop.item.name}»!`); }
-      const playerOnePicks = loot && droppedItem && keys.current.has('KeyE') && Math.hypot(loot.x - p.x, loot.y - p.y) < 52; const playerTwoPicks = loot && droppedItem && players === 2 && keys.current.has('Period') && Math.hypot(loot.x - p2.x, loot.y - p2.y) < 52;
+      const playerOnePicks = loot && droppedItem && networkRole!=='guest' && keys.current.has('KeyE') && Math.hypot(loot.x - p.x, loot.y - p.y) < 52; const playerTwoPicks = loot && droppedItem && players === 2 && (keys.current.has('Period')||networkRole==='guest'&&keys.current.has('KeyE')) && Math.hypot(loot.x - p2.x, loot.y - p2.y) < 52;
       if (playerOnePicks || playerTwoPicks) { itemPicker.current = playerTwoPicks || itemPicker.current === 2 && !playerOnePicks ? 2 : 1; keys.current.clear(); setChoiceItem(droppedItem); }
       const nearFirstLevelPortal = false; const secondNearFirstPortal = false;
       if (keys.current.has('KeyE') && nearFirstLevelPortal || keys.current.has('Period') && secondNearFirstPortal) {

@@ -933,8 +933,8 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
       if (false && event.code === 'KeyY' && !event.repeat) {
         event.preventDefault(); rerollLevel(13); const map = getLevel(13); const start = getRouteStart(); currentMap.current = map; checkpointLevel.current = 13; exploredLevel.current = 13; explored.current = [{ ...start }]; hero.current = start; hero2.current = { ...start, y: start.y + 32 }; enemies.current = createEnemies(map, enemyMultiplier); keys.current.clear(); projectiles.current = []; superFists.current = []; swordUltimates.current = []; bowUltimates.current = []; staffUltimates.current = []; glovesUltimates.current = []; waves.current = []; sandTornadoes.current = []; tombs.current = []; setLevel(13); setHealth(10); setHealth2(10); setDead(false); setVictory(false); setOpenedChests([]); setChestDrops(map.chests.map(() => getRandomLoot(13))); setLoot(null); setDroppedItem(null); setChoiceItem(null); setMessage('Телепорт Y: Ледяное кладбище · уровень 13.'); return;
       }
-      if (event.code === 'KeyI' && !event.repeat) { keys.current.clear(); setInventoryOwner(1); setShowInventory((current) => inventoryOwner === 1 ? !current : true); return; }
-      if (players === 2 && event.code === 'Quote' && !event.repeat) { keys.current.clear(); setInventoryOwner(2); setShowInventory((current) => inventoryOwner === 2 ? !current : true); return; }
+      if (event.code === 'KeyI' && !event.repeat) { const owner=networkRole==='guest'?2:1;keys.current.clear(); setInventoryOwner(owner); setShowInventory((current) => inventoryOwner === owner ? !current : true); return; }
+      if (players === 2 && networkRole!=='guest' && event.code === 'Quote' && !event.repeat) { keys.current.clear(); setInventoryOwner(2); setShowInventory((current) => inventoryOwner === 2 ? !current : true); return; }
       if (players === 1 && event.code === 'KeyH' && !event.repeat) {
         const now = performance.now();
         if (health <= 0) { setMessage('Павший герой не может вылечить себя.'); return; }
@@ -943,7 +943,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
         if (now < healReadyAt.current) { setMessage(`Лечение будет готово через ${Math.ceil((healReadyAt.current - now) / 1000)} сек.`); return; }
         healReadyAt.current = now + 5000; setMedkits((count) => count - 1); setHealth((current) => Math.min(10, current + 3)); setMessage('Герой использовал аптечку и восстановил 3 HP.'); return;
       }
-      if (players === 2 && event.code === 'KeyH' && !event.repeat) {
+      if (players === 2 && networkRole!=='guest' && event.code === 'KeyH' && !event.repeat) {
         const now = performance.now(); const distance = Math.hypot(hero.current.x - hero2.current.x, hero.current.y - hero2.current.y);
         if (health <= 0) { setMessage('Павший первый игрок не может лечить тиммейта.'); return; }
         if (distance > 80) { setMessage('Подойди ближе к тиммейту, чтобы вылечить его.'); return; }
@@ -952,7 +952,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
         if (now < healReadyAt.current) { setMessage(`Лечение будет готово через ${Math.ceil((healReadyAt.current - now) / 1000)} сек.`); return; }
         healReadyAt.current = now + 5000; setMedkits((count) => count - 1); setHealth2((current) => Math.min(10, Math.max(3, current + 3))); setTeammateFallen(false); setMessage(health2 <= 0 ? 'Первый игрок потратил аптечку и поднял тиммейта с 3 HP!' : 'Первый игрок потратил аптечку и восстановил тиммейту 3 HP!'); return;
       }
-      if (players === 2 && event.code === 'KeyL' && !event.repeat) {
+      if (players === 2 && (event.code === 'KeyL'||networkRole==='guest'&&event.code==='KeyH') && !event.repeat) {
         const now = performance.now(); const distance = Math.hypot(hero.current.x - hero2.current.x, hero.current.y - hero2.current.y);
         if (health2 <= 0) { setMessage('Павший второй игрок не может лечить тиммейта.'); return; }
         if (distance > 80) { setMessage('Второму игроку нужно подойти ближе для лечения.'); return; }
@@ -962,7 +962,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
         healReadyAt2.current = now + 5000; setMedkits2((count) => count - 1); setHealth((current) => Math.min(10, Math.max(3, current + 3))); setTeammateFallen(false); setMessage(health <= 0 ? 'Второй игрок потратил аптечку и поднял первого с 3 HP!' : 'Второй игрок потратил аптечку и восстановил первому 3 HP!'); return;
       }
       if ((event.code === 'KeyQ' || players === 2 && event.code === 'Comma') && !event.repeat) {
-        const now = performance.now(); const secondCaster = players === 2 && event.code === 'Comma'; if (secondCaster ? health2 <= 0 : health <= 0) return; const cooldown = secondCaster ? superReadyAt2 : superReadyAt; if (now < cooldown.current) return;
+        const now = performance.now(); const secondCaster = players === 2 && (event.code === 'Comma'||networkRole==='guest'&&event.code==='KeyQ'); if (secondCaster ? health2 <= 0 : health <= 0) return; const cooldown = secondCaster ? superReadyAt2 : superReadyAt; if (now < cooldown.current) return;
         cooldown.current = now + 8000; if (secondCaster) setSuperReloading2(true); else setSuperReloading(true);
         const caster = secondCaster ? hero2.current : hero.current;
         const casterFacing = secondCaster ? facing2.current : facing.current;
@@ -975,7 +975,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
         else superFists.current.push({ x: caster.x + 14, y: caster.y + 14, vx: casterFacing.x * 9, vy: casterFacing.y * 9, damage: 10, hitTargets: [] });
         window.setTimeout(() => { if (performance.now() >= cooldown.current - 10) { if (secondCaster) setSuperReloading2(false); else setSuperReloading(false); } }, 8000);
       }
-      if (event.code === 'Space' && !event.repeat) {
+      if (event.code === 'Space' && networkRole!=='guest' && !event.repeat) {
         const now = performance.now(); if (health <= 0 || now < readyAt.current) return;
         const current = weaponRef.current;
         const cooldown = current?.type === 'staff' ? 1200 : current?.type === 'bow' ? 800 : current?.type === 'sword' ? 450 : current?.type === 'gloves' ? 220 : 500;
@@ -987,7 +987,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
           enemies.current.forEach((enemy) => { const ex = enemy.x - origin.x, ey = enemy.y - origin.y; const forward = ex * direction.x + ey * direction.y; const side = Math.abs(ex * -direction.y + ey * direction.x); const hitRadius = enemyHitRadius(enemy); if (forward > -hitRadius && forward < 80 + hitRadius && side < 48 + hitRadius) { enemy.hp -= current.damage; enemy.flash = 12; } });
         }
       }
-      if (players === 2 && event.code === 'Semicolon' && !event.repeat) {
+      if (players === 2 && (event.code === 'Semicolon'||networkRole==='guest'&&event.code==='Space') && !event.repeat) {
         const now = performance.now(); if (now < readyAt2.current || health2 <= 0) return; const current = weapon2Ref.current;
         const cooldown = current?.type === 'staff' ? 1200 : current?.type === 'bow' ? 800 : current?.type === 'sword' ? 450 : current?.type === 'gloves' ? 220 : 500;
         readyAt2.current = now + cooldown; attackUntil2.current = now + 180;
@@ -998,7 +998,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
     const up = (event: KeyboardEvent) => {const target=event.target;if(target instanceof HTMLInputElement||target instanceof HTMLTextAreaElement||target instanceof HTMLSelectElement||target instanceof HTMLElement&&target.isContentEditable)return;if(event.isTrusted){const action=(Object.keys(keyBindings) as Array<keyof KeyBindings>).find((id)=>keyBindings[id]===event.code);const mapped=action?CANONICAL_CONTROL_CODES[action]:event.code;if(mapped!==event.code){window.dispatchEvent(new KeyboardEvent('keyup',{code:mapped,bubbles:true}));return;}}keys.current.delete(event.code);};
     window.addEventListener('keydown', down); window.addEventListener('keyup', up);
     return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
-  }, [health, health2, inventoryOwner, keyBindings, medkits, medkits2, players]);
+  }, [health, health2, inventoryOwner, keyBindings, medkits, medkits2, networkRole, players]);
 
   useEffect(() => { weaponRef.current = weapon; }, [weapon]);
   useEffect(() => { if (['dune','king','wizard','gentleman'].includes(equippedSkin)) setSkin(equippedSkin as HeroSkin); }, [equippedSkin]);
@@ -1084,7 +1084,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
       }
       if(networkRole&&onNetworkPosition&&now>=nextNetworkSendAt.current){nextNetworkSendAt.current=now+50;const local=networkRole==='guest'?p2:p;const localFacing=networkRole==='guest'?facing2.current:facing.current;const localMoving=networkRole==='guest'?Boolean(dx2||dy2):Boolean(dx||dy);onNetworkPosition({x:local.x,y:local.y,fx:localFacing.x,fy:localFacing.y,moving:localMoving});}
       if(networkRole&&onNetworkGameState&&now>=nextNetworkStateAt.current){nextNetworkStateAt.current=now+(networkRole==='host'?140:280);const includeMap=networkRole==='host'&&now>=nextNetworkMapAt.current;if(includeMap)nextNetworkMapAt.current=now+3000;onNetworkGameState({sender:networkRole,level,map:includeMap?map:undefined,enemies:enemies.current.map((enemy)=>({...enemy})),openedChests:[...openedChests],chestDrops,loot,droppedItem,sentAt:Date.now()});}
-      if (merchantMode && (level === 6 || level === 12 || level === 18)) { const nearMerchant1 = Math.hypot(p.x - MERCHANT.x, p.y - MERCHANT.y) < 85, nearMerchant2 = players === 2 && Math.hypot(p2.x - MERCHANT.x, p2.y - MERCHANT.y) < 85; if (keys.current.has('KeyE') && nearMerchant1 || keys.current.has('Period') && nearMerchant2) { setShopOwner(keys.current.has('Period') && nearMerchant2 ? 2 : 1); keys.current.clear(); setShopOpen(true); } }
+      if (merchantMode && (level === 6 || level === 12 || level === 18)) { const nearMerchant1 = Math.hypot(p.x - MERCHANT.x, p.y - MERCHANT.y) < 85, nearMerchant2 = players === 2 && Math.hypot(p2.x - MERCHANT.x, p2.y - MERCHANT.y) < 85,guestInteract=networkRole==='guest'&&keys.current.has('KeyE'); if (networkRole!=='guest'&&keys.current.has('KeyE') && nearMerchant1 || (keys.current.has('Period')||guestInteract) && nearMerchant2) { setShopOwner((keys.current.has('Period')||guestInteract) && nearMerchant2 ? 2 : 1); keys.current.clear(); setShopOpen(true); } }
       const attacking = now < attackUntil.current;
       if (attacking) enemies.current.forEach((e) => {
         if (weapon?.type !== 'bow' && weapon?.type !== 'staff' && meleeHitsEnemy({ x: p.x + 12, y: p.y + 14 }, facing.current, 58, e) && e.flash <= 0) { e.hp -= weapon?.damage || 1; e.flash = 12; }
@@ -1394,7 +1394,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
       const nearVictoryPortal = false; const secondNearVictoryPortal = false;
       if (keys.current.has('KeyE') && nearVictoryPortal || keys.current.has('Period') && secondNearVictoryPortal) { keys.current.clear(); setVictory(true); setMessage(level === 12 ? 'Владыка гробниц повержен. Жаркая пустыня освобождена!' : 'Великий гоблин повержен. Подземелье спасено!'); }
       const routeExit = level === 0 ? { x: map.worldWidth - 70, y: 336 } : getRouteExit(); const nearExit = !map.round && Math.abs(p.x - routeExit.x) < 80 && Math.abs(p.y + 14 - routeExit.y) < 75; const secondNearExit = players === 2 && !map.round && Math.abs(p2.x - routeExit.x) < 80 && Math.abs(p2.y + 14 - routeExit.y) < 75;
-      if (keys.current.has('KeyE') && nearExit || keys.current.has('Period') && secondNearExit) {
+      if (networkRole!=='guest'&&keys.current.has('KeyE') && nearExit || (keys.current.has('Period')||networkRole==='guest'&&keys.current.has('KeyE')) && secondNearExit) {
         keys.current.delete(secondNearExit && keys.current.has('Period') ? 'Period' : 'KeyE');
         if(level===26&&castleGuardOutcome!=='peace'&&!(castleGuardOutcome==='fight'&&!enemies.current.some((enemy)=>enemy.kind==='knightGuard'))){if(castleGuardOutcome==='fight')setMessage('Сначала победи двух рыцарей-стражей!');else{keys.current.clear();mobileMove.current={x:0,y:0};setCastleGuardDialogueOpen(true);}}
         else if (level > 0 && level % 6 === 0) { setVictory(true); keys.current.clear(); setMessage('Все четыре этапа области пройдены!'); }
@@ -1412,7 +1412,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
   const buySkin = (newSkin: HeroSkin) => { if (coins < 5000) { setMessage('Для покупки скина нужно 5000 осколков.'); return; } setCoins((value) => value - 5000); if (shopOwner === 2) setSkin2(newSkin); else setSkin(newSkin); setMessage(`Игрок ${shopOwner} приобрёл новый облик.`); };
   const buyMedkit = () => { const count = shopOwner === 2 ? medkits2 : medkits; if (count >= 5) { setMessage('Можно носить не больше 5 аптечек.'); return; } if (coins < 200) { setMessage('Для аптечки нужно 200 осколков.'); return; } setCoins((value) => value - 200); if (shopOwner === 2) setMedkits2((value) => value + 1); else setMedkits((value) => value + 1); setMessage(`Игрок ${shopOwner} купил аптечку.`); };
   const confirmPurchase = (key: string, purchase: () => void) => { if (pendingPurchase === key) { purchase(); setPendingPurchase(null); } else { setPendingPurchase(key); setMessage('Нажми на выбранный товар ещё раз, чтобы подтвердить покупку.'); } };
-  const tapMobileKey = (code: 'Space' | 'KeyE' | 'KeyQ' | 'KeyI') => { const resolved=networkRole==='guest'?({Space:'Semicolon',KeyE:'Period',KeyQ:'Comma',KeyI:'Quote'} as const)[code]:code;window.dispatchEvent(new KeyboardEvent('keydown', { code:resolved, bubbles: true })); window.setTimeout(() => window.dispatchEvent(new KeyboardEvent('keyup', { code:resolved, bubbles: true })), 90); };
+  const tapMobileKey = (code: 'Space' | 'KeyE' | 'KeyQ' | 'KeyI') => { window.dispatchEvent(new KeyboardEvent('keydown', { code, bubbles: true })); window.setTimeout(() => window.dispatchEvent(new KeyboardEvent('keyup', { code, bubbles: true })), 90); };
   const moveMobileJoystick = (event: React.PointerEvent<HTMLDivElement>) => { event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); const rect = event.currentTarget.getBoundingClientRect(); const rawX = event.clientX - rect.left - rect.width / 2, rawY = event.clientY - rect.top - rect.height / 2, distance = Math.hypot(rawX, rawY), max = rect.width * .34, scale = distance > max ? max / distance : 1, x = rawX * scale, y = rawY * scale; mobileMove.current = { x: x / max, y: y / max }; const knob = event.currentTarget.querySelector<HTMLElement>('.mobile-stick-knob'); if (knob) knob.style.transform = `translate(${x}px,${y}px)`; };
   const releaseMobileJoystick = (event: React.PointerEvent<HTMLDivElement>) => { mobileMove.current = { x: 0, y: 0 }; const knob = event.currentTarget.querySelector<HTMLElement>('.mobile-stick-knob'); if (knob) knob.style.transform = 'translate(0,0)'; };
   const resolveCastleGuardDialogue = (outcome: 'fight'|'peace'|'farewell') => { keys.current.clear();mobileMove.current={x:0,y:0};setCastleGuardDialogueOpen(false);setCastleGuardOutcome(outcome);if(outcome==='fight'){const exit=getRouteExit();const guards=createEnemies({...currentMap.current,enemies:[{x:exit.x-74,y:exit.y-50,kind:'knightGuard'},{x:exit.x-74,y:exit.y+18,kind:'knightGuard'}]},1);guards.forEach((guard)=>{guard.hp=14;guard.maxHp=14;guard.power=7;});enemies.current.push(...guards);setMessage('Два рыцаря подняли топоры. Начинается бой!');}else if(outcome==='peace')setMessage('Рыцари мирно открыли ворота. Теперь можно пройти в замок.');else setMessage('Рыцари попрощались, но ворота остались закрыты.');};

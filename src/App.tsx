@@ -1126,9 +1126,8 @@ export default function App() {
             </div>
             <small>ВЕРНЫЕ СПУТНИКИ</small>
             <h2>ПИТОМЦЫ</h2>
-            <p>
-              Здесь будут жить найденные питомцы. Их способности добавим позже.
-            </p>
+            <div className="locked-pets-grid">{Array.from({length:5},(_,index)=><article className={`locked-cat cat-${index+1}`} key={index}><div className="cat-shadow"><i className="cat-ear left"/><i className="cat-ear right"/><i className="cat-head"/><i className="cat-eye left"/><i className="cat-eye right"/><i className="cat-body"/><i className="cat-paw left"/><i className="cat-paw right"/><i className="cat-tail"/></div><strong>НЕИЗВЕСТНЫЙ ПИТОМЕЦ</strong><span>???</span></article>)}</div>
+            <p>Пять кошачьих теней пока скрывают свои имена и способности.</p>
           </section>
         </div>
       )}

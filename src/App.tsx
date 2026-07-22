@@ -216,7 +216,7 @@ export default function App() {
   const [roomMessage, setRoomMessage] = useState("");
   const [pendingRoomPlayer, setPendingRoomPlayer] = useState<{ name: string; requestId: string } | null>(null);
   const [networkRole, setNetworkRole] = useState<"host" | "guest" | null>(null);
-  const [remotePosition, setRemotePosition] = useState<{ x: number; y: number; fx?: number; fy?: number; moving?: boolean } | null>(null);
+  const [remotePosition, setRemotePosition] = useState<{ x: number; y: number; fx?: number; fy?: number; moving?: boolean; attacking?: boolean } | null>(null);
   const [remoteGameState, setRemoteGameState] = useState<NetworkGameState | null>(null);
   const roomChannel = useRef<RealtimeChannel | null>(null);
   const roomJoinRetry = useRef<number | null>(null);
@@ -483,7 +483,7 @@ export default function App() {
   const connectRoom = (code: string, role: "host" | "guest") => {
     closeRoomChannel(); roomJoinApproved.current = false; roomRequestId.current = role === "guest" ? `${Date.now()}-${Math.random().toString(36).slice(2,8)}` : ""; setRoomMessage(role === "host" ? "КОМНАТА СОЗДАНА · ОЖИДАНИЕ ДРУГА" : "ПОДКЛЮЧЕНИЕ К КОМНАТЕ..."); setRemotePosition(null);
     const channel = supabase.channel(`ashen-room-${code}`, { config: { broadcast: { self: false } } }); roomChannel.current = channel;
-    channel.on("broadcast", { event: "position" }, ({ payload }) => { if (payload?.role !== role) setRemotePosition({ x: Number(payload.x), y: Number(payload.y), fx: Number(payload.fx ?? 1), fy: Number(payload.fy ?? 0), moving: Boolean(payload.moving) }); });
+    channel.on("broadcast", { event: "position" }, ({ payload }) => { if (payload?.role !== role) setRemotePosition({ x: Number(payload.x), y: Number(payload.y), fx: Number(payload.fx ?? 1), fy: Number(payload.fy ?? 0), moving: Boolean(payload.moving), attacking:Boolean(payload.attacking) }); });
     channel.on("broadcast", { event: "game-state" }, ({ payload }) => { if (payload?.sender !== role) setRemoteGameState(payload as NetworkGameState); });
     if (role === "host") channel.on("broadcast", { event: "join-request" }, ({ payload }) => { if (!payload?.requestId) return; setPendingRoomPlayer({ name: String(payload.name || "Инкогнито").slice(0,24), requestId: String(payload.requestId) }); setRoomMessage("НОВЫЙ ЗАПРОС НА ВХОД"); });
     else channel.on("broadcast", { event: "join-approved" }, ({ payload }) => { if (payload?.code !== code || payload?.requestId !== roomRequestId.current || roomJoinApproved.current) return; roomJoinApproved.current = true; if (roomJoinRetry.current !== null) window.clearInterval(roomJoinRetry.current); roomJoinRetry.current = null; setRoomMessage("КОМНАТА НАЙДЕНА"); setRoomCode(code); setNetworkRole("guest"); setJoinCodeOpen(false); setNetworkLobbyOpen(false); setPlayTypeOpen(false); beginClassChoice(1); });
@@ -502,7 +502,7 @@ export default function App() {
   const createNetworkRoom = () => { let code="";do code=String(Math.floor(10000+Math.random()*90000));while(code===lastRoomCode.current);lastRoomCode.current=code;connectRoom(code,"host"); };
   const joinNetworkRoom = () => { const code=joinCode.replace(/\D/g,"").slice(0,5);if(code.length!==5){setRoomMessage("ВВЕДИ ПЯТИЗНАЧНЫЙ КОД");return;}connectRoom(code,"guest"); };
   const approveRoomPlayer = () => { const channel=roomChannel.current,pending=pendingRoomPlayer;if(!pending)return;if(channel)void channel.send({ type:"broadcast",event:"join-approved",payload:{ code:roomCode,requestId:pending.requestId } });void supabase.from("game_rooms").update({ approved_request_id: pending.requestId, request_id: null, updated_at: new Date().toISOString() }).eq("code",roomCode);setRoomMessage(`${pending.name} ПОДКЛЮЧЁН`);setPendingRoomPlayer(null); };
-  const sendNetworkPosition = (position: { x: number; y: number; fx?: number; fy?: number; moving?: boolean }) => { const channel=roomChannel.current;if(!channel||!networkRole)return;void channel.send({ type:"broadcast",event:"position",payload:{...position,role:networkRole} }); };
+  const sendNetworkPosition = (position: { x: number; y: number; fx?: number; fy?: number; moving?: boolean; attacking?:boolean }) => { const channel=roomChannel.current;if(!channel||!networkRole)return;void channel.send({ type:"broadcast",event:"position",payload:{...position,role:networkRole} }); };
   const sendNetworkGameState = (state: NetworkGameState) => { const channel=roomChannel.current;if(!channel||!networkRole)return;void channel.send({ type:"broadcast",event:"game-state",payload:state }); };
   const enterMobileFullscreen = async () => {
     try {

@@ -493,7 +493,7 @@ function createEnemies(map: ReturnType<typeof getLevel>, multiplier = 1, _oneHit
   const spawns = map.round ? map.enemies : multiplier === .5 ? map.enemies.filter((_, index) => index % 2 === 0) : multiplier === 2 ? map.enemies.flatMap((enemy) => [enemy, { ...enemy, x: enemy.x + 4, y: enemy.y + 4 }]) : map.enemies;
   const jungleRocks = map.decorations.filter((decoration) => decoration.kind === 'rock');
   return spawns.map((enemy, index) => {
-    const hp = enemy.kind === 'boss' ? map.round && map.floor[0] === '#1f5660' ? 1 : map.enemy.hp * (map.floor[0] === '#303944' ? 7.5 : 5) : enemy.kind === 'mudPile' ? 9999 : enemy.kind === 'mudMonster' ? 1 : enemy.kind === 'frog' ? 4 : enemy.kind === 'snake' ? 3.5 : enemy.kind === 'monkey' ? 5.5 : enemy.kind === 'nativeSpear' || enemy.kind === 'nativeClub' || enemy.kind === 'knightGuard' || enemy.kind === 'knightSword' || enemy.kind === 'knightHalberd' ? map.enemy.hp * 1.5 : enemy.kind === 'iceSpirit' ? 3 : enemy.kind === 'goblin' || enemy.kind === 'mummy' ? map.enemy.hp * 1.5 : enemy.kind === 'iceGolem' ? map.enemy.hp * .75 : map.enemy.hp;
+    const hp = enemy.kind === 'boss' ? map.floor[0] === '#29443a' ? 75 : 125 : enemy.kind === 'mudPile' ? 9999 : enemy.kind === 'mudMonster' ? 1 : enemy.kind === 'frog' ? 4 : enemy.kind === 'snake' ? 3.5 : enemy.kind === 'monkey' ? 5.5 : enemy.kind === 'nativeSpear' || enemy.kind === 'nativeClub' || enemy.kind === 'knightGuard' || enemy.kind === 'knightSword' || enemy.kind === 'knightHalberd' ? map.enemy.hp * 1.5 : enemy.kind === 'iceSpirit' ? 3 : enemy.kind === 'goblin' || enemy.kind === 'mummy' ? map.enemy.hp * 1.5 : enemy.kind === 'iceGolem' ? map.enemy.hp * .75 : map.enemy.hp;
     const speed = enemy.kind === 'boss' ? map.enemy.speed * .65 : enemy.kind === 'mudPile' ? 0 : enemy.kind === 'mudMonster' ? Math.max(1.05, map.enemy.speed) : enemy.kind === 'monkey' ? map.enemy.speed * 1.15 : enemy.kind === 'goblin' || enemy.kind === 'iceGolem' ? map.enemy.speed * 1.25 : enemy.kind === 'mummy' ? map.enemy.speed * .8 : map.enemy.speed;
     const snakeRock = enemy.kind === 'snake' ? jungleRocks[index % Math.max(1, jungleRocks.length)] : undefined;
     const knight = enemy.kind === 'knightGuard' || enemy.kind === 'knightSword' || enemy.kind === 'knightHalberd';
@@ -601,6 +601,8 @@ function drawHero(ctx: CanvasRenderingContext2D, p: Point, attackProgress: numbe
   ctx.save(); ctx.font = 'bold 8px "Press Start 2P", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.shadowColor = '#69e8ff'; ctx.shadowBlur = 7; ctx.fillStyle = '#dffcff'; ctx.fillText(profileName, p.x + 14, p.y - 29, 150); ctx.restore();
 }
 
+function FinaleHeroModel({pose,skin}:{pose:'back'|'face'|'side';skin:HeroSkin}){const ref=useRef<HTMLCanvasElement>(null);useEffect(()=>{const ctx=ref.current?.getContext('2d');if(!ctx)return;ctx.imageSmoothingEnabled=false;ctx.clearRect(0,0,180,220);ctx.save();ctx.scale(2.4,2.4);drawHero(ctx,{x:19,y:36},0,null,null,{x:0,y:1},false,0,10,'',false,undefined,undefined,undefined,skin);ctx.restore();ctx.clearRect(0,0,180,48);},[skin]);return <canvas ref={ref} width={180} height={220} className={`finale-player-model model-${pose}`} aria-label="Главный герой"/>;}
+
 function drawScene(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLevel>, hero: Point, enemies: Enemy[], projectiles: Projectile[], superFists: SuperFist[], swordUltimates: SwordUltimate[], bowUltimates: BowUltimate[], staffUltimates: StaffUltimate[], glovesUltimates: GlovesUltimate[], waves: MagicWave[], sandTornadoes: SandTornado[], tombs: Tomb[], now: number, openedChests: number[], chestDrops: LootDrop[], attackProgress: number, loot: Point | null, droppedItem: Weapon | null, level: number, weapon: Weapon | null, weapon2: Weapon | null, armor: Weapon | null, facing: Point, moving: boolean, health: number, superReloading: boolean, profileName: string, secondHero: Point | null, secondFacing: Point, secondMoving: boolean, secondHealth: number, superReloading2: boolean, attackProgress2: number, armor2: Weapon | null, skin: HeroSkin, skin2: HeroSkin, explored: Point[], mobileControls = false, cameraFocus: Point = hero, castleGuardVisible = true) {
   ctx.fillStyle = map.round ? '#0c1510' : map.floor[0]; ctx.fillRect(0, 0, WIDTH, HEIGHT);
   const cameraZoom = .5, viewWidth = WIDTH / cameraZoom, viewHeight = HEIGHT / cameraZoom;
@@ -664,17 +666,17 @@ function drawScene(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLeve
       ctx.fillStyle='#07100b';ctx.fillRect(exitX-88,exitY-39,216,29);ctx.strokeStyle='#e1bd60';ctx.lineWidth=3;ctx.strokeRect(exitX-86,exitY-37,212,25);ctx.fillStyle = '#fff4c7'; ctx.font = 'bold 16px monospace'; ctx.fillText(level === 0 ? 'E · ОТКРЫТЬ ДВЕРЬ' : 'E · ПЕРЕЙТИ ДАЛЬШЕ', exitX - 78, exitY - 18);
     }
   }
-  if (level === 1) {
+  if (false && level === 1) {
     const portalY = getRouteStart().y - 46; ctx.fillStyle = '#5cf2ff'; ctx.fillRect(32, portalY, 12, 92);
     ctx.fillStyle = '#b9faff'; ctx.fillRect(44, portalY + 12, 5, 68);
     ctx.fillStyle = '#f3ffff'; ctx.font = '8px monospace'; ctx.fillText('ПОРТАЛ · E', 51, portalY - 9);
   }
-  if (level === 7) {
+  if (false && level === 7) {
     const portalY = getRouteStart().y - 46; ctx.fillStyle = '#ffb33f'; ctx.fillRect(32, portalY, 12, 92);
     ctx.fillStyle = '#ffe08a'; ctx.fillRect(44, portalY + 12, 5, 68);
     ctx.fillStyle = '#fff0bf'; ctx.font = '8px monospace'; ctx.fillText('ПОРТАЛ В ГРОБНИЦУ · E', 51, portalY - 9);
   }
-  if (level === 13) {
+  if (false && level === 13) {
     const portalY = getRouteStart().y; const pulse = 1 + Math.sin(now / 180) * .08; ctx.save(); ctx.translate(52, portalY); ctx.scale(pulse, pulse);
     ctx.fillStyle = 'rgba(56,184,255,.22)'; ctx.beginPath(); ctx.ellipse(0, 0, 33, 50, 0, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = '#5cf2ff'; ctx.lineWidth = 9; ctx.beginPath(); ctx.ellipse(0, 0, 27, 44, 0, 0, Math.PI * 2); ctx.stroke();
@@ -682,13 +684,14 @@ function drawScene(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLeve
     ctx.fillStyle = '#ffffff'; ctx.fillRect(-3, -28, 6, 9); ctx.fillRect(13, 8, 4, 7); ctx.fillRect(-17, 18, 5, 8); ctx.restore();
     ctx.fillStyle = '#e9fbff'; ctx.font = 'bold 8px monospace'; ctx.fillText('ПОРТАЛ К ЛЕДЯНОМУ БОССУ · E', 87, portalY - 48);
   }
-  if (level === 19) {
+  if (false && level === 19) {
     const portalY = getRouteStart().y - 46; ctx.fillStyle = '#81934b'; ctx.fillRect(32, portalY, 12, 92);
     ctx.fillStyle = '#c0c96d'; ctx.fillRect(44, portalY + 12, 5, 68);
     ctx.fillStyle = '#d8df8a'; ctx.font = '8px monospace'; ctx.fillText('ПОРТАЛ К БОЛОТНОМУ БОССУ · E', 51, portalY - 9);
   }
   if(level===25||level===26){const portalY=getRouteStart().y,pulse=1+Math.sin(now/170)*.08;ctx.save();ctx.translate(52,portalY);ctx.scale(pulse,pulse);ctx.fillStyle='rgba(72,221,127,.24)';ctx.beginPath();ctx.ellipse(0,0,34,51,0,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#35cf76';ctx.lineWidth=10;ctx.beginPath();ctx.ellipse(0,0,27,44,0,0,Math.PI*2);ctx.stroke();ctx.strokeStyle='#f0d26a';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(0,0,17,34,0,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#fff1a6';ctx.fillRect(-3,-29,6,9);ctx.fillRect(13,8,5,8);ctx.fillRect(-18,18,5,8);ctx.restore();ctx.fillStyle='#eaffd9';ctx.font='bold 8px monospace';ctx.fillText('ПОРТАЛ К ХРАНИТЕЛЮ ЗАМКА · E',87,portalY-48);}
-  if (level > 0 && level % 6 === 0 && !enemies.some((enemy) => enemy.kind === 'boss')) {
+  if(level===25||level===26){const start=getRouteStart();ctx.fillStyle=map.floor[1];ctx.fillRect(18,start.y-58,78,116);}
+  if (false && level > 0 && level % 6 === 0 && !enemies.some((enemy) => enemy.kind === 'boss')) {
     const pulse = 1 + Math.sin(now / 170) * .08; ctx.save(); ctx.translate(320, 336); ctx.scale(pulse, pulse);
     ctx.fillStyle = 'rgba(90,238,255,.2)'; ctx.beginPath(); ctx.arc(0, 0, 54, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = '#5cf2ff'; ctx.lineWidth = 9; ctx.beginPath(); ctx.ellipse(0, 0, 32, 48, 0, 0, Math.PI * 2); ctx.stroke();
@@ -798,17 +801,15 @@ function drawScene(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLeve
 }
 
 export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins = 0, oneHitBoss = false, startingLevel: requestedStartingLevel, profileName, players = 1, playerClass = 'knight', playerClass2 = 'knight', initialSave, tutorial = false, merchantMode = false, mobileControls = false, equippedSkin = 'default', travelToLevel, saveRequest = 0, onSaveSnapshot, onVictory, onShopOpenChange, networkRole = null, remotePosition = null, onNetworkPosition, remoteGameState = null, onNetworkGameState, keyBindings = DEFAULT_KEY_BINDINGS }: { paused?: boolean; enemyMultiplier?: number; startingCoins?: number; oneHitBoss?: boolean; startingLevel?: number | null; profileName: string; players?: 1 | 2; playerClass?: PlayerClass; playerClass2?: PlayerClass; initialSave?: GameSave | null; tutorial?: boolean; merchantMode?: boolean; mobileControls?: boolean; equippedSkin?: string; travelToLevel?: number | null; saveRequest?: number; onSaveSnapshot?: (save: GameSave) => void; onVictory?: (level: number) => void; onShopOpenChange?: (open: boolean) => void; networkRole?: 'host' | 'guest' | null; remotePosition?: (Point & { fx?: number; fy?: number; moving?: boolean }) | null; onNetworkPosition?: (position: Point & { fx?: number; fy?: number; moving?: boolean }) => void; remoteGameState?: NetworkGameState | null; onNetworkGameState?: (state: NetworkGameState) => void; keyBindings?: KeyBindings }) {
-  const oneGameLoadout = useRef(!initialSave && typeof window !== 'undefined' && sessionStorage.getItem(ONE_GAME_LOADOUT_KEY) !== 'used').current;
-  const permanentStarterSword = !initialSave;
+  const oneGameLoadout = false;
+  const permanentStarterSword = false;
   const effectiveTutorial = tutorial;
   const requestedLevel = initialSave?.level ?? (effectiveTutorial ? 0 : requestedStartingLevel ?? 1);
-  const stageInRegion = requestedLevel > 0 ? ((requestedLevel - 1) % 6) + 1 : 0;
-  const startingLevel = stageInRegion === 4 || stageInRegion === 5 ? requestedLevel + (6 - stageInRegion) : requestedLevel;
+  const startingLevel = requestedLevel;
   const savedMapIsRemoved = Boolean(initialSave && startingLevel !== initialSave.level);
   const loadedFirstMap = !savedMapIsRemoved && initialSave?.map ? initialSave.map : effectiveTutorial ? getTutorialLevel() : getLevel(startingLevel);
   const firstMap = startingLevel >= 19 && startingLevel <= 24 ? { ...loadedFirstMap, enemies: loadedFirstMap.enemies.map((enemy) => enemy.kind === 'slime' ? { ...enemy, kind: 'frog' as const } : enemy.kind === 'goblin' ? { ...enemy, kind: 'mudPile' as const } : enemy) } : loadedFirstMap;
-  const castleTestStart = startingLevel === 26 ? getRouteExit() : null;
-  const startingPoint = !savedMapIsRemoved && initialSave?.hero ? initialSave.hero : effectiveTutorial ? { x: 75, y: 320 } : castleTestStart ? { x: castleTestStart.x - 96, y: castleTestStart.y - 14 } : firstMap.round ? { x: 35, y: 322 } : getRouteStart();
+  const startingPoint = !savedMapIsRemoved && initialSave?.hero ? initialSave.hero : effectiveTutorial ? { x: 75, y: 320 } : firstMap.round ? { x: 35, y: 322 } : getRouteStart();
   const currentMap = useRef(firstMap);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hero = useRef<Point>(startingPoint);
@@ -1350,6 +1351,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
       enemies.current = enemies.current.filter((e) => e.hp > 0);
       if (firstDeathMummies.length) setMessage(firstDeathMummies.length === 1 ? 'Мумия восстала из песка!' : 'Павшие мумии снова восстали из песка!');
       if (defeated.length) { const bossFallen = defeated.some((e) => e.kind === 'boss'); const reward = defeated.reduce((sum, e) => sum + (e.kind === 'boss' ? 100 : e.kind === 'goblin' || e.kind === 'mummy' || e.kind === 'iceGolem' ? 10 : 5), 0); setCoins((c) => c + reward); setMessage(bossFallen ? 'Хранитель окончательно повержен! В центре арены открылся портал победы.' : defeated.some((e) => e.kind === 'frog') ? 'Жаба повержена и оставила несколько осколков.' : defeated.some((e) => e.kind === 'iceSpirit') ? 'Ледяной дух исчез — через полсекунды сюда упадёт сосулька!' : defeated.some((e) => e.kind === 'mummy') ? 'Мумия окончательно повержена и оставила 10 осколков.' : defeated.some((e) => e.kind === 'iceGolem') ? 'Ледяной голем раскололся и оставил 10 осколков.' : defeated.some((e) => e.kind === 'goblin') ? 'Гоблин повержен и оставил 10 осколков.' : 'Слизень оставил несколько осколков.'); if (bossFallen) keys.current.clear(); }
+      if(defeated.some((enemy)=>enemy.kind==='boss'&&enemy.bossAttack!=='finalBoss')){keys.current.clear();setVictory(true);}
       if (level === 0) {
         const progressX = Math.max(p.x, players === 2 ? p2.x : p.x);
         const steps = [{ x: 330, text: 'Обойди телегу и пройди через пролом. Можно двигаться по диагонали.' }, { x: 590, text: 'Подойди к сундуку и нажми E. Второй игрок использует Ю.' }, { x: 900, text: 'Враг! SPACE — атака первого игрока, Ж — атака второго.' }, { x: 1190, text: 'Используй ульту: Q у первого игрока, Б у второго.' }, { x: 1500, text: 'Рюкзак: I у первого, Э у второго. У ворот нажми E или Ю.' }];
@@ -1360,28 +1362,28 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
       if ((keys.current.has('KeyE') || secondInteracts) && nearChest >= 0 && !loot) { const chest = map.chests[nearChest]; const ownerClass = secondInteracts ? playerClass2 : playerClass; let drop = level === 0 ? getTutorialClassLoot(ownerClass) : chestDrops[nearChest]; if (level === 0) setChestDrops((drops) => drops.map((current, index) => index === nearChest ? drop : current)); itemPicker.current = secondInteracts ? 2 : 1; if (!secondInteracts) keys.current.delete('KeyE'); setOpenedChests((current) => [...current, nearChest]); setDroppedItem(drop.item); setLoot({ x: chest.x + 8, y: chest.y + 48 }); if (level > 0 && level < 6 && Math.random() < .1) ambushAt.current = performance.now(); setMessage(`${drop.rarity.name} сундук: выпал предмет «${drop.item.name}»!`); }
       const playerOnePicks = loot && droppedItem && keys.current.has('KeyE') && Math.hypot(loot.x - p.x, loot.y - p.y) < 52; const playerTwoPicks = loot && droppedItem && players === 2 && keys.current.has('Period') && Math.hypot(loot.x - p2.x, loot.y - p2.y) < 52;
       if (playerOnePicks || playerTwoPicks) { itemPicker.current = playerTwoPicks || itemPicker.current === 2 && !playerOnePicks ? 2 : 1; keys.current.clear(); setChoiceItem(droppedItem); }
-      const nearFirstLevelPortal = level === 1 && p.x < 100 && Math.abs(p.y + 14 - getRouteStart().y) < 75; const secondNearFirstPortal = players === 2 && level === 1 && p2.x < 100 && Math.abs(p2.y + 14 - getRouteStart().y) < 75;
+      const nearFirstLevelPortal = false; const secondNearFirstPortal = false;
       if (keys.current.has('KeyE') && nearFirstLevelPortal || keys.current.has('Period') && secondNearFirstPortal) {
         keys.current.delete(secondNearFirstPortal && keys.current.has('Period') ? 'Period' : 'KeyE'); rerollLevel(6); const portalMap = getLevel(6); currentMap.current = portalMap; setLevel(6); setOpenedChests([]); setChestDrops([]); setLoot(null); setDroppedItem(null); setChoiceItem(null); projectiles.current = []; superFists.current = []; swordUltimates.current = []; bowUltimates.current = []; staffUltimates.current = []; glovesUltimates.current = []; waves.current = []; hero.current = { x: 35, y: 322 }; hero2.current = { x: 65, y: 322 }; enemies.current = createEnemies(portalMap, enemyMultiplier, oneHitBoss); setMessage(oneHitBoss ? 'Тестовый босс появился с 1 HP.' : 'Портал перенёс тебя на шестой уровень: Круг гоблинов.');
       }
-      const nearDesertPortal = level === 7 && p.x < 100 && Math.abs(p.y + 14 - getRouteStart().y) < 75; const secondNearDesertPortal = players === 2 && level === 7 && p2.x < 100 && Math.abs(p2.y + 14 - getRouteStart().y) < 75;
+      const nearDesertPortal = false; const secondNearDesertPortal = false;
       if (keys.current.has('KeyE') && nearDesertPortal || keys.current.has('Period') && secondNearDesertPortal) {
         setHealth(10); setHealth2(10); setDead(false); setTeammateFallen(false); poisonedUntil.current = 0; poisonedUntil2.current = 0; checkpointLevel.current = 12;
         keys.current.delete(secondNearDesertPortal && keys.current.has('Period') ? 'Period' : 'KeyE'); rerollLevel(12); const portalMap = getLevel(12); currentMap.current = portalMap; setLevel(12); setOpenedChests([]); setChestDrops([]); setLoot(null); setDroppedItem(null); setChoiceItem(null); projectiles.current = []; superFists.current = []; swordUltimates.current = []; bowUltimates.current = []; staffUltimates.current = []; glovesUltimates.current = []; waves.current = []; hero.current = { x: 35, y: 322 }; hero2.current = { x: 65, y: 322 }; enemies.current = createEnemies(portalMap, enemyMultiplier); victoryReported.current = false; setVictory(false); setMessage('Пустынный портал перенёс героев на уровень 12 — в гробницу хранителя!');
       }
-      const nearIcePortal = level === 13 && p.x < 100 && Math.abs(p.y + 14 - getRouteStart().y) < 75; const secondNearIcePortal = players === 2 && level === 13 && p2.x < 100 && Math.abs(p2.y + 14 - getRouteStart().y) < 75;
+      const nearIcePortal = false; const secondNearIcePortal = false;
       if (keys.current.has('KeyE') && nearIcePortal || keys.current.has('Period') && secondNearIcePortal) {
         setHealth(10); setHealth2(10); setDead(false); setTeammateFallen(false); poisonedUntil.current = 0; poisonedUntil2.current = 0; checkpointLevel.current = 18;
         keys.current.delete(secondNearIcePortal && keys.current.has('Period') ? 'Period' : 'KeyE'); rerollLevel(18); const portalMap = getLevel(18); currentMap.current = portalMap; setLevel(18); setOpenedChests([]); setChestDrops([]); setLoot(null); setDroppedItem(null); setChoiceItem(null); projectiles.current = []; superFists.current = []; swordUltimates.current = []; bowUltimates.current = []; staffUltimates.current = []; glovesUltimates.current = []; waves.current = []; sandTornadoes.current = []; tombs.current = []; hero.current = { x: 35, y: 322 }; hero2.current = { x: 65, y: 322 }; enemies.current = createEnemies(portalMap, enemyMultiplier); victoryReported.current = false; setVictory(false); setMessage('Ледяной портал перенёс героев на уровень 18 — к боссу Ледяного кладбища!');
       }
-      const nearJunglePortal=(level===25||level===26)&&p.x<100&&Math.abs(p.y+14-getRouteStart().y)<75;const secondNearJunglePortal=players===2&&(level===25||level===26)&&p2.x<100&&Math.abs(p2.y+14-getRouteStart().y)<75;
+      const nearJunglePortal=false;const secondNearJunglePortal=false;
       if(keys.current.has('KeyE')&&nearJunglePortal||keys.current.has('Period')&&secondNearJunglePortal){keys.current.delete(secondNearJunglePortal&&keys.current.has('Period')?'Period':'KeyE');rerollLevel(30);const portalMap=getLevel(30);currentMap.current=portalMap;setLevel(30);setOpenedChests([]);setChestDrops([]);setLoot(null);setDroppedItem(null);setChoiceItem(null);projectiles.current=[];superFists.current=[];swordUltimates.current=[];bowUltimates.current=[];staffUltimates.current=[];glovesUltimates.current=[];waves.current=[];sandTornadoes.current=[];tombs.current=[];hero.current={x:35,y:322};hero2.current={x:65,y:322};enemies.current=createEnemies(portalMap,enemyMultiplier);victoryReported.current=false;setVictory(false);setMessage('Портал джунглей перенёс героев на уровень 30 — к Хранителю замка!');}
-      const nearSwampPortal = level === 19 && p.x < 100 && Math.abs(p.y + 14 - getRouteStart().y) < 75; const secondNearSwampPortal = players === 2 && level === 19 && p2.x < 100 && Math.abs(p2.y + 14 - getRouteStart().y) < 75;
+      const nearSwampPortal = false; const secondNearSwampPortal = false;
       if (keys.current.has('KeyE') && nearSwampPortal || keys.current.has('Period') && secondNearSwampPortal) {
         setHealth(10); setHealth2(10); setDead(false); setTeammateFallen(false); poisonedUntil.current = 0; poisonedUntil2.current = 0; checkpointLevel.current = 24;
         keys.current.delete(secondNearSwampPortal && keys.current.has('Period') ? 'Period' : 'KeyE'); rerollLevel(24); const portalMap=getLevel(24);currentMap.current=portalMap;setLevel(24);setOpenedChests([]);setChestDrops([]);setLoot(null);setDroppedItem(null);setChoiceItem(null);projectiles.current=[];superFists.current=[];swordUltimates.current=[];bowUltimates.current=[];staffUltimates.current=[];glovesUltimates.current=[];waves.current=[];sandTornadoes.current=[];tombs.current=[];hero.current={x:35,y:322};hero2.current={x:65,y:322};enemies.current=createEnemies(portalMap,enemyMultiplier);victoryReported.current=false;setVictory(false);setMessage('Болотный портал перенёс героев на уровень 24 — к хранителю 4-й локации!');
       }
-      const bossDefeated = level > 0 && level % 6 === 0 && !enemies.current.some((enemy) => enemy.kind === 'boss'); const nearVictoryPortal = bossDefeated && Math.hypot(p.x - 320, p.y - 336) < 70; const secondNearVictoryPortal = players === 2 && bossDefeated && Math.hypot(p2.x - 320, p2.y - 336) < 70;
+      const nearVictoryPortal = false; const secondNearVictoryPortal = false;
       if (keys.current.has('KeyE') && nearVictoryPortal || keys.current.has('Period') && secondNearVictoryPortal) { keys.current.clear(); setVictory(true); setMessage(level === 12 ? 'Владыка гробниц повержен. Жаркая пустыня освобождена!' : 'Великий гоблин повержен. Подземелье спасено!'); }
       const routeExit = level === 0 ? { x: map.worldWidth - 70, y: 336 } : getRouteExit(); const nearExit = !map.round && Math.abs(p.x - routeExit.x) < 80 && Math.abs(p.y + 14 - routeExit.y) < 75; const secondNearExit = players === 2 && !map.round && Math.abs(p2.x - routeExit.x) < 80 && Math.abs(p2.y + 14 - routeExit.y) < 75;
       if (keys.current.has('KeyE') && nearExit || keys.current.has('Period') && secondNearExit) {
@@ -1420,9 +1422,9 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
       {finaleStage>=0&&<div className={`finale-cutscene finale-stage-${finaleStage}`}>
         <div className="finale-sky"><i className="finale-sun"/><i className="finale-cloud cloud-a"/><i className="finale-cloud cloud-b"/><i className="finale-stars"/></div>
         {(finaleStage===0||finaleStage===2||finaleStage===4)&&<div className="finale-meadow">{Array.from({length:18},(_,i)=><i key={i} className="finale-flower" style={{left:`${3+i*5.4}%`,animationDelay:`${i%5*.12}s`}}/>)}<div className="finale-cliff"/></div>}
-        {finaleStage===0&&<div className="finale-hero hero-back"><i className="head"/><i className="body"/><i className="arm"/></div>}
-        {finaleStage===1&&<div className="finale-face"><i className="hair"/><i className="eye left"/><i className="eye right"/><i className="nose"/></div>}
-        {(finaleStage===2||finaleStage===4)&&<div className="finale-hero hero-side"><i className="head"/><i className="body"/><i className="arm"/></div>}
+        {finaleStage===0&&<FinaleHeroModel pose="back" skin={skin}/>}
+        {finaleStage===1&&<FinaleHeroModel pose="face" skin={skin}/>}
+        {(finaleStage===2||finaleStage===4)&&<FinaleHeroModel pose="side" skin={skin}/>}
         {finaleStage===3&&<div className="finale-time-sky"><i/><i/><i/></div>}
         {finaleStage===5&&<div className="finale-space"><div className="finale-skeleton"><i className="skull"/><i className="spine"/><i className="ribs"/><i className="bones"/></div><div className="finale-planet"/></div>}
         <p className="finale-caption">{finaleStage===0?'Я отомстил. Но что теперь?..':finaleStage===1?'Куда идти? Что делать дальше?':finaleStage===2?'И так он потерял смысл жизни...':finaleStage===3||finaleStage===4?'Он просто лежал.':'Зато эта смерть... не напрасна.'}</p>

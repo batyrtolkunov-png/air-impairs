@@ -808,7 +808,8 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
   const requestedLevel = initialSave?.level ?? (effectiveTutorial ? 0 : requestedStartingLevel ?? 1);
   const startingLevel = requestedLevel;
   const savedMapIsRemoved = Boolean(initialSave && startingLevel !== initialSave.level);
-  const loadedFirstMap = !savedMapIsRemoved && initialSave?.map ? initialSave.map : effectiveTutorial ? getTutorialLevel() : getLevel(startingLevel);
+  const baseFirstMap = !savedMapIsRemoved && initialSave?.map ? initialSave.map : effectiveTutorial ? getTutorialLevel() : getLevel(startingLevel);
+  const loadedFirstMap = players===2&&(effectiveTutorial||initialSave?.level===0)&&baseFirstMap.chests.length<2?{...baseFirstMap,chests:[...baseFirstMap.chests,{x:730,y:350}]}:baseFirstMap;
   const firstMap = startingLevel >= 19 && startingLevel <= 24 ? { ...loadedFirstMap, enemies: loadedFirstMap.enemies.map((enemy) => enemy.kind === 'slime' ? { ...enemy, kind: 'frog' as const } : enemy.kind === 'goblin' ? { ...enemy, kind: 'mudPile' as const } : enemy) } : loadedFirstMap;
   const startingPoint = !savedMapIsRemoved && initialSave?.hero ? initialSave.hero : effectiveTutorial ? { x: 75, y: 320 } : firstMap.round ? { x: 35, y: 322 } : getRouteStart();
   const currentMap = useRef(firstMap);

@@ -296,6 +296,7 @@ export default function App() {
   ];
   const [worldMapOpen, setWorldMapOpen] = useState(false);
   const [completedRegions, setCompletedRegions] = useState(0);
+  const [selectedPet,setSelectedPet]=useState<'cat'|'crocodile'|'pug'|'capybara'|null>(()=>localStorage.getItem('ashen-selected-pet') as 'cat'|'crocodile'|'pug'|'capybara'|null);
   const [travelToLevel, setTravelToLevel] = useState<number | null>(null);
   const [classPlayers, setClassPlayers] = useState<1 | 2 | null>(null);
   const [classChoice, setClassChoice] = useState<PlayerClass[]>([]);
@@ -762,6 +763,7 @@ export default function App() {
           onShopOpenChange={setMerchantShopOpen}
           mobileControls={mobileControls}
           equippedSkin={equippedBoutiqueSkin}
+          equippedPet={(selectedPet==='cat'&&completedRegions>=1)||(selectedPet==='crocodile'&&completedRegions>=2)||(selectedPet==='pug'&&completedRegions>=3)||(selectedPet==='capybara'&&completedRegions>=4)?selectedPet:(completedRegions >= 4 ? 'capybara' : completedRegions >= 3 ? 'pug' : completedRegions >= 2 ? 'crocodile' : completedRegions >= 1 ? 'cat' : null)}
           networkRole={networkRole}
           remotePosition={remotePosition}
           onNetworkPosition={sendNetworkPosition}
@@ -1127,7 +1129,13 @@ export default function App() {
             <small>ВЕРНЫЕ СПУТНИКИ</small>
             <h2>ПИТОМЦЫ</h2>
             <div className="locked-pets-grid">{Array.from({length:5},(_,index)=>{const catUnlocked=index===0&&completedRegions>=1,crocUnlocked=index===1&&completedRegions>=2,pugUnlocked=index===2&&completedRegions>=3,capyUnlocked=index===3&&completedRegions>=4;return <article className={`locked-cat cat-${index+1} ${catUnlocked?'pet-unlocked black-cat-pet':''} ${crocUnlocked?'pet-unlocked crocodile-pet':''} ${pugUnlocked?'pet-unlocked watermelon-pug-pet':''} ${capyUnlocked?'pet-unlocked orange-capybara-pet':''}`} key={index}>{capyUnlocked?<div className="capybara-shadow"><i className="capy-tail"/><i className="capy-body"/><i className="capy-leg front"/><i className="capy-leg back"/><i className="capy-head"/><i className="capy-ear left"/><i className="capy-ear right"/><i className="capy-snout"/><i className="capy-eye"/><i className="orange-hat"/><i className="orange-leaf"/><i className="capy-impact"/></div>:pugUnlocked?<div className="pug-shadow"><i className="pug-tail"/><i className="pug-body"/><i className="pug-leg left"/><i className="pug-leg right"/><i className="pug-head"/><i className="pug-ear left"/><i className="pug-ear right"/><i className="pug-muzzle"/><i className="pug-eye left"/><i className="pug-eye right"/><i className="watermelon-hat"/><i className="watermelon-stripe one"/><i className="watermelon-stripe two"/></div>:crocUnlocked?<div className="crocodile-shadow"><i className="croc-tail"/><i className="croc-body"/><i className="croc-head"/><i className="croc-jaw"/><i className="croc-eye left"/><i className="croc-eye right"/><i className="croc-leg leg-a"/><i className="croc-leg leg-b"/><i className="croc-leg leg-c"/><i className="croc-leg leg-d"/></div>:<div className="cat-shadow"><i className="cat-ear left"/><i className="cat-ear right"/><i className="cat-head"/><i className="cat-eye left"/><i className="cat-eye right"/>{catUnlocked&&<i className="cat-mouth"/>}<i className="cat-body"/><i className="cat-paw left"/><i className="cat-paw right"/><i className="cat-tail"/></div>}<strong>{catUnlocked?'ЧЁРНАЯ КОШКА':crocUnlocked?'КРОКОДИЛ':pugUnlocked?'АРБУЗНЫЙ МОПС':capyUnlocked?'АПЕЛЬСИНОВАЯ КАПИБАРА':'НЕИЗВЕСТНЫЙ ПИТОМЕЦ'}</strong><span>{catUnlocked?'СКОРОСТЬ 1,5× · УКУС':crocUnlocked?'СКОРОСТЬ 1,65× · УКУС':pugUnlocked?'АТАКА ГОЛОВОЙ':capyUnlocked?'ПРЫЖОК · УДАР':'???'}</span></article>})}</div>
-            <p>{completedRegions>=4?'Открыта Апельсиновая капибара. Она прыгает и атакует с разбега.':completedRegions>=3?'Открыт Арбузный мопс. Четвёртый питомец ждёт после победы в Диком береге.':completedRegions>=2?'Чёрная кошка и крокодил открыты. Третий питомец ждёт в Ледяном кладбище.':completedRegions>=1?'Чёрная кошка открыта за прохождение Тёмного леса. Следующий питомец скрыт в пустыне.':'Проходи локации, чтобы тени превращались в настоящих питомцев.'}</p>
+            <div className="pet-stats-list">
+              <div className={`${completedRegions>=1?'unlocked':''} ${selectedPet==='cat'?'selected':''}`} onClick={()=>{if(completedRegions>=1){setSelectedPet('cat');localStorage.setItem('ashen-selected-pet','cat');}}}><b>ЧЁРНАЯ КОШКА</b><span>Урон: 1 HP · Бонус герою: +5% к скорости</span></div>
+              <div className={`${completedRegions>=2?'unlocked':''} ${selectedPet==='crocodile'?'selected':''}`} onClick={()=>{if(completedRegions>=2){setSelectedPet('crocodile');localStorage.setItem('ashen-selected-pet','crocodile');}}}><b>КРОКОДИЛ</b><span>Урон: 2 HP · Бонус герою: +10% к урону</span></div>
+              <div className={`${completedRegions>=3?'unlocked':''} ${selectedPet==='pug'?'selected':''}`} onClick={()=>{if(completedRegions>=3){setSelectedPet('pug');localStorage.setItem('ashen-selected-pet','pug');}}}><b>АРБУЗНЫЙ МОПС</b><span>Урон: 3 HP · Бонус: +1 аптечка в каждой локации</span></div>
+              <div className={`${completedRegions>=4?'unlocked':''} ${selectedPet==='capybara'?'selected':''}`} onClick={()=>{if(completedRegions>=4){setSelectedPet('capybara');localStorage.setItem('ashen-selected-pet','capybara');}}}><b>АПЕЛЬСИНОВАЯ КАПИБАРА</b><span>Урон: 4 HP · Каждый удар замедляет врага</span></div>
+            </div>
+            <p>{completedRegions>=4?'Капибара выбрана спутником. Питомцы сами атакуют врагов, а враги их не замечают.':completedRegions>=3?'Арбузный мопс выбран спутником. Четвёртый питомец ждёт после победы на Диком береге.':completedRegions>=2?'Крокодил выбран спутником. Третий питомец ждёт в Ледяном кладбище.':completedRegions>=1?'Чёрная кошка выбрана спутником. Следующий питомец скрыт в пустыне.':'Проходи локации, чтобы тени превращались в настоящих питомцев.'}</p>
           </section>
         </div>
       )}

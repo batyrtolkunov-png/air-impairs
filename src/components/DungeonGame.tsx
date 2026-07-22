@@ -54,6 +54,7 @@ const HEIGHT = 400;
 const ONE_GAME_SWORD: Weapon = { name: 'Клинок испытателя', type: 'sword', damage: 20, color: '#f6d66b' };
 const ONE_GAME_ARMOR: Weapon = { name: 'Броня испытателя', type: 'armor', damage: 0, defense: 20, durability: 20, color: '#76c9e8' };
 const ONE_GAME_LOADOUT_KEY = 'air-impairs-one-game-loadout-2026-07-21-v2';
+const bossNameForLevel=(level:number)=>level===6?'Великий гоблин':level===12?'Хранитель пустынь':level===18?'Повелитель льда':level===24?'Король Жаба':level===30?'Тьма':'Хранитель';
 const BOSS_HITBOX_RADIUS = 55;
 function enemyHitRadius(enemy: Enemy) { return enemy.kind === 'boss' ? BOSS_HITBOX_RADIUS : enemy.kind === 'goblin' || enemy.kind === 'monkey' || enemy.kind === 'nativeSpear' || enemy.kind === 'nativeClub' || enemy.kind === 'knightGuard' || enemy.kind === 'knightSword' || enemy.kind === 'knightHalberd' || enemy.kind === 'mummy' || enemy.kind === 'iceGolem' || enemy.kind === 'mudMonster' ? 18 : 14; }
 function bossBodyHits(point: Point, enemy: Enemy, extraRadius = 0) { const dx = point.x - enemy.x; return Math.abs(dx) <= 52 + extraRadius && point.y >= enemy.y - 92 - extraRadius && point.y <= enemy.y - 24 + extraRadius; }
@@ -770,7 +771,7 @@ function drawScene(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLeve
     ctx.fillStyle = '#69ad68'; ctx.beginPath(); ctx.moveTo(157, 12); ctx.lineTo(128, 6); ctx.lineTo(153, 25); ctx.fill(); ctx.beginPath(); ctx.moveTo(483, 12); ctx.lineTo(512, 6); ctx.lineTo(487, 25); ctx.fill();
     ctx.fillStyle = '#e8e4bd'; ctx.beginPath(); ctx.moveTo(166, 24); ctx.lineTo(174, 37); ctx.lineTo(180, 23); ctx.fill(); ctx.beginPath(); ctx.moveTo(460, 23); ctx.lineTo(466, 37); ctx.lineTo(474, 24); ctx.fill();
     ctx.fillStyle = '#d7bd63'; ctx.fillRect(146, 17, 9, 9); ctx.fillRect(485, 17, 9, 9);
-    ctx.fillStyle = '#f0d7b0'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center'; ctx.fillText(level === 24 ? 'КОРОЛЬ ЖАБ' : 'ВЕЛИКИЙ ГОБЛИН', 320, 20); ctx.textAlign = 'start';
+    const bossTitle=level===6?'ВЕЛИКИЙ ГОБЛИН':level===12?'ХРАНИТЕЛЬ ПУСТЫНЬ':level===18?'ПОВЕЛИТЕЛЬ ЛЬДА':level===24?'КОРОЛЬ ЖАБА':level===30?boss.bossAttack==='finalBoss'?'ТЬМА':'ХРАНИТЕЛИ':'БОСС';ctx.fillStyle = '#f0d7b0'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center'; ctx.fillText(bossTitle, 320, 20); ctx.textAlign = 'start';
     ctx.fillStyle = '#35191d'; ctx.fillRect(170, 24, 300, 7); ctx.fillStyle = '#ef3949'; ctx.fillRect(170, 24, 300 * Math.max(0, boss.hp / boss.maxHp), 7);
     ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(172, 25, 296 * Math.max(0, boss.hp / boss.maxHp), 2);
     if (level === 12) {
@@ -780,9 +781,9 @@ function drawScene(ctx: CanvasRenderingContext2D, map: ReturnType<typeof getLeve
       ctx.fillStyle = '#d9c79b'; for (let x = 158; x < 483; x += 34) { ctx.fillRect(x, 13, 22, 3); ctx.fillRect(x + 8, 18, 24, 3); }
       ctx.fillStyle = '#17130f'; ctx.beginPath(); ctx.moveTo(151,18); ctx.lineTo(162,11); ctx.lineTo(173,18); ctx.lineTo(162,25); ctx.closePath(); ctx.fill(); ctx.beginPath(); ctx.moveTo(467,18); ctx.lineTo(478,11); ctx.lineTo(489,18); ctx.lineTo(478,25); ctx.closePath(); ctx.fill();
       ctx.fillStyle = '#66d6c4'; ctx.fillRect(159,16,6,4); ctx.fillRect(475,16,6,4);
-      ctx.fillStyle = '#fff0c2'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center'; ctx.fillText(boss.revived ? 'ВЛАДЫКА ГРОБНИЦ · ВОЗРОЖДЁННЫЙ' : 'ВЛАДЫКА ГРОБНИЦ', 320, 20); ctx.textAlign = 'start';
+      ctx.fillStyle = '#fff0c2'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center'; ctx.fillText(boss.revived ? 'ХРАНИТЕЛЬ ПУСТЫНЬ · ВОЗРОЖДЁННЫЙ' : 'ХРАНИТЕЛЬ ПУСТЫНЬ', 320, 20); ctx.textAlign = 'start';
     }
-    if(level===24){const ratio=Math.max(0,boss.hp/boss.maxHp);ctx.fillStyle='#172316';ctx.fillRect(140,3,360,37);ctx.fillStyle='#405b32';ctx.fillRect(146,7,348,29);ctx.fillStyle='#81934b';ctx.fillRect(152,11,336,21);ctx.fillStyle='#26351f';ctx.fillRect(163,23,314,9);ctx.fillStyle='#702f3d';ctx.fillRect(167,25,306,6);ctx.fillStyle='#b9d45e';ctx.fillRect(167,25,306*ratio,6);ctx.fillStyle='#e2ef91';ctx.fillRect(169,26,302*ratio,2);ctx.fillStyle='#d8e997';ctx.fillRect(151,8,20,15);ctx.fillRect(469,8,20,15);ctx.fillStyle='#172116';ctx.fillRect(158,13,7,8);ctx.fillRect(475,13,7,8);ctx.fillStyle='#f1c54e';ctx.beginPath();ctx.moveTo(291,10);ctx.lineTo(296,0);ctx.lineTo(306,8);ctx.lineTo(320,-2);ctx.lineTo(334,8);ctx.lineTo(344,0);ctx.lineTo(349,10);ctx.closePath();ctx.fill();ctx.fillStyle='#eef2b0';ctx.font='bold 9px monospace';ctx.textAlign='center';ctx.fillText('КОРОЛЬ ЖАБ',320,20);ctx.textAlign='start';}
+    if(level===24){const ratio=Math.max(0,boss.hp/boss.maxHp);ctx.fillStyle='#172316';ctx.fillRect(140,3,360,37);ctx.fillStyle='#405b32';ctx.fillRect(146,7,348,29);ctx.fillStyle='#81934b';ctx.fillRect(152,11,336,21);ctx.fillStyle='#26351f';ctx.fillRect(163,23,314,9);ctx.fillStyle='#702f3d';ctx.fillRect(167,25,306,6);ctx.fillStyle='#b9d45e';ctx.fillRect(167,25,306*ratio,6);ctx.fillStyle='#e2ef91';ctx.fillRect(169,26,302*ratio,2);ctx.fillStyle='#d8e997';ctx.fillRect(151,8,20,15);ctx.fillRect(469,8,20,15);ctx.fillStyle='#172116';ctx.fillRect(158,13,7,8);ctx.fillRect(475,13,7,8);ctx.fillStyle='#f1c54e';ctx.beginPath();ctx.moveTo(291,10);ctx.lineTo(296,0);ctx.lineTo(306,8);ctx.lineTo(320,-2);ctx.lineTo(334,8);ctx.lineTo(344,0);ctx.lineTo(349,10);ctx.closePath();ctx.fill();ctx.fillStyle='#eef2b0';ctx.font='bold 9px monospace';ctx.textAlign='center';ctx.fillText('КОРОЛЬ ЖАБА',320,20);ctx.textAlign='start';}
     ctx.restore();
   }
   if (!mobileControls) { ctx.save(); ctx.translate(0, -58);
@@ -1197,7 +1198,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
             e.playerWasInSummonRadius = false;
             e.attackUntil = now + 850; e.nextSummonAt = now + 7000 / haste;
             const graves = [{ x: e.x - 75, y: e.y }, { x: e.x + 75, y: e.y }, { x: e.x, y: e.y - 75 }, { x: e.x, y: e.y + 75 }].map((point) => ({ x: Math.max(45, Math.min(map.worldWidth - 45, point.x)), y: Math.max(55, Math.min(map.worldHeight - 55, point.y)), spawnedAt: now, sinksAt: now + 1250 }));
-            tombs.current.push(...graves); const summons = graves.map((grave) => ({ x: grave.x, y: grave.y, kind: 'mummy' as const })); const summonedMummies = createEnemies({ ...map, enemies: summons }, 1).map((mummy) => ({ ...mummy, hp: mummy.hp / 2, maxHp: mummy.maxHp / 2 })); enemies.current.push(...summonedMummies); setMessage('Владыка гробниц поднял обе руки — из четырёх саркофагов восстали ослабленные мумии!');
+            tombs.current.push(...graves); const summons = graves.map((point) => ({ x: point.x, y: point.y, kind: 'mummy' as const })); const summonedMummies = createEnemies({ ...map, enemies: summons }, 1).map((mummy) => ({ ...mummy, hp: mummy.hp / 2, maxHp: mummy.maxHp / 2 })); enemies.current.push(...summonedMummies); setMessage('Хранитель пустынь поднял обе руки — из четырёх саркофагов восстали ослабленные мумии!');
           }
           return;
         }
@@ -1223,13 +1224,13 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
           if((e.bossAttack as string)==='finalBoss'){
             if(!e.revived&&e.maxHp<250){e.maxHp=250;e.hp=250;}
             const elapsed=now-(e.reviveFlashUntil??now);if(elapsed<3200){const fall=Math.max(0,Math.min(1,(elapsed-2450)/750));keys.current.clear();mobileMove.current={x:0,y:0};p.x=225;p.y=350+fall*180;if(players===2){p2.x=190;p2.y=350+fall*180;}e.x=408;e.y=270+fall*180;return;}
-            if(!e.revived){e.revived=true;p.x=210;p.y=430;if(players===2){p2.x=175;p2.y=430;}e.x=320;e.y=336;e.nextShotAt=now+1600;e.nextSummonAt=now+1000;setMessage('Вы провалились в ад. Главный босс появился в центре арены!');}
+            if(!e.revived){e.revived=true;p.x=210;p.y=430;if(players===2){p2.x=175;p2.y=430;}e.x=320;e.y=336;e.nextShotAt=now+1600;e.nextSummonAt=now+1000;setMessage('Вы провалились в ад. Тьма появилась в центре арены!');}
             if(now>=(e.nextSummonAt??0)){const d=Math.max(1,distance);sandTornadoes.current.push({x:e.x,y:e.y-12,vx:ex/d*6,vy:ey/d*6,damage:1,until:now+2800,style:'bossShard'});e.nextSummonAt=now+1000;}
             if(e.finalAttack&&now>=e.attackUntil){e.finalAttack=undefined;e.nextShotAt=now+1800;}
             if(!e.finalAttack&&now>=(e.nextShotAt??0)){
               const attack=(1+Math.floor(Math.random()*5)) as 1|2|3|4|5;e.finalAttack=attack;e.finalAttackStarted=now;e.finalAttackDir=Math.random()<.5?-1:1;e.leapTargetX=targetHero.x+12;e.leapTargetY=targetHero.y+14;
-              if(attack===1){e.attackUntil=now+15000;e.thrownTargetX=Math.atan2(ey,ex);setMessage('Уничтожитель поднял руку — адский луч вращается 15 секунд!');}
-              if(attack===2){e.attackUntil=now+2500;setMessage('Уничтожитель поднял руку и несёт её над героем — через секунду последует удар и вырастет шип!');}
+              if(attack===1){e.attackUntil=now+15000;e.thrownTargetX=Math.atan2(ey,ex);setMessage('Тьма подняла руку — адский луч вращается 15 секунд!');}
+              if(attack===2){e.attackUntil=now+2500;setMessage('Тьма подняла руку и несёт её над героем — через секунду последует удар и вырастет шип!');}
               if(attack===3){e.attackUntil=now+15000;const d=Math.max(1,distance);sandTornadoes.current.push({x:e.x,y:e.y,vx:ex/d*4.2,vy:ey/d*4.2,damage:6,until:e.attackUntil,style:'hellSawLarge',nextEmissionAt:now+2500});setMessage('Огромная адская пила вырвалась на арену!');}
               if(attack===4){e.attackUntil=now+6600;for(let i=0;i<24;i++){const a=i/24*Math.PI*2,sx=320+Math.cos(a)*304,sy=336+Math.sin(a)*304,tx=e.leapTargetX+Math.cos(a)*64,ty=e.leapTargetY+Math.sin(a)*64;sandTornadoes.current.push({x:sx,y:sy,vx:tx-sx,vy:ty-sy,damage:6,startedAt:now,impactAt:now+1800,launchAt:now+4800,until:now+6600,style:'hellSpike',startX:sx,startY:sy,targetX:tx,targetY:ty});}setMessage('Стены ада выпускают иглы — укройся в малом круге!');}
               if(attack===5){e.attackUntil=now+1800;sandTornadoes.current.push({x:e.leapTargetX,y:e.leapTargetY,vx:0,vy:0,damage:6,impactAt:now+900,until:now+1500,style:'hellMeteor',split:true});setMessage('С неба падает метеор — после удара он разлетится на 20 осколков!');}
@@ -1327,7 +1328,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
           damageHero(tornado.damage, tornado.style === 'voidSaw' ? 'Чёрно-фиолетовая пила нанесла 4 HP урона!' : tornado.style === 'bossSword' ? 'Возвращающийся меч нанёс 7 HP урона!' : tornado.style === 'voidSword' ? 'Чёрно-фиолетовый меч нанёс 7 HP урона!' : tornado.style === 'fallingSword' ? 'Меч с потолка нанёс 2 HP урона!' : tornado.style === 'frogTongue' ? `Язык жабы нанёс ${tornado.damage} HP урона!` : iceShot ? `Сосулька нанесла ${tornado.damage} HP урона!` : 'Песчаный торнадо настиг героя!', !hitFirst && hitSecond);
           if(reusableHit){tornado.hitCooldownUntil=now+900;return true;}
           const mummyBoss = !iceShot ? enemies.current.find((enemy) => level === 12 && enemy.kind === 'boss' && enemy.hp > 0) : undefined;
-          if (mummyBoss) { const healed = Math.min(5, mummyBoss.maxHp - mummyBoss.hp); mummyBoss.hp += healed; if (healed > 0) setMessage(`Торнадо высосал силу героя — Владыка гробниц восстановил ${healed} HP!`); }
+          if (mummyBoss) { const healed = Math.min(5, mummyBoss.maxHp - mummyBoss.hp); mummyBoss.hp += healed; if (healed > 0) setMessage(`Торнадо высосал силу героя — Хранитель пустынь восстановил ${healed} HP!`); }
           if (tornado.style === 'frogTongue') { if (hitFirst) tornado.hitPlayer1 = true; if (hitSecond) tornado.hitPlayer2 = true; return now < tornado.until; }
           return false;
         }
@@ -1340,18 +1341,18 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
       const firstDeathMummies = enemies.current.filter((e) => e.kind === 'mummy' && e.hp <= 0 && !e.revived);
       firstDeathMummies.forEach((mummy) => { mummy.revived = true; mummy.hp = mummy.maxHp / 2; mummy.flash = 0; mummy.stunnedUntil = now + 900; mummy.reviveFlashUntil = now + 900; });
       const revivingDesertBoss = enemies.current.find((e) => level === 12 && e.kind === 'boss' && e.hp <= 0 && !e.revived);
-      if (revivingDesertBoss) { revivingDesertBoss.revived = true; revivingDesertBoss.hp = revivingDesertBoss.maxHp / 2; revivingDesertBoss.flash = 0; revivingDesertBoss.stunnedUntil = now + 1200; revivingDesertBoss.reviveFlashUntil = now + 1200; revivingDesertBoss.nextShotAt = now + 1200; revivingDesertBoss.nextSummonAt = now + 1800; setMessage('Владыка гробниц воскрес! Все его атаки ускорились в 1,5 раза!'); }
+      if (revivingDesertBoss) { revivingDesertBoss.revived = true; revivingDesertBoss.hp = revivingDesertBoss.maxHp / 2; revivingDesertBoss.flash = 0; revivingDesertBoss.stunnedUntil = now + 1200; revivingDesertBoss.reviveFlashUntil = now + 1200; revivingDesertBoss.nextShotAt = now + 1200; revivingDesertBoss.nextSummonAt = now + 1800; setMessage('Хранитель пустынь воскрес! Все его атаки ускорились в 1,5 раза!'); }
       const fallenCastleGuardian=enemies.current.find((e)=>level===30&&e.kind==='boss'&&e.hp<=0&&e.bossAttack!=='sword'&&e.bossAttack!=='finalBoss');
       if(fallenCastleGuardian){fallenCastleGuardian.hp=fallenCastleGuardian.maxHp;fallenCastleGuardian.flash=0;fallenCastleGuardian.attackUntil=0;fallenCastleGuardian.bossAttack='sword';fallenCastleGuardian.power=7;fallenCastleGuardian.speed=Math.max(.75,fallenCastleGuardian.speed);fallenCastleGuardian.nextShotAt=now+1800;fallenCastleGuardian.nextSummonAt=now+5000;fallenCastleGuardian.x=320;fallenCastleGuardian.y=260;setMessage('Страж с топором повержен. Второй огромный страж поднял меч и идёт в бой!');}
       const fallenSwordGuardian=enemies.current.find((enemy)=>level===30&&enemy.kind==='boss'&&enemy.hp<=0&&enemy.bossAttack==='sword');
-      if(fallenSwordGuardian){fallenSwordGuardian.maxHp=150;fallenSwordGuardian.hp=150;fallenSwordGuardian.flash=0;fallenSwordGuardian.bossAttack='finalBoss';fallenSwordGuardian.reviveFlashUntil=now;fallenSwordGuardian.revived=false;fallenSwordGuardian.power=4;fallenSwordGuardian.speed=.9;fallenSwordGuardian.nextShotAt=now+4300;fallenSwordGuardian.x=408;fallenSwordGuardian.y=270;p.x=225;p.y=350;p2.x=190;p2.y=350;sandTornadoes.current=[];keys.current.clear();mobileMove.current={x:0,y:0};setMessage('Главный босс: «Теперь я сам сражусь с тобой!»');}
+      if(fallenSwordGuardian){fallenSwordGuardian.maxHp=150;fallenSwordGuardian.hp=150;fallenSwordGuardian.flash=0;fallenSwordGuardian.bossAttack='finalBoss';fallenSwordGuardian.reviveFlashUntil=now;fallenSwordGuardian.revived=false;fallenSwordGuardian.power=4;fallenSwordGuardian.speed=.9;fallenSwordGuardian.nextShotAt=now+4300;fallenSwordGuardian.x=408;fallenSwordGuardian.y=270;p.x=225;p.y=350;p2.x=190;p2.y=350;sandTornadoes.current=[];keys.current.clear();mobileMove.current={x:0,y:0};setMessage('Тьма: «Теперь я сам сражусь с тобой!»');}
       const defeated = enemies.current.filter((e) => e.hp <= 0);
       if(defeated.some((enemy)=>level===30&&enemy.kind==='boss'&&enemy.bossAttack==='finalBoss')){keys.current.clear();mobileMove.current={x:0,y:0};setFinaleStage(0);victoryReported.current=true;}
       defeated.filter((enemy) => enemy.kind === 'iceSpirit').forEach((spirit) => sandTornadoes.current.push({ x: spirit.x + 14, y: spirit.y + 14, vx: 0, vy: 0, damage: .5, impactAt: now + 500, until: now + 1150, style: 'iceSpiritDrop' }));
       enemies.current = enemies.current.filter((e) => e.hp > 0);
       if (firstDeathMummies.length) setMessage(firstDeathMummies.length === 1 ? 'Мумия восстала из песка!' : 'Павшие мумии снова восстали из песка!');
       if (defeated.length) { const bossFallen = defeated.some((e) => e.kind === 'boss'); const reward = defeated.reduce((sum, e) => sum + (e.kind === 'boss' ? 100 : e.kind === 'goblin' || e.kind === 'mummy' || e.kind === 'iceGolem' ? 10 : 5), 0); setCoins((c) => c + reward); setMessage(bossFallen ? 'Хранитель окончательно повержен! В центре арены открылся портал победы.' : defeated.some((e) => e.kind === 'frog') ? 'Жаба повержена и оставила несколько осколков.' : defeated.some((e) => e.kind === 'iceSpirit') ? 'Ледяной дух исчез — через полсекунды сюда упадёт сосулька!' : defeated.some((e) => e.kind === 'mummy') ? 'Мумия окончательно повержена и оставила 10 осколков.' : defeated.some((e) => e.kind === 'iceGolem') ? 'Ледяной голем раскололся и оставил 10 осколков.' : defeated.some((e) => e.kind === 'goblin') ? 'Гоблин повержен и оставил 10 осколков.' : 'Слизень оставил несколько осколков.'); if (bossFallen) keys.current.clear(); }
-      if(defeated.some((enemy)=>enemy.kind==='boss'&&enemy.bossAttack!=='finalBoss')){keys.current.clear();setVictory(true);}
+      if(defeated.some((enemy)=>enemy.kind==='boss'&&enemy.bossAttack!=='finalBoss')){keys.current.clear();setMessage(`${bossNameForLevel(level)} повержен! Область освобождена.`);setVictory(true);}
       if (level === 0) {
         const progressX = Math.max(p.x, players === 2 ? p2.x : p.x);
         const steps = [{ x: 330, text: 'Обойди телегу и пройди через пролом. Можно двигаться по диагонали.' }, { x: 590, text: 'Подойди к сундуку и нажми E. Второй игрок использует Ю.' }, { x: 900, text: 'Враг! SPACE — атака первого игрока, Ж — атака второго.' }, { x: 1190, text: 'Используй ульту: Q у первого игрока, Б у второго.' }, { x: 1500, text: 'Рюкзак: I у первого, Э у второго. У ворот нажми E или Ю.' }];
@@ -1429,7 +1430,7 @@ export function DungeonGame({ paused = false, enemyMultiplier = 1, startingCoins
         {finaleStage===5&&<div className="finale-space"><div className="finale-skeleton"><i className="skull"/><i className="spine"/><i className="ribs"/><i className="bones"/></div><div className="finale-planet"/></div>}
         <p className="finale-caption">{finaleStage===0?'Я отомстил. Но что теперь?..':finaleStage===1?'Куда идти? Что делать дальше?':finaleStage===2?'И так он потерял смысл жизни...':finaleStage===3||finaleStage===4?'Он просто лежал.':'Зато эта смерть... не напрасна.'}</p>
       </div>}
-      {(dead || victory) && <div className="death-screen"><strong>{victory ? 'ПОЗДРАВЛЯЕМ!' : 'ТЫ ПАЛ'}</strong><p>{victory ? level === 12 ? 'Владыка гробниц повержен — Жаркая пустыня освобождена!' : 'Великий гоблин повержен — все шесть подземелий пройдены!' : 'Пепельное сердце погасло'}</p><button onClick={restart}>{victory ? 'СЫГРАТЬ ЕЩЁ' : 'НАЧАТЬ ЗАНОВО'}</button></div>}
+      {(dead || victory) && <div className="death-screen"><strong>{victory ? 'ПОЗДРАВЛЯЕМ!' : 'ТЫ ПАЛ'}</strong><p>{victory ? `${bossNameForLevel(level)} повержен — область освобождена!` : 'Пепельное сердце погасло'}</p><button onClick={restart}>{victory ? 'СЫГРАТЬ ЕЩЁ' : 'НАЧАТЬ ЗАНОВО'}</button></div>}
     </div>
   </section>;
 }

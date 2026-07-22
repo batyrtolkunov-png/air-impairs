@@ -258,7 +258,7 @@ export default function App() {
     { id: "goblin", name: "ГОБЛИН", region: "Тёмный лес", unlockLevel: 1 },
     {
       id: "goblin-boss",
-      name: "КОРОЛЬ ГОБЛИНОВ",
+      name: "ВЕЛИКИЙ ГОБЛИН",
       region: "Тёмный лес",
       unlockLevel: 6,
     },
@@ -271,7 +271,7 @@ export default function App() {
     { id: "mummy", name: "МУМИЯ", region: "Жаркая пустыня", unlockLevel: 7 },
     {
       id: "mummy-boss",
-      name: "ВЛАДЫКА ГРОБНИЦ",
+      name: "ХРАНИТЕЛЬ ПУСТЫНЬ",
       region: "Жаркая пустыня",
       unlockLevel: 12,
     },
@@ -289,7 +289,7 @@ export default function App() {
     },
     {
       id: "ice-golem-boss",
-      name: "ЛЕДЯНОЙ ТИТАН",
+      name: "ПОВЕЛИТЕЛЬ ЛЬДА",
       region: "Ледяное кладбище",
       unlockLevel: 18,
     },

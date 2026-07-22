@@ -570,8 +570,8 @@ export default function App() {
       else setPlayerClasses([choices[0], choices[1] ?? choices[0]]);
       const count = classPlayers;
       setClassPlayers(null);
-      if (networkRole) beginGame(2, null, true, null);
-      else beginGame(count, null, true, null);
+      if (networkRole) beginGame(2, null, false, 6);
+      else beginGame(count, null, false, 6);
     } else setClassChoice(choices);
   };
   const chooseSaveSlot = (index: number) => {

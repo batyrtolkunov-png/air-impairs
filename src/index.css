@@ -241,6 +241,7 @@ canvas { display: block; width: 100%; height: 100%; object-fit: contain; image-r
 .inventory-slot.filled:hover { border-color: #f1ca69; transform: translateY(-2px); }
 .inventory-slot span { display: block; font-size: 22px; }.inventory-slot small { display: block; overflow: hidden; color: #e7d6ae; font-size: 7px; text-overflow: ellipsis; white-space: nowrap; }.inventory-slot b { color: #e9b958; font-size: 8px; }
 .inventory-slot i { font-style: normal; font-size: 9px; }
+.inventory-drop-action{position:absolute;right:2px;bottom:2px;padding:3px 4px;border:1px solid #5f241e;background:#87372d;color:#ffe1b7;font:normal 5px 'Press Start 2P',monospace;box-shadow:1px 1px #160907}.inventory-drop-action:hover{background:#bd4b38;color:#fff}
 .inventory-footer { margin-top: auto; color: #d5a84a; font-size: 9px; }
 .inventory-footer button { border: 2px solid #d5a84a; padding: 9px; background: #352b20; color: #f0cf72; font-family: 'Press Start 2P'; font-size: 7px; cursor: pointer; }
 .inventory-footer button:hover { background: #d5a84a; color: #201a16; }
